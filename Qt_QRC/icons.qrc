@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>home.svg</file>
+        <file>plus.svg</file>
+        <file>settings.svg</file>
+        <file>about.svg</file>
+        <file>git.svg</file>
+        <file>eye.svg</file>
+        <file>eye-slash.svg</file>
+        <file>icon.ico</file>
+    </qresource>
+</RCC>
