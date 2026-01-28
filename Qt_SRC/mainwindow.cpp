@@ -55,7 +55,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 点击帮助按钮时，打开URL
     connect(ui->helpPushButton, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/assets/help.md"));
+        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/assets/help.md"));
     });
 
     // 点击设置按钮时打开设置窗口
