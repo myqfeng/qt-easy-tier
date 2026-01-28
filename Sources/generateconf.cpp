@@ -10,8 +10,19 @@
 #include <QUdpSocket>
 #include <QHostAddress>
 #include <QAbstractSocket>
+#include <random>
+
+/// @brief 生成随机端口号
+int getRandomPort()
+{
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(10000, 65535);
+    return dis(gen);
+}
 
 bool isPortOccupied(const int &port);
+bool isRpcPortOccupied(const int &port);
 
 // @brief: 生成EasyTier配置文件
 // @param netPage: 网络配置页面指针
@@ -24,24 +35,29 @@ QStringList generateConfCommand(NetPage *netPage)
 
     // 先解决RPC端口号
     if (netPage->getRpcPort() != 0) {
-        if (isPortOccupied(netPage->getRpcPort())) {
-            throw std::runtime_error("RPC端口号已被占用");
+        if (isPortOccupied(netPage->getRpcPort()) || isRpcPortOccupied(netPage->getRpcPort())) {
+            throw std::runtime_error("RPC端口已被占用");
         }
+        netPage->realRpcPort = 15888;
         conf << "--rpc-portal" << QString::number(netPage->getRpcPort());
 
     } else {
         // 查找15888端口是否被占用
-        if (!isPortOccupied(15888)) {
+        if (!isPortOccupied(15888) && !isRpcPortOccupied(15888)) {
             conf << "--rpc-portal" << "15888";
             netPage->realRpcPort = 15888;
         } else {
             // 循环找到一个未被占用的端口
             for (int i = 10000; i < 65535; i++) {
-                if (!isPortOccupied(i)) {
-                    conf << "--rpc-portal" << QString::number(i);
-                    netPage->realRpcPort = i;
+                int port = getRandomPort();
+                if (!isPortOccupied(port) && !isRpcPortOccupied(port)) {
+                    conf << "--rpc-portal" << QString::number(port);
+                    netPage->realRpcPort = port;
                     break;
                 }
+            }
+            if (netPage->realRpcPort == 0) {
+                    throw std::runtime_error("未找到未被占用的RPC端口");
             }
         }
     }
@@ -139,7 +155,6 @@ bool isPortOccupied(const int &port)
 
     // 检测UDP端口：绑定失败 → 端口被占用
     QUdpSocket udpSocket;
-    // ShareAddress：允许其他进程绑定同一端口；ReuseAddressHint：允许端口快速复用
     bool udpBindOk = udpSocket.bind(
         QHostAddress::LocalHost,
         port,
@@ -163,4 +178,49 @@ bool isPortOccupied(const int &port)
     // 4. UDP和TCP均未被占用
     std::clog << "[PortDetect] Port " << port << " is available (UDP + TCP)" << std::endl;
     return false;
+}
+
+/// @brief 检测端口是否被其他实例的RPC占用
+/// @return 如果端口被其他实例的RPC占用则返回true，否则返回false
+bool isRpcPortOccupied(const int &port)
+{
+    // 端口合法性校验
+    if (port < 1 || port > 65535) {
+        std::cerr << "[RpcDetect] Invalid port:" << port << "(must be 1-65535)" << std::endl;
+        return true;
+    }
+
+    // 使用QProcess执行easytier-cli -p 127.0.0.1:port peer 命令
+    // 将输出返回给QString
+    // 获取当前程序目录
+    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
+    QString cliPath = appDir + "/easytier-cli.exe";
+
+    // 检查CLI程序是否存在
+    QFileInfo fileInfo(cliPath);
+    if (!fileInfo.exists()) {
+        std::cerr << "[RpcDetect] Error: CLI program not found at " << cliPath.toStdString() << std::endl;
+        //QMessageBox::critical(nullptr, "端口占用检测", QString("错误: 找不到 %1").arg(cliPath));
+        throw std::runtime_error("RPC端口占用检测失败,找不到CLI程序");
+    }
+
+    // 创建临时进程获取节点信息
+    QProcess process;
+    process.setWorkingDirectory(appDir);
+    process.start(cliPath, QStringList() << "-p" << "127.0.0.1:" + QString::number(port) << "peer");
+    if (!process.waitForFinished(5000)) { // 5秒超时
+        std::cerr << "[RpcDetect] RPC port " << port << " check timeout" << std::endl;
+        //QMessageBox::critical(nullptr, "端口占用检测", "RPC端口检查超时");
+        throw std::runtime_error("端口占用检测失败, RPC端口检查超时");
+    }
+    QString output = QString::fromLocal8Bit(process.readAllStandardError());
+
+    // 检查输出是否包含"Error",包含则表示端口没有实例占用
+    if (output.contains("Error: failed to get peer manager client")) {
+        std::clog << "[RpcDetect] RPC port " << port << " is available:"<< std::endl;
+        return false;
+    }
+
+    std::clog << "[RpcDetect] RPC port " << port << " is occupied:"<< std::endl;
+    return true;
 }

@@ -17,6 +17,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QHeaderView>
+#include <QDialog>
 
 NetPage::NetPage(QWidget *parent)
     : QGroupBox(parent)
@@ -836,26 +837,58 @@ void NetPage::onRunNetwork()
     m_easytierProcess = new QProcess(this);
     m_easytierProcess->setWorkingDirectory(appDir);
 
-    // 使用成员函数而不是Lambda表达式，避免捕获问题
+    // 连接信号槽，实时获取进程输出
     connect(m_easytierProcess, &QProcess::readyReadStandardOutput, 
             this, &NetPage::onProcessOutputReady);
     connect(m_easytierProcess, &QProcess::readyReadStandardError, 
             this, &NetPage::onProcessErrorReady);
+    // 连接进程完成信号（发生错误）
     connect(m_easytierProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &NetPage::onProcessFinished);
 
+    // 新建一个Dialog窗口展示启动过程
+    QDialog *dialog = new QDialog(this);
+    QVBoxLayout *dialogLayout = new QVBoxLayout(dialog);
+    QLabel *dialogTitleLabel = new QLabel("启动日志", dialog);
+    QPlainTextEdit *processLogTextEdit = new QPlainTextEdit(dialog);
     // 启动进程
     try {
+        dialog->setWindowTitle("启动EasyTier中。。。");
+        dialog->setModal(true);
+
+        dialogLayout->setContentsMargins(20, 20, 20, 20);
+        dialog->setMinimumSize(400, 300);
+
+        dialogTitleLabel->setStyleSheet("font-size: 14px; font-weight: bold;");
+        dialogLayout->addWidget(dialogTitleLabel);
+
+        processLogTextEdit->setReadOnly(true);
+        processLogTextEdit->setFont(QFont("Consolas", 12));
+
+        dialogLayout->addWidget(processLogTextEdit);
+        dialog->setWindowFlag(Qt::WindowCloseButtonHint, false);
+
+        // 显示对话框
+        dialog->show();
+        processLogTextEdit->appendPlainText("启动EasyTier进程...");
+        processLogTextEdit->appendPlainText("生成启动配置...");
+        processLogTextEdit->appendPlainText("正在检测RPC端口...");
+        QApplication::processEvents();
+
         QStringList arguments = generateConfCommand(this);
+
+        processLogTextEdit->appendPlainText("检测到可用端口: " + QString::number(realRpcPort));
+        processLogTextEdit->appendPlainText("启动配置已生成: " + arguments.join(" "));
+        processLogTextEdit->appendPlainText("正在传入参数并启动EasyTier进程...");
+        QApplication::processEvents();
+
         m_easytierProcess->start(easytierPath, arguments);
-        
+
         // 等待进程启动（最多3秒）
         if (!m_easytierProcess->waitForStarted(3000)) {
-            m_logTextEdit->appendPlainText("错误: 进程启动失败");
             resetRunButtonState();
-            m_easytierProcess->deleteLater();
-            m_easytierProcess = nullptr;
-            return;
+            processLogTextEdit->appendPlainText("进程启动超时");
+            throw std::runtime_error("进程启动超时");
         }
         
         m_logTextEdit->appendPlainText(QString("正在启动 %1").arg(easytierPath));
@@ -865,15 +898,20 @@ void NetPage::onRunNetwork()
         ui->pushButton->setText("运行中");
         ui->pushButton->setStyleSheet("color: green; font-weight: bold;");
         m_isRunning = true;
-        
+
+        processLogTextEdit->appendPlainText("EasyTier进程启动成功");
     } catch (const std::exception& e) {
         m_logTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
+
+        QMessageBox::warning(this, "警告", QString("启动异常: %1").arg(e.what()));
         resetRunButtonState();
         if (m_easytierProcess) {
             m_easytierProcess->deleteLater();
             m_easytierProcess = nullptr;
         }
     }
+    // 定时器延时一秒关闭对话框
+    QTimer::singleShot(1000, dialog, &QDialog::deleteLater);
 }
 
 // 进程输出处理
@@ -965,7 +1003,7 @@ void NetPage::initRunningStatePage()
 void NetPage::updatePeerInfo()
 {
     if (!m_isRunning) {
-        m_runningStatusLabel->setText("未运行");
+        m_runningStatusLabel->setText("EasyTier实例未运行，请先点击运行网络");
         m_peerTable->hide();
         return;
     }
@@ -987,9 +1025,9 @@ void NetPage::updatePeerInfo()
     // 创建临时进程获取节点信息
     QProcess process;
     process.setWorkingDirectory(appDir);
-    process.start(cliPath, QStringList() << "-o" << "json" << "peer");
+    process.start(cliPath, QStringList() <<"-p"<<"127.0.0.1:"+QString::number(realRpcPort)<< "-o" << "json" << "peer");
 
-    if (!process.waitForFinished(5000)) { // 5秒超时
+    if (!process.waitForFinished(2000)) { // 2秒超时
         m_logTextEdit->appendPlainText("错误: 获取节点信息超时");
         return;
     }
