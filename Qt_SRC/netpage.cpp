@@ -26,7 +26,7 @@ NetPage::NetPage(QWidget *parent)
     , m_easytierProcess(nullptr)
     , m_isRunning(false)
     , realRpcPort(0)
-    , m_asyncProcess(new QProcess(this))
+    , m_asyncProcess(nullptr)
 {
     ui->setupUi(this);
     createScrollArea();          // 初始化简单设置页面
@@ -956,7 +956,7 @@ void NetPage::onProcessErrorReady()
     }
 }
 
-// 进程完成处理
+// 进程完成处理(Et进程自动退出代表发生错误)
 void NetPage::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitStatus == QProcess::NormalExit) {
@@ -1030,15 +1030,33 @@ void NetPage::initRunningStatePage()
 
 // 更新节点信息
 void NetPage::updatePeerInfo() {
-    // 如果网络未运行，不执行更新
+    // 如果网络未运行，不执行更新并删除异步进程
     if (!m_isRunning) {
+        if (m_asyncProcess) {
+            m_asyncProcess->deleteLater();
+            m_asyncProcess = nullptr;
+        }
         return;
     }
 
-    // 如果异步进程为nullptr，创建新的进程
+    // et-cli 命令路径信息
+    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
+    QString cliPath = appDir + "/easytier-cli.exe";
+
+    // 如果异步进程为nullptr，创建新的进程并结束本次函数
     if (!m_asyncProcess) {
-        std::cerr << "严重错误：监测进程未被正确创建" << std::endl;
-        std::exit(1);
+        std::clog << "et已运行，创建异步cli进程"<< std::endl;
+        m_asyncProcess = new QProcess(this);
+
+        // 检查CLI程序是否存在
+        QFileInfo fileInfo(cliPath);
+        if (!fileInfo.exists()) {
+            m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(cliPath));
+            return;
+        }
+        m_asyncProcess->setWorkingDirectory(appDir);
+
+        return;
     }
 
     // 如果检测进程还在运行则终止并报错
@@ -1061,15 +1079,6 @@ void NetPage::updatePeerInfo() {
     }
 
     // 再次运行CLI进程
-    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
-    QString cliPath = appDir + "/easytier-cli.exe";
-    // 检查CLI程序是否存在
-    QFileInfo fileInfo(cliPath);
-    if (!fileInfo.exists()) {
-        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(cliPath));
-        return;
-    }
-    m_asyncProcess->setWorkingDirectory(appDir);
     m_asyncProcess->start(cliPath, QStringList() <<"-p"<<"127.0.0.1:"+QString::number(realRpcPort)<< "-o" << "json" << "peer");
 }
 
