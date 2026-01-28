@@ -38,7 +38,7 @@ QStringList generateConfCommand(NetPage *netPage)
         if (isPortOccupied(netPage->getRpcPort()) || isRpcPortOccupied(netPage->getRpcPort())) {
             throw std::runtime_error("RPC端口已被占用");
         }
-        netPage->realRpcPort = 15888;
+        netPage->realRpcPort = netPage->getRpcPort();
         conf << "--rpc-portal" << QString::number(netPage->getRpcPort());
 
     } else {
