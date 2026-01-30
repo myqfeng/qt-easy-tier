@@ -1,6 +1,7 @@
 #include "netpage.h"
 #include "ui_netpage.h"
 #include "generateconf.h"
+#include "cidrcalculator.h"
 
 #include <QScrollArea>
 #include <QLabel>
@@ -505,11 +506,19 @@ void NetPage::initCidrManagement()
     m_removeCidrBtn->setMinimumWidth(80);
     m_removeCidrBtn->setEnabled(false);
 
+    // 打开CIDR计算器按钮
+    m_calculateCidrBtn = new QPushButton(tr("打开CIDR计算器"), this);
+    m_calculateCidrBtn->setMinimumWidth(80);
+
     // 连接信号槽
     connect(m_addCidrBtn, &QPushButton::clicked, this, &NetPage::onAddCidr);
     connect(m_removeCidrBtn, &QPushButton::clicked, this, &NetPage::onRemoveCidr);
     connect(m_cidrListWidget, &QListWidget::itemSelectionChanged, [this]() {
         m_removeCidrBtn->setEnabled(m_cidrListWidget->selectedItems().count() > 0);
+    });
+    connect(m_calculateCidrBtn, &QPushButton::clicked, this, [] {
+        auto cidrCalc = new CIDRCalculator(nullptr);
+        cidrCalc->show();
     });
 }
 
@@ -584,7 +593,7 @@ void NetPage::createAdvancedSetPage()
     rpcPortLayout->addLayout(rpcPortInputLayout);
 
     // 添加端口号说明
-    QLabel *rpcPortHint = new QLabel(tr("端口范围: 0-65535 (0表示使用随机端口，默认15888)"), rpcPortWidget);
+    QLabel *rpcPortHint = new QLabel(tr("端口范围: 0-65535 (0表示使用随机端口)"), rpcPortWidget);
     rpcPortHint->setStyleSheet("color: gray; font-size: 11px;");
     rpcPortLayout->addWidget(rpcPortHint);
 
@@ -635,6 +644,8 @@ void NetPage::createAdvancedSetPage()
     cidrListLayout->addWidget(m_cidrListWidget, 1);
     cidrListLayout->addWidget(m_removeCidrBtn);
     cidrLayout->addLayout(cidrListLayout);
+
+    cidrLayout->addWidget(m_calculateCidrBtn);
 
     // 将子网代理CIDR管理分组添加到滚动布局
     scrollLayout->addWidget(cidrWidget);

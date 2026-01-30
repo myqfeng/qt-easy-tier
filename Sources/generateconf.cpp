@@ -42,23 +42,18 @@ QStringList generateConfCommand(NetPage *netPage)
         conf << "--rpc-portal" << QString::number(netPage->getRpcPort());
 
     } else {
-        // 查找15888端口是否被占用
-        if (!isPortOccupied(15888) && !isRpcPortOccupied(15888)) {
-            conf << "--rpc-portal" << "15888";
-            netPage->realRpcPort = 15888;
-        } else {
-            // 循环找到一个未被占用的端口
-            for (int i = 10000; i < 65535; i++) {
-                int port = getRandomPort();
-                if (!isPortOccupied(port) && !isRpcPortOccupied(port)) {
-                    conf << "--rpc-portal" << QString::number(port);
-                    netPage->realRpcPort = port;
-                    break;
-                }
+
+        // 循环找到一个未被占用的端口
+        for (int i = 10000; i < 50000; i++) {
+            int port = getRandomPort();
+            if (!isPortOccupied(port) && !isRpcPortOccupied(port)) {
+                conf << "--rpc-portal" << QString::number(port);
+                netPage->realRpcPort = port;
+                break;
             }
-            if (netPage->realRpcPort == 0) {
-                    throw std::runtime_error("未找到未被占用的RPC端口");
-            }
+        }
+        if (netPage->realRpcPort == 0) {
+            throw std::runtime_error("未找到未被占用的RPC端口");
         }
     }
 

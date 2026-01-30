@@ -177,6 +177,7 @@ private:
     QPushButton *m_addCidrBtn;
     QListWidget *m_cidrListWidget;
     QPushButton *m_removeCidrBtn;
+    QPushButton *m_calculateCidrBtn;
 
     // 运行et相关
     QPlainTextEdit *m_logTextEdit;
