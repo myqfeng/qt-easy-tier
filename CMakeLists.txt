@@ -104,15 +104,15 @@ if(WIN32)
             $<TARGET_FILE_DIR:${ProjectName}>/etcore
             COMMENT "复制EasyTier 到 ${ProjectName} 目录..."
     )
-
-    # 复制CIDR计算器到主程序目录
-    add_custom_command(TARGET ${ProjectName} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:CIDRCalculator>
-            $<TARGET_FILE_DIR:${ProjectName}>
-            COMMENT "复制CIDR计算器到主程序目录..."
-    )
 endif()
+
+# 复制CIDR计算器到主程序目录
+add_custom_command(TARGET ${ProjectName} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:CIDRCalculator>
+        $<TARGET_FILE_DIR:${ProjectName}>
+        COMMENT "复制CIDR计算器到主程序目录..."
+)
 
 # ===================================安装项目====================================
 
@@ -128,31 +128,37 @@ install(TARGETS ${ProjectName}
 
 # Windows下添加安装后部署
 if(WIN32)
+    # 部署Qt运行时
+    qt_generate_deploy_app_script(
+        TARGET ${ProjectName}
+        OUTPUT_SCRIPT deploy_script
+        NO_UNSUPPORTED_PLATFORM_ERROR
+
+    )
+    # 安装时执行部署脚本
+    install(SCRIPT ${deploy_script})
+
+    # 安装BreezeStyle目录
     install(CODE "
-        message(STATUS \"开始部署Qt运行时文件...\")
-        execute_process(
-            COMMAND \"${WINDEPLOYQT_EXECUTABLE}\"
-                --verbose 1
-                --no-translations
-                --no-system-d3d-compiler
-                \"${CMAKE_INSTALL_PREFIX}/bin/${ProjectName}.exe\"
-            WORKING_DIRECTORY \"${CMAKE_INSTALL_PREFIX}/bin\"
-        )
         message(STATUS \"部署BreezeStyle...\")
         execute_process(
             COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
                 \"${CMAKE_SOURCE_DIR}/BreezeStyle\"
-                \"${CMAKE_INSTALL_PREFIX}/bin\"
+                \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
         )
+    ")
+
+    # 安装EasyTier目录
+    install(CODE "
         message(STATUS \"部署EasyTier...\")
         execute_process(
             COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
                 \"${CMAKE_SOURCE_DIR}/EasyTier\"
-                \"${CMAKE_INSTALL_PREFIX}/bin/etcore\"
+                \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore\"
         )
-        message(STATUS \"运行时文件部署完成\")
     ")
 endif()
+
 
 # 自动处理 Qt 插件的依赖关系
 if(QT_VERSION_MAJOR EQUAL 6)

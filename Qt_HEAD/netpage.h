@@ -120,6 +120,10 @@ private slots:
     // 进程完成处理
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
+    // ===============配置导入导出相关===============
+    void onImportConfigClicked();
+    void onExportConfigClicked();
+
 private:
     Ui::NetPage *ui;
 
