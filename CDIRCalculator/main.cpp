@@ -8,6 +8,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+    // 使用Breeze主题
 #ifdef WIN32
     QStringList availableStyles = QStyleFactory::keys();
     if (availableStyles.contains("Breeze")) {

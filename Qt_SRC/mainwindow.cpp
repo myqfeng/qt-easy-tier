@@ -249,14 +249,14 @@ void MainWindow::loadNetworkConfig() {
     layout->addWidget(&loadingLabel);
     loadingMessage.show();
 
-    // 创建配置目录
+    // 配置目录
     QDir configDir;
     QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     if (!configDir.exists(configPath)) {
         configDir.mkpath(configPath);
     }
 
-    // 构建配置文件路径
+    // 配置文件路径
     QString configFile = configPath + "/network.json";
 
     // 检查配置文件是否存在

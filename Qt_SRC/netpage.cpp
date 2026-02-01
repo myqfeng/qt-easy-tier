@@ -17,6 +17,7 @@
 #include <QJsonObject>
 #include <QHeaderView>
 #include <QDialog>
+#include <QFileDialog>
 #include <iostream>
 
 NetPage::NetPage(QWidget *parent)
@@ -35,7 +36,12 @@ NetPage::NetPage(QWidget *parent)
     initRunningStatePage();      // 初始化运行状态页面
 
     // 连接运行网络按钮的点击事件
-    connect(ui->pushButton, &QPushButton::clicked, this, &NetPage::onRunNetwork);
+    connect(ui->startPushButton, &QPushButton::clicked, this, &NetPage::onRunNetwork);
+
+    // 连接导入和导出配置按钮的点击事件
+    connect(ui->importPushButton, &QPushButton::clicked, this, &NetPage::onImportConfigClicked);
+    connect(ui->exportPushButton, &QPushButton::clicked, this, &NetPage::onExportConfigClicked);
+
 }
 
 NetPage::~NetPage()
@@ -1041,8 +1047,8 @@ void NetPage::onRunNetwork()
         m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
 
         // 更新按钮状态
-        ui->pushButton->setText("运行中");
-        ui->pushButton->setStyleSheet("color: green; font-weight: bold;");
+        ui->startPushButton->setText("运行中");
+        ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
         m_isRunning = true;
 
         // 更新运行状态标签, 显示节点表格
@@ -1109,8 +1115,8 @@ void NetPage::resetStateDisplay()
     m_peerTable->hide();
 
     // 重置按钮样式
-    ui->pushButton->setStyleSheet("");
-    ui->pushButton->setText("运行网络");
+    ui->startPushButton->setStyleSheet("");
+    ui->startPushButton->setText("运行网络");
     m_isRunning = false;
 }
 
@@ -1481,8 +1487,8 @@ void NetPage::runNetworkOnAutoStart() {
         m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
 
         // 更新按钮状态
-        ui->pushButton->setText("运行中");
-        ui->pushButton->setStyleSheet("color: green; font-weight: bold;");
+        ui->startPushButton->setText("运行中");
+        ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
         m_isRunning = true;
 
         // 更新运行状态标签, 显示节点表格
@@ -1498,4 +1504,118 @@ void NetPage::runNetworkOnAutoStart() {
             m_easytierProcess = nullptr;
         }
     }
+}
+
+// ===============配置导入导出功能实现===============
+
+void NetPage::onImportConfigClicked()
+{
+    // 弹出文件选择对话框，让用户选择要导入的配置文件
+    QString fileName = QFileDialog::getOpenFileName(
+        this,
+        tr("导入配置"),
+        QDir::homePath(),
+        tr("配置文件 (*.json);;所有文件 (*)")
+    );
+
+    if (fileName.isEmpty()) {
+        return; // 用户取消了操作
+    }
+
+    QFile configFile(fileName);
+    if (!configFile.open(QIODevice::ReadOnly)) {
+        QMessageBox::critical(this, tr("错误"), tr("无法打开配置文件: %1").arg(configFile.errorString()));
+        return;
+    }
+
+    QJsonParseError jsonError;
+    QJsonDocument doc = QJsonDocument::fromJson(configFile.readAll(), &jsonError);
+
+    if (jsonError.error != QJsonParseError::NoError) {
+        QMessageBox::critical(this, tr("错误"), tr("配置文件格式错误: %1").arg(jsonError.errorString()));
+        return;
+    }
+
+    if (!doc.isObject()) {
+        QMessageBox::critical(this, tr("错误"), tr("配置文件格式错误: 不是有效的JSON对象"));
+        return;
+    }
+
+    // 停止当前运行的网络（如果正在运行）
+    if (m_isRunning) {
+        QMessageBox::StandardButton ret = QMessageBox::question(
+            this,
+            tr("确认"),
+            tr("当前网络正在运行，导入配置将会停止当前网络，是否继续？"),
+            QMessageBox::Yes | QMessageBox::No
+        );
+        if (ret == QMessageBox::No) {
+            return;
+        }
+
+        // 停止正在运行的网络
+        if (m_easytierProcess) {
+            disconnect(m_easytierProcess, nullptr, this, nullptr);
+            m_logTextEdit->appendPlainText("正在停止当前网络以导入新配置...");
+            m_easytierProcess->kill();
+
+            if (m_easytierProcess->waitForFinished(1000)) {
+                m_logTextEdit->appendPlainText("当前网络已停止");
+            } else {
+                m_logTextEdit->appendPlainText("警告：当前网络可能未完全停止");
+            }
+
+            emit networkFinished(); // 发送网络停止信号
+            resetStateDisplay();    // 更新UI状态
+            m_easytierProcess->deleteLater();
+            m_easytierProcess = nullptr;
+        }
+    }
+
+    // 使用导入的配置更新界面
+    setNetworkConfig(doc.object());
+
+    m_logTextEdit->appendPlainText(tr("配置导入成功: %1").arg(fileName));
+    QMessageBox::information(this, tr("成功"), tr("配置导入成功！"));
+}
+
+void NetPage::onExportConfigClicked()
+{
+    // 获取当前配置
+    QJsonObject config = getNetworkConfig();
+
+    // 弹出文件保存对话框
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        tr("导出配置"),
+        QDir::homePath() + "/QtEasyTier_config.json",
+        tr("配置文件 (*.json);;所有文件 (*)")
+    );
+
+    if (fileName.isEmpty()) {
+        return; // 用户取消了操作
+    }
+
+    // 如果文件名没有.json扩展名，添加它
+    if (!fileName.endsWith(".json", Qt::CaseInsensitive)) {
+        fileName += ".json";
+    }
+
+    QFile configFile(fileName);
+    if (!configFile.open(QIODevice::WriteOnly)) {
+        QMessageBox::critical(this, tr("错误"), tr("无法创建配置文件: %1").arg(configFile.errorString()));
+        return;
+    }
+
+    QJsonDocument doc(config);
+    QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
+
+    qint64 bytesWritten = configFile.write(jsonData);
+    if (bytesWritten == -1) {
+        QMessageBox::critical(this, tr("错误"), tr("无法写入配置文件: %1").arg(configFile.errorString()));
+        return;
+    }
+
+    m_logTextEdit->appendPlainText(tr("配置导出成功: %1").arg(fileName));
+    QMessageBox::information(this, tr("成功"), tr("配置导出成功！"));
 }
