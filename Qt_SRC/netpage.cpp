@@ -1,6 +1,7 @@
 #include "netpage.h"
 #include "ui_netpage.h"
 #include "generateconf.h"
+#include "publicserver.h"
 
 #include <QScrollArea>
 #include <QLabel>
@@ -18,6 +19,7 @@
 #include <QHeaderView>
 #include <QDialog>
 #include <QFileDialog>
+#include <QDesktopServices>
 #include <iostream>
 
 NetPage::NetPage(QWidget *parent)
@@ -37,7 +39,6 @@ NetPage::NetPage(QWidget *parent)
 
     // 连接运行网络按钮的点击事件
     connect(ui->startPushButton, &QPushButton::clicked, this, &NetPage::onRunNetwork);
-
     // 连接导入和导出配置按钮的点击事件
     connect(ui->importPushButton, &QPushButton::clicked, this, &NetPage::onImportConfigClicked);
     connect(ui->exportPushButton, &QPushButton::clicked, this, &NetPage::onExportConfigClicked);
@@ -150,6 +151,11 @@ void NetPage::createScrollArea()
     serverListLayout->addWidget(m_removeServerBtn);
     serverLayout->addLayout(serverListLayout);
 
+    QHBoxLayout *serverHelpLayout = new QHBoxLayout(serverWidget);
+    serverHelpLayout->addWidget(m_publicServerBtn);
+    serverHelpLayout->addWidget(m_serverHelpBtn);
+    serverLayout->addLayout(serverHelpLayout);
+
     scrollLayout->addWidget(serverWidget);
 
     // 添加垂直伸展空间
@@ -247,11 +253,19 @@ void NetPage::initServerManagement()
     // 默认添加EasyTier公共服务器地址
     m_serverListWidget->addItem("tcp://public.easytier.top:11010");
 
+    // 公共服务器和服务器帮助按钮
+    m_publicServerBtn = new QPushButton(tr("公共服务器列表"), this);
+    m_serverHelpBtn = new QPushButton(tr("服务器使用帮助"), this);
     // 连接信号槽
     connect(m_addServerBtn, &QPushButton::clicked, this, &NetPage::onAddServer);
     connect(m_removeServerBtn, &QPushButton::clicked, this, &NetPage::onRemoveServer);
+    connect(m_publicServerBtn, &QPushButton::clicked, this, &NetPage::onOpenPublicServerList);
     connect(m_serverListWidget, &QListWidget::itemSelectionChanged, [this]() {
         m_removeServerBtn->setEnabled(m_serverListWidget->selectedItems().count() > 0);
+    });
+    // 连接信号槽: 点击服务器帮助按钮
+    connect(m_serverHelpBtn, &QPushButton::clicked, []() {
+        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/assets/server.md"));
     });
 }
 
@@ -271,6 +285,16 @@ void NetPage::onTogglePasswordVisibility()
     }
 }
 
+void NetPage::onOpenPublicServerList() {
+    auto publicServer = new PublicServer(this);
+    publicServer->exec();
+    const QStringList serverList = publicServer->getSelectedServers();
+    // 添加到服务器列表
+    for (auto &addr : serverList) {
+        m_serverListWidget->addItem(addr);
+    }
+    publicServer->deleteLater();
+}
 void NetPage::onAddServer()
 {
     QString serverAddress = m_serverEdit->text().trimmed();
@@ -449,9 +473,50 @@ void NetPage::initAdvancedSettings()
 
     // 初始化监听地址管理组件
     initListenAddrManagement();
-
     // 初始化子网代理CIDR管理组件
     initCidrManagement();
+    // 初始化网络白名单管理组件
+    initRelayNetworkWhitelistManagement();
+}
+
+void NetPage::initRelayNetworkWhitelistManagement()
+{
+    // 网络白名单启用复选框
+    m_relayNetworkWhitelistCheckBox = new QCheckBox(tr("启用网络白名单"), this);
+    m_relayNetworkWhitelistCheckBox->setChecked(false);
+    connect(m_relayNetworkWhitelistCheckBox, &QCheckBox::checkStateChanged,
+        this, &NetPage::onRelayNetworkWhitelistStateChanged);
+
+    // 网络白名单输入框
+    m_relayNetworkWhitelistEdit = new QLineEdit(this);
+    m_relayNetworkWhitelistEdit->setPlaceholderText(tr("请输入网络名称"));
+    m_relayNetworkWhitelistEdit->setEnabled(false); // 初始状态为禁用
+
+    // 添加网络白名单按钮
+    m_addRelayNetworkWhitelistBtn = new QPushButton(tr("添加"), this);
+    m_addRelayNetworkWhitelistBtn->setMinimumWidth(80);
+    m_addRelayNetworkWhitelistBtn->setEnabled(false);
+
+    // 已添加网络白名单列表
+    m_relayNetworkWhitelistListWidget = new QListWidget(this);
+    m_relayNetworkWhitelistListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_relayNetworkWhitelistListWidget->setEnabled(false);
+
+    // 删除网络白名单按钮
+    m_removeRelayNetworkWhitelistBtn = new QPushButton(tr("删除"), this);
+    m_removeRelayNetworkWhitelistBtn->setMinimumWidth(80);
+    m_removeRelayNetworkWhitelistBtn->setEnabled(false);
+
+    connect(m_addRelayNetworkWhitelistBtn, &QPushButton::clicked,
+            this, &NetPage::onAddRelayNetworkWhitelist);
+    connect(m_removeRelayNetworkWhitelistBtn, &QPushButton::clicked,
+            this, &NetPage::onRemoveRelayNetworkWhitelist);
+    connect(m_relayNetworkWhitelistListWidget, &QListWidget::itemSelectionChanged, [this]() {
+        if (m_relayNetworkWhitelistCheckBox->isChecked()) {
+            m_removeRelayNetworkWhitelistBtn->setEnabled(
+                m_relayNetworkWhitelistListWidget->selectedItems().count() > 0);
+        }
+    });
 }
 
 void NetPage::initListenAddrManagement()
@@ -618,6 +683,46 @@ void NetPage::createAdvancedSetPage()
     // 将RPC端口设置分组添加到滚动布局
     scrollLayout->addWidget(rpcPortWidget);
 
+    // 创建网络白名单管理分组（放在监听地址之前）
+    QWidget *whitelistWidget = new QWidget(scrollContent);
+    QVBoxLayout *whitelistLayout = new QVBoxLayout(whitelistWidget);
+    whitelistLayout->setContentsMargins(15, 5, 15, 10);
+
+    // 添加网络白名单启用复选框
+    whitelistLayout->addWidget(m_relayNetworkWhitelistCheckBox);
+
+    // 创建容器用于放置添加白名单的控件，初始设置为不可见
+    QWidget *whitelistControlsWidget = new QWidget(whitelistWidget);
+    QVBoxLayout *whitelistControlsLayout = new QVBoxLayout(whitelistControlsWidget);
+    whitelistControlsLayout->setContentsMargins(0, 0, 0, 0);
+
+    // 添加网络白名单输入和按钮
+    QHBoxLayout *addWhitelistLayout = new QHBoxLayout();
+    addWhitelistLayout->addWidget(m_relayNetworkWhitelistEdit, 1);
+    addWhitelistLayout->addWidget(m_addRelayNetworkWhitelistBtn);
+    whitelistControlsLayout->addLayout(addWhitelistLayout);
+
+    // 添加已添加网络白名单列表和删除按钮
+    QHBoxLayout *whitelistListLayout = new QHBoxLayout();
+    whitelistListLayout->addWidget(m_relayNetworkWhitelistListWidget, 1);
+    whitelistListLayout->addWidget(m_removeRelayNetworkWhitelistBtn);
+    whitelistControlsLayout->addLayout(whitelistListLayout);
+
+    // 将白名单控件容器添加到主布局
+    whitelistLayout->addWidget(whitelistControlsWidget);
+
+    // 初始隐藏白名单控件（当复选框未选中时）
+    whitelistControlsWidget->setVisible(false);
+
+    // 连接复选框状态变化信号，显示/隐藏白名单控件
+    // 连接复选框状态变化信号，显示/隐藏白名单控件
+    connect(m_relayNetworkWhitelistCheckBox, &QCheckBox::checkStateChanged, [whitelistControlsWidget](Qt::CheckState state) {
+        whitelistControlsWidget->setVisible(state == Qt::Checked);
+    });
+
+    // 将网络白名单管理分组添加到滚动布局
+    scrollLayout->addWidget(whitelistWidget);
+
     // 创建监听地址管理分组
     QWidget *listenAddrWidget = new QWidget(scrollContent);
     QVBoxLayout *listenAddrLayout = new QVBoxLayout(listenAddrWidget);
@@ -764,6 +869,71 @@ bool NetPage::isEncryptionDisabled() const
 bool NetPage::isMagicDnsEnabled() const
 {
     return m_magicDnsCheckBox->isChecked();
+}
+
+// 网络白名单启用状态变化处理
+void NetPage::onRelayNetworkWhitelistStateChanged(Qt::CheckState state)
+{
+    bool enabled = (state == Qt::Checked);
+    m_relayNetworkWhitelistEdit->setEnabled(enabled);
+    m_addRelayNetworkWhitelistBtn->setEnabled(enabled);
+    m_relayNetworkWhitelistListWidget->setEnabled(enabled);
+
+    // 更新删除按钮状态
+    if (enabled) {
+        m_removeRelayNetworkWhitelistBtn->setEnabled(
+            m_relayNetworkWhitelistListWidget->selectedItems().count() > 0);
+    } else {
+        m_removeRelayNetworkWhitelistBtn->setEnabled(false);
+    }
+}
+
+// 添加网络白名单
+void NetPage::onAddRelayNetworkWhitelist()
+{
+    QString networkName = m_relayNetworkWhitelistEdit->text().trimmed();
+    networkName.remove(' ');  // 删除所有空格
+    if (networkName.isEmpty()) {
+        QMessageBox::warning(this, tr("警告"), tr("网络名称不能为空！"));
+        return;
+    }
+
+    // 检查是否已存在相同的网络名称
+    for (int i = 0; i < m_relayNetworkWhitelistListWidget->count(); ++i) {
+        if (m_relayNetworkWhitelistListWidget->item(i)->text() == networkName) {
+            QMessageBox::warning(this, tr("警告"), tr("该网络名称已存在！"));
+            return;
+        }
+    }
+
+    // 添加网络名称到列表
+    m_relayNetworkWhitelistListWidget->addItem(networkName);
+    m_relayNetworkWhitelistEdit->clear();
+}
+
+// 删除网络白名单
+void NetPage::onRemoveRelayNetworkWhitelist()
+{
+    QListWidgetItem *selectedItem = m_relayNetworkWhitelistListWidget->currentItem();
+    if (selectedItem) {
+        delete selectedItem;
+    }
+}
+
+// 获取网络白名单启用状态
+bool NetPage::isRelayNetworkWhitelistEnabled() const
+{
+    return m_relayNetworkWhitelistCheckBox->isChecked();
+}
+
+// 获取网络白名单列表
+QStringList NetPage::getRelayNetworkWhitelist() const
+{
+    QStringList whitelist;
+    for (int i = 0; i < m_relayNetworkWhitelistListWidget->count(); ++i) {
+        whitelist << m_relayNetworkWhitelistListWidget->item(i)->text();
+    }
+    return whitelist;
 }
 
 // 监听地址列表相关方法
@@ -1305,6 +1475,16 @@ QJsonObject NetPage::getNetworkConfig() const
     advancedSettings["magicDns"] = m_magicDnsCheckBox->isChecked();
     advancedSettings["rpcPort"] = m_rpcPortEdit->text();
 
+    // 网络白名单设置
+    advancedSettings["relayNetworkWhitelistEnabled"] = m_relayNetworkWhitelistCheckBox->isChecked();
+
+    // 网络白名单列表
+    QJsonArray whitelistArray;
+    for (int i = 0; i < m_relayNetworkWhitelistListWidget->count(); ++i) {
+        whitelistArray.append(m_relayNetworkWhitelistListWidget->item(i)->text());
+    }
+    advancedSettings["relayNetworkWhitelist"] = whitelistArray;
+
     // 监听地址列表
     QJsonArray listenAddresses;
     for (int i = 0; i < m_listenAddrListWidget->count(); ++i) {
@@ -1419,6 +1599,25 @@ void NetPage::setNetworkConfig(const QJsonObject &config)
         if (advancedSettings.contains("rpcPort")) {
             m_rpcPortEdit->setText(advancedSettings["rpcPort"].toString());
         }
+
+        // 网络白名单设置
+        if (advancedSettings.contains("relayNetworkWhitelistEnabled")) {
+            m_relayNetworkWhitelistCheckBox->setChecked(
+                advancedSettings["relayNetworkWhitelistEnabled"].toBool());
+            // 触发状态变化以更新UI
+            onRelayNetworkWhitelistStateChanged(
+                m_relayNetworkWhitelistCheckBox->isChecked() ? Qt::Checked : Qt::Unchecked);
+        }
+
+        // 网络白名单列表
+        if (advancedSettings.contains("relayNetworkWhitelist") &&
+            advancedSettings["relayNetworkWhitelist"].isArray()) {
+            QJsonArray whitelistArray = advancedSettings["relayNetworkWhitelist"].toArray();
+            m_relayNetworkWhitelistListWidget->clear();
+            for (const auto &networkValue : whitelistArray) {
+                m_relayNetworkWhitelistListWidget->addItem(networkValue.toString());
+            }
+            }
 
         // 监听地址列表
         if (advancedSettings.contains("listenAddresses") && advancedSettings["listenAddresses"].isArray()) {

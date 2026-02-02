@@ -132,6 +132,17 @@ QStringList generateConfCommand(NetPage *netPage)
         conf << "-n" << cidr;
     }
 
+    // 网络白名单
+    if (netPage->isRelayNetworkWhitelistEnabled()) {
+        conf << "--relay-network-whitelist";
+        const auto &whitelist = netPage->getRelayNetworkWhitelist();
+        if (!whitelist.empty()) {
+            for (const auto &network : whitelist) {
+                conf << network ;
+            }
+        }
+    }
+
     return conf;
 }
 

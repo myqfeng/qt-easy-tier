@@ -104,6 +104,14 @@ if(WIN32)
             $<TARGET_FILE_DIR:${ProjectName}>/etcore
             COMMENT "复制EasyTier 到 ${ProjectName} 目录..."
     )
+
+    # 复制公共节点列表信息
+    add_custom_command(TARGET ${ProjectName} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_SOURCE_DIR}/publicserver.json
+            $<TARGET_FILE_DIR:${ProjectName}>/publicserver.json
+            COMMENT "复制公共服务器列表到 ${ProjectName} 目录..."
+    )
 endif()
 
 # 复制CIDR计算器到主程序目录
@@ -159,6 +167,15 @@ if(WIN32)
     ")
 endif()
 
+# 安装时复制公共服务器列表
+install(CODE "
+    message(STATUS \"复制公共服务器列表\")
+    execute_process(
+        COMMAND \"${CMAKE_COMMAND}\" -E copy
+            \"${CMAKE_SOURCE_DIR}/publicserver.json\"
+            \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/publicserver.json\"
+    )
+")
 
 # 自动处理 Qt 插件的依赖关系
 if(QT_VERSION_MAJOR EQUAL 6)
