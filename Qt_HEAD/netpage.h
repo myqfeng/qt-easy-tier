@@ -71,6 +71,10 @@ public:
     QStringList getListenAddrList() const;
     // 获取子网代理CIDR列表
     QStringList getCidrList() const;
+    // 获取网络白名单列表
+    QStringList getRelayNetworkWhitelist() const;
+    // 获取网络白名单启用状态
+    bool isRelayNetworkWhitelistEnabled() const;
     // 获取RPC端口号
     int getRpcPort() const;
 
@@ -95,6 +99,14 @@ private slots:
     void onRemoveServer();
     // 服务器地址补全数据更新
     void onServerEditCompleterChanged();
+    // 打开公共服务器列表
+    void onOpenPublicServerList();
+    // 白名单开启按钮状态变化处理
+    void onRelayNetworkWhitelistStateChanged(Qt::CheckState state);
+    // 添加网络白名单
+    void onAddRelayNetworkWhitelist();
+    // 删除网络白名单
+    void onRemoveRelayNetworkWhitelist();
     // 添加监听地址
     void onAddListenAddr();
     // 删除监听地址
@@ -146,6 +158,8 @@ private:
     QPushButton *m_removeServerBtn;
     QCompleter *m_serverEditCompleter;        // 用于服务器地址补全
     QStringListModel *m_serverListEditModel;  // 补全器的模型
+    QPushButton *m_publicServerBtn;
+    QPushButton *m_serverHelpBtn;
 
     // 高级设置组件
     QCheckBox *m_kcpProxyCheckBox;        // 启用 KCP 代理
@@ -168,6 +182,13 @@ private:
 
     // RPC端口输入框
     QLineEdit *m_rpcPortEdit;
+
+    // 网络白名单管理组件
+    QCheckBox *m_relayNetworkWhitelistCheckBox; // 是否启用网络白名单
+    QLineEdit *m_relayNetworkWhitelistEdit; // 网络白名单输入框
+    QPushButton *m_addRelayNetworkWhitelistBtn; // 添加按钮
+    QListWidget *m_relayNetworkWhitelistListWidget; // 白名单列表
+    QPushButton *m_removeRelayNetworkWhitelistBtn; // 删除按钮
 
     // 监听地址管理组件
     QLineEdit *m_listenAddrEdit;
@@ -205,6 +226,8 @@ private:
     void initAdvancedSettings();
     // 创建高级设置页面
     void createAdvancedSetPage();
+    // 初始化网络白名单管理界面
+    void initRelayNetworkWhitelistManagement();
     // 初始化监听地址管理界面
     void initListenAddrManagement();
     // 初始化子网代理CIDR管理界面
