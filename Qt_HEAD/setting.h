@@ -6,6 +6,7 @@
 #include <QSettings>
 #include <QJsonObject>
 #include <QThread>
+#include <atomic>
 
 namespace Ui {
     class setting;
@@ -99,6 +100,6 @@ protected:
         startVersionDetection();
     }
 };
-inline bool g_autoRun; // 自动运行上次关闭前没退出的网络
+inline std::atomic_bool g_autoRun{false}; // 自动运行上次关闭前没退出的网络
 
 #endif // SETTING_H

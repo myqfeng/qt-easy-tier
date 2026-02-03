@@ -359,7 +359,7 @@ void MainWindow::loadNetworkConfig() {
         // 如果网络是活跃的，尝试重新启动它
         if (networkObj.contains("isActive") && networkObj["isActive"].toBool()) {
             // 从settings文件加载autoRun设置
-            if (g_autoRun) {
+            if (g_autoRun.load()) {
                 netPage->runNetworkOnAutoStart();
             }
         }

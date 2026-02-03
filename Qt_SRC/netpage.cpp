@@ -20,6 +20,8 @@
 #include <QDialog>
 #include <QFileDialog>
 #include <QDesktopServices>
+#include <QDebug>
+#include <QMutexLocker>
 #include <iostream>
 
 NetPage::NetPage(QWidget *parent)
@@ -30,6 +32,10 @@ NetPage::NetPage(QWidget *parent)
     , m_isRunning(false)
     , realRpcPort(0)
     , m_asyncProcess(nullptr)
+    , m_runningStatusLabel(nullptr)
+    , m_peerTable(nullptr)
+    , m_peerUpdateTimer(nullptr)
+    , m_peerParseErrorCount(0)
 {
     ui->setupUi(this);
     createScrollArea();          // 初始化简单设置页面
@@ -51,14 +57,14 @@ NetPage::~NetPage()
     if (m_easytierProcess) {
         // 断开所有信号连接
         disconnect(m_easytierProcess, nullptr, this, nullptr);
-        m_logTextEdit->appendPlainText("正在终止EasyTier进程...");
+        appendLog("正在终止EasyTier进程...");
         m_easytierProcess->kill();
 
         // 等待强制终止完成
         if (m_easytierProcess->waitForFinished(1000)) {
-            m_logTextEdit->appendPlainText("EasyTier进程终止成功");
+            appendLog("EasyTier进程终止成功");
         } else {
-            m_logTextEdit->appendPlainText("警告：EasyTier进程可能未完全终止");
+            appendLog("警告：EasyTier进程可能未完全终止");
         }
 
         // 清理进程对象
@@ -67,10 +73,13 @@ NetPage::~NetPage()
     }
 
     // 终止并清理异步进程
-    if (m_asyncProcess) {
-        m_asyncProcess->kill();
-        m_asyncProcess->deleteLater();
-        m_asyncProcess = nullptr;
+    {
+        QMutexLocker locker(&m_peerProcessMutex);
+        if (m_asyncProcess) {
+            m_asyncProcess->kill();
+            m_asyncProcess->deleteLater();
+            m_asyncProcess = nullptr;
+        }
     }
 
     // 清理定时器
@@ -596,7 +605,7 @@ void NetPage::initCidrManagement()
        // 检查程序是否存在
        QFileInfo fileInfo(calculatorDir);
        if (!fileInfo.exists()) {
-           m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(calculatorDir));
+           appendLog(QString("错误: 找不到 %1").arg(calculatorDir));
            QMessageBox::critical(this, tr("错误"), tr("找不到 CIDRCalculator.exe"));
            return;
        }
@@ -1113,18 +1122,18 @@ void NetPage::initRunningLogWindow()
 void NetPage::onRunNetwork()
 {
     // 如果网络正在运行，则停止它
-    if (m_isRunning) {
+    if (m_isRunning.load()) {
         if (m_easytierProcess) {
             // 断开所有信号连接
             disconnect(m_easytierProcess, nullptr, this, nullptr);
-            m_logTextEdit->appendPlainText("正在终止EasyTier进程...");
+            appendLog("正在终止EasyTier进程...");
             m_easytierProcess->kill();
                 
             // 等待强制终止完成
             if (m_easytierProcess->waitForFinished(1000)) {
-                m_logTextEdit->appendPlainText("EasyTier进程终止成功");
+                appendLog("EasyTier进程终止成功");
             } else {
-                m_logTextEdit->appendPlainText("警告：EasyTier进程可能未完全终止");
+                appendLog("警告：EasyTier进程可能未完全终止");
             }
 
             emit networkFinished(); // 发送网络停止信号
@@ -1140,8 +1149,8 @@ void NetPage::onRunNetwork()
     ui->netTabWidget->setCurrentWidget(ui->runningState);
 
     // 清理之前的日志
-    m_logTextEdit->clear();
-    m_logTextEdit->appendPlainText("正在启动EasyTier网络...");
+    clearLog();
+    appendLog("正在启动EasyTier网络...");
 
     // 获取当前程序目录
     QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
@@ -1150,7 +1159,7 @@ void NetPage::onRunNetwork()
     // 检查程序是否存在
     QFileInfo fileInfo(easytierPath);
     if (!fileInfo.exists()) {
-        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(easytierPath));
+        appendLog(QString("错误: 找不到 %1").arg(easytierPath));
         resetStateDisplay();
         return;
     }
@@ -1213,13 +1222,17 @@ void NetPage::onRunNetwork()
             throw std::runtime_error("进程启动超时");
         }
         
-        m_logTextEdit->appendPlainText(QString("正在启动 %1").arg(easytierPath));
-        m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
+        appendLog(QString("正在启动 %1").arg(easytierPath));
+        appendLog(QString("启动参数: %1").arg(arguments.join(" ")));
 
         // 更新按钮状态
         ui->startPushButton->setText("运行中");
         ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
-        m_isRunning = true;
+        m_isRunning.store(true);
+        m_peerParseErrorCount = 0;
+        if (m_peerUpdateTimer && !m_peerUpdateTimer->isActive()) {
+            m_peerUpdateTimer->start(2000);
+        }
 
         // 更新运行状态标签, 显示节点表格
         m_runningStatusLabel->setText(getNetworkName() + tr(" 网络已运行"));
@@ -1228,7 +1241,7 @@ void NetPage::onRunNetwork()
         emit networkStarted();  // 发送网络启动信号
         processLogTextEdit->appendPlainText("EasyTier进程启动成功");
     } catch (const std::exception& e) {
-        m_logTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
+        appendLog(QString("启动异常: %1").arg(e.what()));
 
         QMessageBox::warning(this, "警告", QString("启动异常: %1").arg(e.what()));
         resetStateDisplay();
@@ -1247,7 +1260,7 @@ void NetPage::onProcessOutputReady()
 {
     if (m_easytierProcess) {
         QString output = m_easytierProcess->readAllStandardOutput();
-        m_logTextEdit->appendPlainText(output);
+        appendLog(output);
     }
 }
 
@@ -1256,7 +1269,7 @@ void NetPage::onProcessErrorReady()
 {
     if (m_easytierProcess) {
         QString error = m_easytierProcess->readAllStandardError();
-        m_logTextEdit->appendPlainText("错误: " + error);
+        appendLog("错误: " + error);
     }
 }
 
@@ -1264,9 +1277,9 @@ void NetPage::onProcessErrorReady()
 void NetPage::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
     if (exitStatus == QProcess::NormalExit) {
-        m_logTextEdit->appendPlainText(QString("EasyTier已停止，退出码: %1").arg(exitCode));
+        appendLog(QString("EasyTier已停止，退出码: %1").arg(exitCode));
     } else {
-        m_logTextEdit->appendPlainText("EasyTier异常终止");
+        appendLog("EasyTier异常终止");
     }
     resetStateDisplay();
     if (m_easytierProcess) {
@@ -1287,7 +1300,45 @@ void NetPage::resetStateDisplay()
     // 重置按钮样式
     ui->startPushButton->setStyleSheet("");
     ui->startPushButton->setText("运行网络");
-    m_isRunning = false;
+    m_isRunning.store(false);
+    m_peerParseErrorCount = 0;
+}
+
+void NetPage::appendLog(const QString &message)
+{
+    if (m_logTextEdit) {
+        m_logTextEdit->appendPlainText(message);
+    } else {
+        qWarning() << "Log窗口未初始化:" << message;
+    }
+}
+
+void NetPage::clearLog()
+{
+    if (m_logTextEdit) {
+        m_logTextEdit->clear();
+    } else {
+        qWarning() << "Log窗口未初始化，无法清理日志";
+    }
+}
+
+QString NetPage::peerValueToString(const QJsonObject &peerObj, const char *key) const
+{
+    const QJsonValue value = peerObj.value(QLatin1String(key));
+    if (value.isUndefined() || value.isNull()) {
+        return "-";
+    }
+    if (value.isBool()) {
+        return value.toBool() ? "true" : "false";
+    }
+    if (value.isDouble()) {
+        return QString::number(value.toDouble());
+    }
+    if (value.isString()) {
+        const QString text = value.toString();
+        return text.isEmpty() ? "-" : text;
+    }
+    return value.toVariant().toString();
 }
 
 // ===================运行状态监测相关===================
@@ -1335,11 +1386,21 @@ void NetPage::initRunningStatePage()
 
 // 更新节点信息
 void NetPage::updatePeerInfo() {
+    QMutexLocker locker(&m_peerProcessMutex);
     // 如果网络未运行，不执行更新并删除异步进程
-    if (!m_isRunning) {
+    if (!m_isRunning.load()) {
         if (m_asyncProcess) {
             m_asyncProcess->deleteLater();
             m_asyncProcess = nullptr;
+        }
+        m_peerParseErrorCount = 0;
+        return;
+    }
+
+    if (realRpcPort <= 0) {
+        appendLog("警告: RPC端口未初始化，暂停节点信息更新");
+        if (m_peerUpdateTimer) {
+            m_peerUpdateTimer->stop();
         }
         return;
     }
@@ -1356,7 +1417,9 @@ void NetPage::updatePeerInfo() {
         // 检查CLI程序是否存在
         QFileInfo fileInfo(cliPath);
         if (!fileInfo.exists()) {
-            m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(cliPath));
+            appendLog(QString("错误: 找不到 %1").arg(cliPath));
+            m_asyncProcess->deleteLater();
+            m_asyncProcess = nullptr;
             return;
         }
         m_asyncProcess->setWorkingDirectory(appDir);
@@ -1367,7 +1430,7 @@ void NetPage::updatePeerInfo() {
     // 如果检测进程还在运行则终止并报错
     if (m_asyncProcess->state() == QProcess::Running) {
         m_asyncProcess->kill();
-        m_logTextEdit->appendPlainText(tr("警告: 获取节点信息超时, CLI进程可能出错"));
+        appendLog(tr("警告: 获取节点信息超时, CLI进程可能出错"));
         return;
     }
 
@@ -1375,8 +1438,7 @@ void NetPage::updatePeerInfo() {
     QString errorOutput = m_asyncProcess->readAllStandardError();
 
     if (!errorOutput.isEmpty()) {
-        m_logTextEdit->appendPlainText("错误输出: " + errorOutput);
-        return;
+        appendLog("错误输出: " + errorOutput.trimmed());
     }
 
     if (!output.isEmpty()) {
@@ -1390,19 +1452,35 @@ void NetPage::updatePeerInfo() {
 // 解析并显示节点信息
 void NetPage::parseAndDisplayPeerInfo(const QByteArray &jsonData)
 {
+    if (!m_peerTable) {
+        appendLog("警告: 节点信息表格未初始化");
+        return;
+    }
+
     QJsonParseError jsonError;
     QJsonDocument doc = QJsonDocument::fromJson(jsonData, &jsonError);
 
     if (jsonError.error != QJsonParseError::NoError) {
-        m_logTextEdit->appendPlainText("JSON解析错误: " + jsonError.errorString());
+        appendLog("JSON解析错误: " + jsonError.errorString());
+        ++m_peerParseErrorCount;
+        if (m_peerParseErrorCount >= kPeerParseErrorLimit && m_peerUpdateTimer) {
+            appendLog("JSON解析失败次数过多，已暂停节点信息更新");
+            m_peerUpdateTimer->stop();
+        }
         return;
     }
 
     if (!doc.isArray()) {
-        m_logTextEdit->appendPlainText("JSON数据格式错误: 应为数组格式");
+        appendLog("JSON数据格式错误: 应为数组格式");
+        ++m_peerParseErrorCount;
+        if (m_peerParseErrorCount >= kPeerParseErrorLimit && m_peerUpdateTimer) {
+            appendLog("JSON数据格式异常次数过多，已暂停节点信息更新");
+            m_peerUpdateTimer->stop();
+        }
         return;
     }
 
+    m_peerParseErrorCount = 0;
     QJsonArray peers = doc.array();
 
     // 清空表格
@@ -1418,15 +1496,15 @@ void NetPage::parseAndDisplayPeerInfo(const QByteArray &jsonData)
         m_peerTable->insertRow(row);
 
         // 按顺序设置各列数据
-        m_peerTable->setItem(row, 0, new QTableWidgetItem(peerObj.value("hostname").toString()));
-        m_peerTable->setItem(row, 1, new QTableWidgetItem(peerObj.value("ipv4").toString()));
-        m_peerTable->setItem(row, 2, new QTableWidgetItem(peerObj.value("cost").toString()));
-        m_peerTable->setItem(row, 3, new QTableWidgetItem(peerObj.value("tunnel_proto").toString()));
-        m_peerTable->setItem(row, 4, new QTableWidgetItem(peerObj.value("lat_ms").toString()));
-        m_peerTable->setItem(row, 5, new QTableWidgetItem(peerObj.value("loss_rate").toString()));
-        m_peerTable->setItem(row, 6, new QTableWidgetItem(peerObj.value("rx_bytes").toString()));
-        m_peerTable->setItem(row, 7, new QTableWidgetItem(peerObj.value("tx_bytes").toString()));
-        m_peerTable->setItem(row, 8, new QTableWidgetItem(peerObj.value("cidr").toString()));
+        m_peerTable->setItem(row, 0, new QTableWidgetItem(peerValueToString(peerObj, "hostname")));
+        m_peerTable->setItem(row, 1, new QTableWidgetItem(peerValueToString(peerObj, "ipv4")));
+        m_peerTable->setItem(row, 2, new QTableWidgetItem(peerValueToString(peerObj, "cost")));
+        m_peerTable->setItem(row, 3, new QTableWidgetItem(peerValueToString(peerObj, "tunnel_proto")));
+        m_peerTable->setItem(row, 4, new QTableWidgetItem(peerValueToString(peerObj, "lat_ms")));
+        m_peerTable->setItem(row, 5, new QTableWidgetItem(peerValueToString(peerObj, "loss_rate")));
+        m_peerTable->setItem(row, 6, new QTableWidgetItem(peerValueToString(peerObj, "rx_bytes")));
+        m_peerTable->setItem(row, 7, new QTableWidgetItem(peerValueToString(peerObj, "tx_bytes")));
+        m_peerTable->setItem(row, 8, new QTableWidgetItem(peerValueToString(peerObj, "cidr")));
     }
 }
 
@@ -1500,7 +1578,7 @@ QJsonObject NetPage::getNetworkConfig() const
     advancedSettings["cidrList"] = cidrList;
 
     config["advancedSettings"] = advancedSettings;
-    config["isActive"] = m_isRunning; // 记录当前是否处于激活运行状态
+    config["isActive"] = m_isRunning.load(); // 记录当前是否处于激活运行状态
 
     return config;
 }
@@ -1641,8 +1719,8 @@ void NetPage::setNetworkConfig(const QJsonObject &config)
 
 // ===================== 开机自动运行相关 =====================
 void NetPage::runNetworkOnAutoStart() {
-    m_logTextEdit->clear();
-    m_logTextEdit->appendPlainText("正在启动EasyTier网络（自启动）...");
+    clearLog();
+    appendLog("正在启动EasyTier网络（自启动）...");
 
     // 获取当前程序目录
     QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
@@ -1651,7 +1729,7 @@ void NetPage::runNetworkOnAutoStart() {
     // 检查程序是否存在
     QFileInfo fileInfo(easytierPath);
     if (!fileInfo.exists()) {
-        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(easytierPath));
+        appendLog(QString("错误: 找不到 %1").arg(easytierPath));
         resetStateDisplay();
         return;
     }
@@ -1682,20 +1760,24 @@ void NetPage::runNetworkOnAutoStart() {
             throw std::runtime_error("进程启动超时");
         }
 
-        m_logTextEdit->appendPlainText(QString("正在启动 %1").arg(easytierPath));
-        m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
+        appendLog(QString("正在启动 %1").arg(easytierPath));
+        appendLog(QString("启动参数: %1").arg(arguments.join(" ")));
 
         // 更新按钮状态
         ui->startPushButton->setText("运行中");
         ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
-        m_isRunning = true;
+        m_isRunning.store(true);
+        m_peerParseErrorCount = 0;
+        if (m_peerUpdateTimer && !m_peerUpdateTimer->isActive()) {
+            m_peerUpdateTimer->start(2000);
+        }
 
         // 更新运行状态标签, 显示节点表格
         m_runningStatusLabel->setText(getNetworkName() + tr(" 网络已运行"));
         m_peerTable->show();
         emit networkStarted();  // 发送网络启动信号
     } catch (const std::exception& e) {
-        m_logTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
+        appendLog(QString("启动异常: %1").arg(e.what()));
         resetStateDisplay();
         if (m_easytierProcess) {
             emit networkFinished(); // 发送网络停止信号
@@ -1741,7 +1823,7 @@ void NetPage::onImportConfigClicked()
     }
 
     // 停止当前运行的网络（如果正在运行）
-    if (m_isRunning) {
+    if (m_isRunning.load()) {
         QMessageBox::StandardButton ret = QMessageBox::question(
             this,
             tr("确认"),
@@ -1755,13 +1837,13 @@ void NetPage::onImportConfigClicked()
         // 停止正在运行的网络
         if (m_easytierProcess) {
             disconnect(m_easytierProcess, nullptr, this, nullptr);
-            m_logTextEdit->appendPlainText("正在停止当前网络以导入新配置...");
+            appendLog("正在停止当前网络以导入新配置...");
             m_easytierProcess->kill();
 
             if (m_easytierProcess->waitForFinished(1000)) {
-                m_logTextEdit->appendPlainText("当前网络已停止");
+                appendLog("当前网络已停止");
             } else {
-                m_logTextEdit->appendPlainText("警告：当前网络可能未完全停止");
+                appendLog("警告：当前网络可能未完全停止");
             }
 
             emit networkFinished(); // 发送网络停止信号
@@ -1774,7 +1856,7 @@ void NetPage::onImportConfigClicked()
     // 使用导入的配置更新界面
     setNetworkConfig(doc.object());
 
-    m_logTextEdit->appendPlainText(tr("配置导入成功: %1").arg(fileName));
+    appendLog(tr("配置导入成功: %1").arg(fileName));
     QMessageBox::information(this, tr("成功"), tr("配置导入成功！"));
 }
 
@@ -1815,6 +1897,6 @@ void NetPage::onExportConfigClicked()
         return;
     }
 
-    m_logTextEdit->appendPlainText(tr("配置导出成功: %1").arg(fileName));
+    appendLog(tr("配置导出成功: %1").arg(fileName));
     QMessageBox::information(this, tr("成功"), tr("配置导出成功！"));
 }

@@ -105,7 +105,7 @@ if (!process.waitForFinished(5000)) {
 
 ---
 
-## 三、空指针解引用风险
+## 三、空指针解引用风险 - 已完成
 
 ### 3.1 m_logTextEdit可能为空
 
@@ -121,7 +121,8 @@ m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(calculatorDir
 m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(cliPath));
 ```
 
-**问题**: 如果 `initRunningLogWindow()` 未被调用或 `m_logTextEdit` 未初始化，这些调用会崩溃
+**问题**: 如果 `initRunningLogWindow()` 未被调用或 `m_logTextEdit` 未初始化，这些调用会崩溃  
+**状态**: 已修复（2026-02-03）
 
 ### 3.2 realRpcPort未初始化
 
@@ -131,7 +132,8 @@ m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(cliPath));
 int realRpcPort;  // 实际的RPC端口号
 ```
 
-**问题**: `realRpcPort` 没有默认值，如果 `generateConfCommand()` 执行失败，可能使用未初始化的值
+**问题**: `realRpcPort` 没有默认值，如果 `generateConfCommand()` 执行失败，可能使用未初始化的值  
+**状态**: 已修复（2026-02-03）
 
 ### 3.3 QTableWidgetItem可能为空
 
@@ -142,11 +144,12 @@ m_peerTable->setItem(row, 0, new QTableWidgetItem(peerObj.value("hostname").toSt
 // ... 多行类似代码
 ```
 
-**问题**: 如果 `peerObj.value()` 返回的值为空或转换失败，可能产生空项或错误数据
+**问题**: 如果 `peerObj.value()` 返回的值为空或转换失败，可能产生空项或错误数据  
+**状态**: 已修复（2026-02-03）
 
 ---
 
-## 四、异常处理不当
+## 四、异常处理不当 - 已完成
 
 ### 4.1 缺少JSON解析错误处理
 
@@ -159,7 +162,8 @@ if (jsonError.error != QJsonParseError::NoError) {
 }
 ```
 
-**问题**: JSON解析失败后只是简单记录日志，但定时器会继续尝试，导致持续的错误日志输出
+**问题**: JSON解析失败后只是简单记录日志，但定时器会继续尝试，导致持续的错误日志输出  
+**状态**: 已修复（2026-02-03）
 
 ### 4.2 QProcess错误未充分处理
 
@@ -175,7 +179,8 @@ if (!errorOutput.isEmpty()) {
 }
 ```
 
-**问题**: `errorOutput` 非空时直接返回，但可能只是警告信息，应该继续处理 `output`
+**问题**: `errorOutput` 非空时直接返回，但可能只是警告信息，应该继续处理 `output`  
+**状态**: 已修复（2026-02-03）
 
 ### 4.3 版本检测超时处理不完整
 
@@ -192,11 +197,12 @@ setting::~setting()
 }
 ```
 
-**问题**: 如果 `wait()` 超时返回false，线程仍在运行，但对象已被销毁，可能导致悬挂引用
+**问题**: 如果 `wait()` 超时返回false，线程仍在运行，但对象已被销毁，可能导致悬挂引用  
+**状态**: 已修复（2026-02-03）
 
 ---
 
-## 五、线程安全问题
+## 五、线程安全问题 - 已完成
 
 ### 5.1 全局变量g_autoRun的线程安全性
 
@@ -206,7 +212,8 @@ setting::~setting()
 inline bool g_autoRun; // 自动运行上次关闭前没退出的网络
 ```
 
-**问题**: `g_autoRun` 被多个线程访问（主线程和可能的工作线程），但没有使用原子操作或互斥锁保护
+**问题**: `g_autoRun` 被多个线程访问（主线程和可能的工作线程），但没有使用原子操作或互斥锁保护  
+**状态**: 已修复（2026-02-03）
 
 ### 5.2 成员变量跨线程访问
 
@@ -217,7 +224,8 @@ if (!m_isRunning) {
     if (m_asyncProcess) {
 ```
 
-**问题**: `m_isRunning` 和 `m_asyncProcess` 在主线程和定时器线程中都有访问，可能产生竞态条件
+**问题**: `m_isRunning` 和 `m_asyncProcess` 在主线程和定时器线程中都有访问，可能产生竞态条件  
+**状态**: 已修复（2026-02-03）
 
 ---
 
@@ -356,9 +364,9 @@ QJsonDocument doc(config);
 | **高** | 1.1 QWidget栈对象问题 | 可能崩溃 |
 | **高** | 1.2 std::exit()过度使用 | 用户体验差 |
 | **高** | 1.3 QLocalServer内存泄漏 | 资源泄漏 |
-| **中** | 3.1-3.3 空指针风险 | 可能崩溃 |
-| **中** | 4.1-4.3 异常处理不当 | 鲁棒性差 |
-| **中** | 5.1-5.2 线程安全 | 竞态条件 |
+| **中** | 3.1-3.3 空指针风险（已完成） | 可能崩溃 |
+| **中** | 4.1-4.3 异常处理不当（已完成） | 鲁棒性差 |
+| **中** | 5.1-5.2 线程安全（已完成） | 竞态条件 |
 | **低** | 7.1-7.4 代码质量问题 | 可维护性差 |
 | **低** | 8.1-8.2 性能问题 | 长期影响 |
 

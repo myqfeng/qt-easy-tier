@@ -16,6 +16,7 @@
 #include <QThread>
 #include <QNetworkReply>
 #include <QPointer>
+#include <QMetaObject>
 
 // VersionDetectionWorker实现
 VersionDetectionWorker::VersionDetectionWorker(QObject *parent)
@@ -92,20 +93,33 @@ setting::setting(QWidget *parent)
     loadSettings();
 
     // 设置界面初始状态
-    ui->autoRuncheckBox->setChecked(g_autoRun);
+    ui->autoRuncheckBox->setChecked(g_autoRun.load());
     ui->autoStartCheckBox->setChecked(m_autoStart);
     ui->versionLabel->setText(m_softwareVer);
 }
 
 setting::~setting()
 {
-    if (m_versionThread && m_versionThread->isRunning()) {
-        m_versionThread->quit();
-        m_versionThread->wait(3000); // 等待最多3秒
+    if (m_versionWorker) {
+        if (m_versionThread && m_versionThread->isRunning()) {
+            QMetaObject::invokeMethod(m_versionWorker, "deleteLater", Qt::QueuedConnection);
+        } else {
+            delete m_versionWorker;
+        }
+        m_versionWorker = nullptr;
     }
 
-    delete m_versionWorker;
+    if (m_versionThread && m_versionThread->isRunning()) {
+        m_versionThread->quit();
+        if (!m_versionThread->wait(3000)) { // 等待最多3秒
+            m_versionThread->requestInterruption();
+            m_versionThread->terminate();
+            m_versionThread->wait(1000);
+        }
+    }
+
     delete m_versionThread;
+    m_versionThread = nullptr;
     delete ui;
 }
 
@@ -247,7 +261,7 @@ void setting::detectSoftwareVersion(bool isFromBtn)
 void setting::on_buttonBox_accepted()
 {
     // 保存设置
-    g_autoRun = ui->autoRuncheckBox->isChecked();
+    g_autoRun.store(ui->autoRuncheckBox->isChecked());
     m_autoStart = ui->autoStartCheckBox->isChecked();
 
     saveSettings();
@@ -274,14 +288,14 @@ void setting::loadSettings()
     QFile file(settingsFile);
     if (!file.exists()) {
         // 默认设置
-        g_autoRun = false;
+        g_autoRun.store(false);
         m_autoStart = false;
         return;
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
         // 默认设置
-        g_autoRun = false;
+        g_autoRun.store(false);
         m_autoStart = false;
         return;
     }
@@ -294,13 +308,13 @@ void setting::loadSettings()
 
     if (error.error != QJsonParseError::NoError || !doc.isObject()) {
         // 默认设置
-        g_autoRun = false;
+        g_autoRun.store(false);
         m_autoStart = false;
         return;
     }
 
     QJsonObject settings = doc.object();
-    g_autoRun = settings.value("autoRun").toBool(false);
+    g_autoRun.store(settings.value("autoRun").toBool(false));
     m_autoStart = settings.value("autoStart").toBool(false);
 }
 
@@ -311,7 +325,7 @@ void setting::saveSettings()
     QString settingsFile = configPath + "/settings.json";
 
     QJsonObject settings;
-    settings["autoRun"] = g_autoRun;
+    settings["autoRun"] = g_autoRun.load();
     settings["autoStart"] = m_autoStart;
 
     QJsonDocument doc(settings);
