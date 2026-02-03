@@ -16,6 +16,9 @@
 #include <QMessageBox>
 #include <QSystemTrayIcon>
 #include <QCloseEvent>
+#include <QDialog>
+#include <QPointer>
+#include <QApplication>
 #include <iostream>
 #include <QDir>           // 添加目录操作支持
 #include <QFile>          // 添加文件操作支持
@@ -106,8 +109,9 @@ MainWindow::MainWindow(QWidget *parent)
         if (index >= 0 && index < m_netpages.size()) {
             __changeWidget(m_netpages[index]);
         } else {
-            std::cerr << "无效的索引，程序出错" << std::endl;
-            std::exit(1);
+            qWarning() << "无效的网络项索引:" << index;
+            QMessageBox::critical(this, "错误", "无效的网络项索引");
+            return;
         }
     });
 
@@ -180,7 +184,7 @@ void MainWindow::onDeleteNetwork()
     int index = ui->netListWidget->row(currentItem);
     if (index < 0 || index >= m_netpages.size()) {
         QMessageBox::critical(this, "错误", "无效的网络项索引");
-        std::exit(1);
+        return;
     }
 
     QMessageBox::StandardButton reply;
@@ -238,16 +242,24 @@ void MainWindow::__changeWidget(QWidget *newWidget) const {
 
 // 加载网络配置
 void MainWindow::loadNetworkConfig() {
-    QWidget loadingMessage ;
-    loadingMessage.setWindowTitle("QtEasyTier");
-    loadingMessage.resize(300, 100);
-    loadingMessage.setWindowIcon(QIcon(":/icons/icon.ico"));
-    QHBoxLayout *layout = new QHBoxLayout(&loadingMessage);
-    QLabel loadingLabel("正在加载网络配置, 请稍后...", &loadingMessage);
-    loadingLabel.setStyleSheet("font-size: 14px;");
-    loadingLabel.setAlignment(Qt::AlignCenter);
-    layout->addWidget(&loadingLabel);
-    loadingMessage.show();
+    QPointer<QDialog> loadingMessage = new QDialog(this);
+    loadingMessage->setAttribute(Qt::WA_DeleteOnClose);
+    loadingMessage->setWindowTitle("QtEasyTier");
+    loadingMessage->resize(300, 100);
+    loadingMessage->setWindowIcon(QIcon(":/icons/icon.ico"));
+    QHBoxLayout *layout = new QHBoxLayout(loadingMessage);
+    QLabel *loadingLabel = new QLabel("正在加载网络配置, 请稍后...", loadingMessage);
+    loadingLabel->setStyleSheet("font-size: 14px;");
+    loadingLabel->setAlignment(Qt::AlignCenter);
+    layout->addWidget(loadingLabel);
+    loadingMessage->show();
+    QApplication::processEvents();
+
+    auto closeLoading = [&loadingMessage]() {
+        if (loadingMessage) {
+            loadingMessage->close();
+        }
+    };
 
     // 配置目录
     QDir configDir;
@@ -272,12 +284,14 @@ void MainWindow::loadNetworkConfig() {
             file.write(doc.toJson());
             file.close();
         }
+        closeLoading();
         return;
     }
 
     // 读取配置文件
     if (!file.open(QIODevice::ReadOnly)) {
         qDebug() << "无法打开配置文件进行读取:" << configFile;
+        closeLoading();
         return;
     }
 
@@ -290,12 +304,14 @@ void MainWindow::loadNetworkConfig() {
     if (error.error != QJsonParseError::NoError) {
         qDebug() << "JSON解析错误:" << error.errorString();
         QMessageBox::critical(this, "错误", "JSON解析错误:" + error.errorString());
+        closeLoading();
         return;
     }
 
     if (!doc.isObject()) {
         qDebug() << "配置文件格式错误，应为JSON对象";
         QMessageBox::critical(this, "错误", "配置文件格式错误，应为JSON对象");
+        closeLoading();
         return;
     }
 
@@ -304,6 +320,7 @@ void MainWindow::loadNetworkConfig() {
     if (!rootObj.contains("networks") || !rootObj["networks"].isArray()) {
         qDebug() << "配置文件缺少networks数组";
         QMessageBox::critical(this, "错误", "配置文件缺少networks数组");
+        closeLoading();
         return;
     }
 
@@ -348,6 +365,7 @@ void MainWindow::loadNetworkConfig() {
         }
     }
     tmpSet->deleteLater();
+    closeLoading();
 }
 
 // 保存网络配置

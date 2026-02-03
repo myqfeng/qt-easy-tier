@@ -15,6 +15,7 @@
 #include <QTimer>
 #include <QThread>
 #include <QNetworkReply>
+#include <QPointer>
 
 // VersionDetectionWorker实现
 VersionDetectionWorker::VersionDetectionWorker(QObject *parent)
@@ -195,9 +196,15 @@ void setting::detectSoftwareVersion(bool isFromBtn)
 
     // 发送 GET 请求
     QNetworkReply *reply = manager->get(QNetworkRequest(url));
+    QPointer<setting> self(this);
 
     // 连接请求完成信号
     connect(reply, &QNetworkReply::finished, this, [=, this]() {
+        if (!self) {
+            reply->deleteLater();
+            manager->deleteLater();
+            return;
+        }
         if (reply->error() == QNetworkReply::NoError) {
             // 读取返回的 JSON 数据
             QByteArray response = reply->readAll();
@@ -231,7 +238,7 @@ void setting::detectSoftwareVersion(bool isFromBtn)
         manager->deleteLater();
         // 外部调用完毕后自动删除setting
         if (!isFromBtn) {
-            this->deleteLater();
+            self->deleteLater();
         }
     });
 }

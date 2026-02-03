@@ -10,6 +10,7 @@
 #include <QUdpSocket>
 #include <QHostAddress>
 #include <QAbstractSocket>
+#include <QElapsedTimer>
 #include <random>
 
 /// @brief 生成随机端口号
@@ -214,12 +215,25 @@ bool isRpcPortOccupied(const int &port)
     QProcess process;
     process.setWorkingDirectory(appDir);
     process.start(cliPath, QStringList() << "-p" << "127.0.0.1:" + QString::number(port) << "peer");
-    if (!process.waitForFinished(5000)) { // 5秒超时
-        std::cerr << "[RpcDetect] RPC port " << port << " check timeout" << std::endl;
-        //QMessageBox::critical(nullptr, "端口占用检测", "RPC端口检查超时");
-        throw std::runtime_error("端口占用检测失败, RPC端口检查超时");
+    QByteArray stdOutput;
+    QByteArray stdError;
+    QElapsedTimer timer;
+    timer.start();
+    while (process.state() == QProcess::Running) {
+        process.waitForReadyRead(100);
+        stdOutput += process.readAllStandardOutput();
+        stdError += process.readAllStandardError();
+        if (timer.elapsed() > 5000) { // 5秒超时
+            std::cerr << "[RpcDetect] RPC port " << port << " check timeout" << std::endl;
+            process.kill();
+            process.waitForFinished(1000);
+            throw std::runtime_error("端口占用检测失败, RPC端口检查超时");
+        }
     }
-    QString output = QString::fromLocal8Bit(process.readAllStandardError());
+    process.waitForFinished(0);
+    stdOutput += process.readAllStandardOutput();
+    stdError += process.readAllStandardError();
+    QString output = QString::fromLocal8Bit(stdOutput + stdError);
 
     // 检查输出是否包含"Error",包含则表示端口没有实例占用
     if (output.contains("Error: failed to get peer manager client")) {
