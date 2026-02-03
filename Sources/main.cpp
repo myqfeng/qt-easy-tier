@@ -1,5 +1,5 @@
 #include "mainwindow.h"
-
+#include "setting.h"
 #include <iostream>
 #include <QApplication>
 #include <QStyleFactory>
@@ -7,6 +7,8 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMessageBox>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
 void isAlreadyRunning(const QString& serverName);
 
@@ -47,6 +49,9 @@ int main(int argc, char *argv[])
     if (!autoStart) {
         w.show();
     }
+    // 检查更新
+    setting::detectSoftWareVersionExternal();
+
     return app.exec();
 }
 

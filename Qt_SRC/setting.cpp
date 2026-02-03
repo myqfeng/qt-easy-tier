@@ -14,6 +14,7 @@
 #include <QFile>
 #include <QTimer>
 #include <QThread>
+#include <QNetworkReply>
 
 // VersionDetectionWorker实现
 VersionDetectionWorker::VersionDetectionWorker(QObject *parent)
@@ -92,7 +93,7 @@ setting::setting(QWidget *parent)
     // 设置界面初始状态
     ui->autoRuncheckBox->setChecked(g_autoRun);
     ui->autoStartCheckBox->setChecked(m_autoStart);
-
+    ui->versionLabel->setText(m_softwareVer);
 }
 
 setting::~setting()
@@ -179,10 +180,60 @@ void setting::on_pushButton_2_clicked()
 }
 
 // 检查更新按钮点击事件
+// 检查更新按钮点击事件
 void setting::on_newVerPushButton_clicked()
 {
-    // 暂时不实现
-    QMessageBox::information(this, "提示", "检查更新功能暂未实现");
+    detectSoftwareVersion(true);
+}
+
+void setting::detectSoftwareVersion(bool isFromBtn)
+{
+    const QString &currentVersion = m_softwareVer;
+
+    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
+    QUrl url("https://gitee.com/api/v5/repos/viagrahuang/qt-easy-tier/releases/latest");
+
+    // 发送 GET 请求
+    QNetworkReply *reply = manager->get(QNetworkRequest(url));
+
+    // 连接请求完成信号
+    connect(reply, &QNetworkReply::finished, this, [=, this]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            // 读取返回的 JSON 数据
+            QByteArray response = reply->readAll();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(response);
+            QJsonObject jsonObj = jsonDoc.object();
+
+            // 解析 tag_name 字段
+            QString latestVersion = jsonObj["tag_name"].toString();
+
+            // 对比版本号
+            if (latestVersion != currentVersion) {
+                QString msg = QString("发现新版本：%1\n当前版本：%2\n是否前往下载？")
+                              .arg(latestVersion).arg(currentVersion);
+                QMessageBox::StandardButton ret = QMessageBox::question(
+                    this, "检查更新", msg,
+                    QMessageBox::Yes | QMessageBox::No
+                );
+                if (ret == QMessageBox::Yes) {
+                    QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
+                }
+            } else {
+                QMessageBox::information(this, "检查更新", "当前已经是最新版本！");
+            }
+        } else {
+            // 网络请求失败
+            QMessageBox::warning(this, "检查更新",
+                "检查更新失败：" + reply->errorString());
+        }
+
+        reply->deleteLater();
+        manager->deleteLater();
+        // 外部调用完毕后自动删除setting
+        if (!isFromBtn) {
+            this->deleteLater();
+        }
+    });
 }
 
 // 确定按钮点击事件
