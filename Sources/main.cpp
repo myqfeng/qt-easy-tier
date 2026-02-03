@@ -10,7 +10,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 
-void isAlreadyRunning(const QString& serverName);
+bool registerSingleInstance(QLocalServer &localServer, const QString& serverName);
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +18,10 @@ int main(int argc, char *argv[])
 
     // 检查是否已有实例运行（确保单实例）
     QString serverName = "QtEasyTierbyViahuang";
-    isAlreadyRunning(serverName);   // 有实例运行自动退出
+    QLocalServer localServer;
+    if (!registerSingleInstance(localServer, serverName)) {
+        return 0;
+    }
 
     // 使用Breeze主题
 #ifdef WIN32
@@ -56,7 +59,7 @@ int main(int argc, char *argv[])
 }
 
 // 检查是否已有实例运行
-void isAlreadyRunning(const QString& serverName) {
+bool registerSingleInstance(QLocalServer &localServer, const QString& serverName) {
     // 创建本地套接字，尝试连接指定名称的服务器
     QLocalSocket socket;
     socket.connectToServer(serverName);
@@ -65,15 +68,18 @@ void isAlreadyRunning(const QString& serverName) {
     if (socket.waitForConnected(500)) {
         std::clog << "已有实例运行，本程序退出" << std::endl;
         QMessageBox::information(nullptr, "Tip", "QtEasyTier 已在运行");
-        std::exit(0);
+        return false;
     }
 
     // 连接失败，说明是第一个实例，启动本地服务器
-    auto localServer = new QLocalServer(qApp);
     // 监听指定名称的本地套接字
-    if (!localServer->listen(serverName)) {
+    if (!localServer.listen(serverName)) {
         // 如果监听失败（可能是残留的套接字文件），先移除再重试
         QLocalServer::removeServer(serverName);
-        localServer->listen(serverName);
+        if (!localServer.listen(serverName)) {
+            QMessageBox::critical(nullptr, "错误", "无法启动本地服务实例");
+            return false;
+        }
     }
+    return true;
 }
