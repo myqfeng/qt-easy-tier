@@ -1,0 +1,72 @@
+[
+  {
+    "property": "仅连接",
+    "url": "txt://qtet-public.070219.xyz",
+    "contributor": "QtEasyTier"
+  },
+  {
+    "property": "可转发",
+    "url": "https://et-public.lctn.site",
+    "contributor": "凉城听暖"
+  },
+  {
+    "property": "可转发",
+    "url": "tcp://public2.easytier.cn:54321",
+    "contributor": "EasyTier官方"
+  },
+  {
+    "property": "可转发",
+    "url": "tcp://turn.js.629957.xyz:11012",
+    "contributor": "小探的服务器"
+  },
+  {
+    "property": "可中转",
+    "url": "tcp://et.fpfast.top:48625",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "仅连接",
+    "url": "udp://43.139.65.49:11010",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "仅连接",
+    "url": "tcp://47.92.208.217:11010",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "仅连接",
+    "url": "tcp://sh.vomiku.com:7910",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "可转发",
+    "url": "tcp://47.108.52.1:11012",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "仅连接",
+    "url": "tcp://boi.de5.net:11010",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "可转发",
+    "url": "tcp://c.oee.icu:60006",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "可转发",
+    "url": "tcp://easytier.weiai.org.cn:11010",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "可转发",
+    "url": "tcp://103.217.186.78:11011",
+    "contributor": "网络收集"
+  },
+  {
+    "property": "仅连接",
+    "url": "tcp://47.92.208.217:11010",
+    "contributor": "网络收集"
+  }
+]
