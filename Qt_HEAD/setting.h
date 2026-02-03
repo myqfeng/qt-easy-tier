@@ -6,6 +6,7 @@
 #include <QSettings>
 #include <QJsonObject>
 #include <QThread>
+#include <atomic>
 
 namespace Ui {
     class setting;
@@ -85,7 +86,7 @@ private:
 
     // 设置项
     bool m_autoStart; // 是否开机自启
-    QString m_softwareVer = "1.0.1";
+    QString m_softwareVer = "1.0.3";
 
     // 线程相关
     QThread *m_versionThread;
@@ -99,6 +100,6 @@ protected:
         startVersionDetection();
     }
 };
-inline bool g_autoRun; // 自动运行上次关闭前没退出的网络
+inline std::atomic_bool g_autoRun{false}; // 自动运行上次关闭前没退出的网络
 
 #endif // SETTING_H

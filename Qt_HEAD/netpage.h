@@ -15,6 +15,8 @@
 #include <QJsonObject>  // 添加JSON支持
 #include <QCompleter>
 #include <QStringListModel>
+#include <QMutex>
+#include <atomic>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -83,8 +85,8 @@ public:
     void setNetworkConfig(const QJsonObject &config);  // 设置网络配置
 
     // ===============运行与检测相关===============
-    int realRpcPort;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
-    bool isRunning() const { return m_isRunning; }
+    int realRpcPort = 0;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
+    bool isRunning() const { return m_isRunning.load(); }
     void runNetworkOnAutoStart();  // 运行网络（开机自启）
 
 private slots:
@@ -208,13 +210,16 @@ private:
     // 运行et相关
     QPlainTextEdit *m_logTextEdit;
     QProcess *m_easytierProcess;
-    bool m_isRunning;      // 运行状态跟踪
+    std::atomic_bool m_isRunning;      // 运行状态跟踪
 
     // 运行状态页面相关
     QProcess *m_asyncProcess;     // 执行cli异步获取节点信息
     QLabel *m_runningStatusLabel;
     QTableWidget *m_peerTable;
     QTimer *m_peerUpdateTimer;
+    QMutex m_peerProcessMutex;
+    int m_peerParseErrorCount;
+    static constexpr int kPeerParseErrorLimit = 3;
 
     // 初始化网络设置界面（基本设置）
     void initNetworkSettings();
@@ -234,6 +239,12 @@ private:
     void initCidrManagement();
     // 重置运行按钮状态
     void resetStateDisplay();
+    // 追加日志输出
+    void appendLog(const QString &message);
+    // 清理日志输出
+    void clearLog();
+    // 节点信息字段格式化
+    QString peerValueToString(const QJsonObject &peerObj, const char *key) const;
 
     // 初始化运行状态页面
     void initRunningStatePage();
