@@ -229,7 +229,7 @@ if (!m_isRunning) {
 
 ---
 
-## 六、逻辑错误
+## 六、逻辑错误 - 已完成
 
 ### 6.1 网络白名单启用状态未正确保存
 
@@ -251,7 +251,8 @@ if (advancedSettings.contains("relayNetworkWhitelistEnabled")) {
 }
 ```
 
-**问题**: 在 `getNetworkConfig()` 中正确保存了状态，但在 `setNetworkConfig()` 中没有考虑白名单列表数据先被清除的情况，可能导致白名单数据丢失
+**问题**: 在 `getNetworkConfig()` 中正确保存了状态，但在 `setNetworkConfig()` 中没有考虑白名单列表数据先被清除的情况，可能导致白名单数据丢失  
+**状态**: 已修复（2026-02-03）
 
 ### 6.2 Dialog泄漏
 
@@ -261,7 +262,8 @@ if (advancedSettings.contains("relayNetworkWhitelistEnabled")) {
 QDialog *dialog = new QDialog(this);
 ```
 
-**问题**: 虽然使用了 `deleteLater()`（第1242行），但对话框在 `onRunNetwork()` 函数结束时仍然存在，直到800ms后被销毁
+**问题**: 虽然使用了 `deleteLater()`（第1242行），但对话框在 `onRunNetwork()` 函数结束时仍然存在，直到800ms后被销毁  
+**状态**: 已修复（2026-02-03）
 
 ---
 

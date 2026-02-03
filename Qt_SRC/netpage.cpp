@@ -1178,17 +1178,17 @@ void NetPage::onRunNetwork()
             this, &NetPage::onProcessFinished);
 
     // 新建一个Dialog窗口展示启动过程
-    QDialog *dialog = new QDialog(this);
-    QVBoxLayout *dialogLayout = new QVBoxLayout(dialog);
-    QLabel *dialogTitleLabel = new QLabel("启动日志", dialog);
-    QPlainTextEdit *processLogTextEdit = new QPlainTextEdit(dialog);
+    QDialog dialog(this);
+    QVBoxLayout *dialogLayout = new QVBoxLayout(&dialog);
+    QLabel *dialogTitleLabel = new QLabel("启动日志", &dialog);
+    QPlainTextEdit *processLogTextEdit = new QPlainTextEdit(&dialog);
     // 启动进程
     try {
-        dialog->setWindowTitle("启动EasyTier中。。。");
-        dialog->setModal(true);
+        dialog.setWindowTitle("启动EasyTier中。。。");
+        dialog.setModal(true);
 
         dialogLayout->setContentsMargins(20, 20, 20, 20);
-        dialog->setMinimumSize(400, 300);
+        dialog.setMinimumSize(400, 300);
 
         dialogTitleLabel->setStyleSheet("font-size: 14px; font-weight: bold;");
         dialogLayout->addWidget(dialogTitleLabel);
@@ -1197,10 +1197,10 @@ void NetPage::onRunNetwork()
         processLogTextEdit->setFont(QFont("Consolas", 12));
 
         dialogLayout->addWidget(processLogTextEdit);
-        dialog->setWindowFlag(Qt::WindowCloseButtonHint, false);
+        dialog.setWindowFlag(Qt::WindowCloseButtonHint, false);
 
         // 显示对话框
-        dialog->show();
+        dialog.show();
         processLogTextEdit->appendPlainText("启动EasyTier进程...");
         processLogTextEdit->appendPlainText("生成启动配置...");
         processLogTextEdit->appendPlainText("正在检测RPC端口...");
@@ -1251,8 +1251,7 @@ void NetPage::onRunNetwork()
             m_easytierProcess = nullptr;
         }
     }
-    // 定时器延时一秒关闭对话框
-    QTimer::singleShot(800, dialog, &QDialog::deleteLater);
+    dialog.close();
 }
 
 // 进程输出处理
@@ -1678,15 +1677,6 @@ void NetPage::setNetworkConfig(const QJsonObject &config)
             m_rpcPortEdit->setText(advancedSettings["rpcPort"].toString());
         }
 
-        // 网络白名单设置
-        if (advancedSettings.contains("relayNetworkWhitelistEnabled")) {
-            m_relayNetworkWhitelistCheckBox->setChecked(
-                advancedSettings["relayNetworkWhitelistEnabled"].toBool());
-            // 触发状态变化以更新UI
-            onRelayNetworkWhitelistStateChanged(
-                m_relayNetworkWhitelistCheckBox->isChecked() ? Qt::Checked : Qt::Unchecked);
-        }
-
         // 网络白名单列表
         if (advancedSettings.contains("relayNetworkWhitelist") &&
             advancedSettings["relayNetworkWhitelist"].isArray()) {
@@ -1696,6 +1686,13 @@ void NetPage::setNetworkConfig(const QJsonObject &config)
                 m_relayNetworkWhitelistListWidget->addItem(networkValue.toString());
             }
             }
+
+        // 网络白名单设置
+        const bool whitelistEnabled = advancedSettings.value("relayNetworkWhitelistEnabled").toBool(false);
+        m_relayNetworkWhitelistCheckBox->setChecked(whitelistEnabled);
+        // 触发状态变化以更新UI
+        onRelayNetworkWhitelistStateChanged(
+            whitelistEnabled ? Qt::Checked : Qt::Unchecked);
 
         // 监听地址列表
         if (advancedSettings.contains("listenAddresses") && advancedSettings["listenAddresses"].isArray()) {
