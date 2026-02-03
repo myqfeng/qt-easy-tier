@@ -9,7 +9,7 @@
 - 赞助方式如下
 
 <p>
-<img src="wechat.png" width="220">
-<img src="alipay.jpg" width="200">
+<img src="/assets/wechat.png" width="220">
+<img src="/assets/alipay.jpg" width="200">
 </p>
 

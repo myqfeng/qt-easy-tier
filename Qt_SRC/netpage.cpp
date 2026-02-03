@@ -265,7 +265,7 @@ void NetPage::initServerManagement()
     });
     // 连接信号槽: 点击服务器帮助按钮
     connect(m_serverHelpBtn, &QPushButton::clicked, []() {
-        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/assets/server.md"));
+        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/blob/master/docs/server.md"));
     });
 }
 
