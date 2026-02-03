@@ -31,6 +31,8 @@ private:
     QString getExecutableVersion(const QString &executablePath);
 };
 
+// ==================================================
+
 class setting : public QDialog
 {
     Q_OBJECT
@@ -39,17 +41,30 @@ public:
     explicit setting(QWidget *parent = nullptr);
     ~setting();
 
+    ///@brief 外部调用检查版本更新
+    static void detectSoftWareVersionExternal() {
+        auto *tmp = new setting();
+        tmp->detectSoftwareVersion();
+    }
+
+    QString getSoftwareVersion() { return m_softwareVer; }
+
 private slots:
     // 重新检测版本按钮点击事件
     void on_detAgainPushButton_clicked();
     // 打开核心目录按钮点击事件
     void on_pushButton_2_clicked();
-    // 检查更新按钮点击事件
-    void on_newVerPushButton_clicked();
     // 确定按钮点击事件
     void on_buttonBox_accepted();
     // 取消按钮点击事件
     void on_buttonBox_rejected();
+    // 检查更新按钮点击事件
+    void on_newVerPushButton_clicked();
+
+    ///@brief 检查软件版本
+    ///@param isFromBtn 是否来自按钮点击
+    ///@warning 值为false时，检查完毕后会自动销毁setting对象
+    void detectSoftwareVersion(bool isFromBtn =  false);
 
     // 版本检测结果处理
     void onCoreVersionDetected(const QString &version);
@@ -70,6 +85,7 @@ private:
 
     // 设置项
     bool m_autoStart; // 是否开机自启
+    QString m_softwareVer = "1.0.1";
 
     // 线程相关
     QThread *m_versionThread;
