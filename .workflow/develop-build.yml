@@ -20,36 +20,47 @@ stages:
         displayName: GCC 构建
         gccVersion: 12.1.0
         commands:
-          - '# 1. 安装系统依赖'
-          - sudo apt-get update && sudo apt-get install -y \
+          - '#!/bin/bash'
+          - 'set -e  # 遇到错误立即退出'
+          - ''
+          - '# 1. 解决locale警告（可选，消除干扰）'
+          - export LC_ALL=C.UTF-8
+          - export LANG=C.UTF-8
+          - ''
+          - '# 2. 安装基础依赖（先安装sudo，再更新源）'
+          - apt-get update && apt-get install -y sudo
+          - ''
+          - '# 3. 安装Qt开发包（根据项目需求选择Qt5/Qt6，这里以Qt6为例）'
+          - sudo apt-get install -y \
           - '    build-essential \'
           - '    cmake \'
-          - '    libgl1-mesa-dev \'
-          - '    libxcb-xinerama0 \'
-          - '    libxcb-cursor0 \'
           - '    qt6-base-dev \'
-          - '    qt6-declarative-dev \'
           - '    qt6-tools-dev \'
           - '    qt6-tools-dev-tools \'
-          - '    libqt6svg6-dev \'
-          - '    breeze \'
-          - '    libbreeze6'
+          - '    libkf5breeze-dev \  # 对应日志中的BREEZE_THEME_INCLUDE_DIR'
+          - '    pkg-config'
           - ''
-          - '# 2. 新建并进入build目录'
-          - mkdir -p build && cd build
+          - '# 4. 确认Qt安装路径（可选，验证安装）'
+          - echo "Qt6配置文件路径："
+          - find /usr -name "Qt6Config.cmake" || echo "Qt6未找到，尝试Qt5"
+          - find /usr -name "Qt5Config.cmake"
           - ''
-          - '# 3. 生成Makefile并构建'
+          - '# 5. 创建并进入构建目录'
+          - mkdir -p build
+          - cd build
+          - ''
+          - '# 6. 执行CMake（自动查找Qt，无需手动指定CMAKE_PREFIX_PATH，若仍找不到可手动指定）'
           - cmake -G 'Unix Makefiles' \
-          - '    -DCMAKE_PREFIX_PATH=/usr/lib/x86_64-linux-gnu/cmake/Qt6 \'
-          - '    -DQT_QPA_PLATFORM_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/qt6/plugins/platforms \'
-          - '    -DBREEZE_THEME_INCLUDE_DIR=/usr/include/KF5/Breeze \'
-          - '    ../'
+          - '      -DCMAKE_BUILD_TYPE=Release \'
+          - '      ../'
           - ''
-          - '# 4. 并行编译（根据服务器核心数调整-j参数）'
+          - '# 7. 编译（根据CPU核心数调整-j参数）'
           - make -j$(nproc)
           - ''
-          - '# 5. 可选：打包构建产物'
+          - '# 8. 安装到指定目录'
           - make install DESTDIR=./deploy
+          - ''
+          - echo "构建成功！"
         artifacts:
           - name: BUILD_ARTIFACT
             path:
