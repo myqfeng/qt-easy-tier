@@ -20,10 +20,36 @@ stages:
         displayName: GCC 构建
         gccVersion: 12.1.0
         commands:
-          - '# 新建build目录，切换到build目录'
-          - 'mkdir build && cd build '
-          - '# 生成Unix平台的makefiles文件并执行构建'
-          - cmake -G 'Unix Makefiles' ../ && make -j
+          - '# 1. 安装系统依赖'
+          - sudo apt-get update && sudo apt-get install -y \
+          - '    build-essential \'
+          - '    cmake \'
+          - '    libgl1-mesa-dev \'
+          - '    libxcb-xinerama0 \'
+          - '    libxcb-cursor0 \'
+          - '    qt6-base-dev \'
+          - '    qt6-declarative-dev \'
+          - '    qt6-tools-dev \'
+          - '    qt6-tools-dev-tools \'
+          - '    libqt6svg6-dev \'
+          - '    breeze \'
+          - '    libbreeze6'
+          - ''
+          - '# 2. 新建并进入build目录'
+          - mkdir -p build && cd build
+          - ''
+          - '# 3. 生成Makefile并构建'
+          - cmake -G 'Unix Makefiles' \
+          - '    -DCMAKE_PREFIX_PATH=/usr/lib/x86_64-linux-gnu/cmake/Qt6 \'
+          - '    -DQT_QPA_PLATFORM_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/qt6/plugins/platforms \'
+          - '    -DBREEZE_THEME_INCLUDE_DIR=/usr/include/KF5/Breeze \'
+          - '    ../'
+          - ''
+          - '# 4. 并行编译（根据服务器核心数调整-j参数）'
+          - make -j$(nproc)
+          - ''
+          - '# 5. 可选：打包构建产物'
+          - make install DESTDIR=./deploy
         artifacts:
           - name: BUILD_ARTIFACT
             path:
