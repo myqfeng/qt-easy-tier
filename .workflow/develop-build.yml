@@ -30,6 +30,15 @@ stages:
           - '# 2. 安装基础依赖（先安装sudo，再更新源）'
           - apt-get update && apt-get install -y sudo
           - ''
+          - '# 添加Qt6官方源（Ubuntu 20.04）'
+          - sudo apt-get install -y software-properties-common
+          - sudo add-apt-repository -y ppa:beineri/opt-qt622-focal
+          - sudo apt-get update -y
+          - ''
+          - '# 安装Qt6（需激活环境）'
+          - sudo apt-get install -y qt6-base-dev
+          - 'source /opt/qt622/bin/qt622-env.sh  # 激活Qt6环境'
+          - ''
           - '# 3. 安装Qt开发包（根据项目需求选择Qt5/Qt6，这里以Qt6为例）'
           - sudo apt-get install -y \
           - '    build-essential \'
