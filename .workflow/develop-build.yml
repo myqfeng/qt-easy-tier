@@ -1,0 +1,34 @@
+version: '1.0'
+name: develop-build
+displayName: develop构建
+triggers:
+  trigger: auto
+  push:
+    branches:
+      precise:
+        - develop
+stages:
+  - name: stage-64aaac7a
+    displayName: 编译
+    strategy: naturally
+    trigger: auto
+    executor:
+      - viagrahuang
+    steps:
+      - step: build@gcc
+        name: build_gcc
+        displayName: GCC 构建
+        gccVersion: 12.1.0
+        commands:
+          - '# 新建build目录，切换到build目录'
+          - 'mkdir build && cd build '
+          - '# 生成Unix平台的makefiles文件并执行构建'
+          - cmake -G 'Unix Makefiles' ../ && make -j
+        artifacts:
+          - name: BUILD_ARTIFACT
+            path:
+              - ./bin
+        caches: []
+        notify: []
+        strategy:
+          retry: '0'
