@@ -205,7 +205,15 @@ MainWindow::~MainWindow()
     // 关闭应用前保存配置
     saveNetworkConfig();
 
-    ui->netListWidget->clear();
+    // 杀死所有easytier-core进程
+    QProcess process;
+#ifdef Q_OS_WIN
+    process.start("taskkill /F /IM easytier-core.exe");
+#elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
+    process.start("pkill easytier-core");
+#endif
+    process.waitForFinished(5000);
+
     delete ui;
 }
 
