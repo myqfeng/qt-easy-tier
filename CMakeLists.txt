@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 set(ProjectName QtEasyTier)
 
 # 设置项目名称
-project(${ProjectName} VERSION 1.0.4 LANGUAGES CXX)
+project(${ProjectName} VERSION 1.1.0 LANGUAGES CXX)
 
 # 启用Qt的自动MOC和RCC
 set(CMAKE_AUTOUIC ON)
