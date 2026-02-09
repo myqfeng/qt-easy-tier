@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 set(ProjectName QtEasyTier)
 
 # 设置项目名称
-project(${ProjectName} VERSION 1.0.4 LANGUAGES CXX)
+project(${ProjectName} VERSION 1.1.0 LANGUAGES CXX)
 
 # 启用Qt的自动MOC和RCC
 set(CMAKE_AUTOUIC ON)
@@ -55,6 +55,7 @@ if(WIN32)  # 改为判断Windows系统，而非MinGW编译器
     set(GENERATED_RC_FILE "${CMAKE_BINARY_DIR}/auto_generated.rc")
     file(WRITE ${GENERATED_RC_FILE}
             "1 24 \"${MANIFEST_FILE}\""  # 直接写入rc文件的核心内容
+            "IDI_ICON1 ICON \"${CMAKE_SOURCE_DIR}/Qt_QRC/icon.ico\""  # 添加图标
     )
 
     # 4. 将自动生成的rc文件标记为CMAKE的源文件（避免IDE警告）
