@@ -559,7 +559,7 @@ QPushButton:disabled {
           <string notr="true">font-size: 18px;</string>
          </property>
          <property name="text">
-          <string>一个简洁漂亮的EasyTier图形界面</string>
+          <string>一款美观实用的EasyTier图形界面</string>
          </property>
         </widget>
        </item>
@@ -594,7 +594,7 @@ QPushButton:disabled {
           <string notr="true">font-size: 13px;</string>
          </property>
          <property name="text">
-          <string>点击右侧列表查看网络详情或者点击右下角加号添加网络</string>
+          <string>点击右侧列表查看网络详情或者点击左下角加号添加网络</string>
          </property>
         </widget>
        </item>
@@ -622,7 +622,7 @@ QPushButton:disabled {
 font-size: 8</string>
          </property>
          <property name="text">
-          <string>不太会用？点击右下角问号获取帮助！</string>
+          <string>不太会用？点击左下角问号获取帮助！</string>
          </property>
         </widget>
        </item>
