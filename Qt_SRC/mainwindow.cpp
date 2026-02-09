@@ -2,6 +2,7 @@
 #include "netpage.h"
 #include "about.h"
 #include "setting.h"
+#include "oneclick.h"
 #include "./ui_mainwindow.h"
 
 #include <QListWidget>
@@ -26,6 +27,8 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
+    , m_oneClick(nullptr)
+    , m_settingsWindow(nullptr)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -60,8 +63,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 点击设置按钮时打开设置窗口
     connect(ui->setPushButton, &QPushButton::clicked, this, [=, this]() {
-        setting *settingsWindow = new setting(this);
-        settingsWindow->exec();
+        m_settingsWindow = new setting(this);
+        m_settingsWindow->exec();
+        m_settingsWindow->deleteLater();
     });
 
     // 点击赞助按钮时跳转到赞助网页
@@ -111,6 +115,9 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
+    // 点击一键联机按钮时
+    connect(ui->oneClickBtn, &QPushButton::clicked, this, &MainWindow::onClickOneClickBtn);
+
     // 设置右键菜单和双击事件
     setupContextMenu();
 
@@ -120,6 +127,26 @@ MainWindow::MainWindow(QWidget *parent)
     // 创建系统托盘
     createTrayIcon();
 }
+
+MainWindow::~MainWindow()
+{
+    // 关闭应用前保存配置
+    saveNetworkConfig();
+
+    // 杀死所有easytier-core进程
+    QProcess process;
+#ifdef Q_OS_WIN
+    process.start("taskkill /F /IM easytier-core.exe");
+#elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
+    process.start("pkill easytier-core");
+#endif
+    process.waitForFinished(5000);
+
+    delete ui;
+}
+
+
+// ==========================主界面控件相关===========================
 
 void MainWindow::setupContextMenu()
 {
@@ -200,21 +227,15 @@ void MainWindow::onDeleteNetwork()
     }
 }
 
-MainWindow::~MainWindow()
-{
-    // 关闭应用前保存配置
-    saveNetworkConfig();
-
-    // 杀死所有easytier-core进程
-    QProcess process;
-#ifdef Q_OS_WIN
-    process.start("taskkill /F /IM easytier-core.exe");
-#elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
-    process.start("pkill easytier-core");
-#endif
-    process.waitForFinished(5000);
-
-    delete ui;
+void MainWindow::onClickOneClickBtn() {
+    if (!m_oneClick) {
+        m_oneClick = new OneClick(this);
+        connect(m_oneClick, &OneClick::isNotRunning, this, [=, this]() {
+            m_oneClick->deleteLater();
+            m_oneClick = nullptr;
+        });
+    }
+    __changeWidget(m_oneClick);
 }
 
 /// @brief 页面替换函数
@@ -243,6 +264,10 @@ void MainWindow::__changeWidget(QWidget *newWidget) const {
     boxLayout->insertWidget(1, newWidget);
     newWidget->show();
 }
+
+
+// ======================== 配置文件加载相关 ===========================
+
 
 // 加载网络配置
 void MainWindow::loadNetworkConfig() {
@@ -318,7 +343,7 @@ void MainWindow::loadNetworkConfig() {
     QJsonArray networks = rootObj["networks"].toArray();
 
     // 加载网络配置
-    auto tmpSet = new setting(); // 创建一次设置栏使其加载配置
+    m_settingsWindow = new setting(); // 创建一次设置栏使其加载配置
     for (int i = 0; i < networks.size(); ++i) {
         QJsonValue networkValue = networks[i];
         if (!networkValue.isObject()) continue;
@@ -355,7 +380,7 @@ void MainWindow::loadNetworkConfig() {
             }
         }
     }
-    tmpSet->deleteLater();
+    m_settingsWindow->detectSoftwareVersion();
 }
 
 // 保存网络配置
@@ -416,6 +441,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
         trayIcon->showMessage("QtEasyTier", "程序已隐藏到系统托盘", QSystemTrayIcon::Information, 2000);
     }
 }
+
+// ============================系统托盘相关=============================
 
 // 创建系统托盘
 void MainWindow::createTrayIcon()
