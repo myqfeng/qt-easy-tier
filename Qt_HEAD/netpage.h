@@ -15,6 +15,9 @@
 #include <QJsonObject>  // 添加JSON支持
 #include <QCompleter>
 #include <QStringListModel>
+#include <QDialog>
+#include <QFile>
+#include <QTextStream>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -84,7 +87,7 @@ public:
 
     // ===============运行与检测相关===============
     int realRpcPort;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
-    bool isRunning() const { return m_isRunning; }
+    bool isRunning() const { return m_easytierProcess && (QProcess::Running == m_easytierProcess->state()); }
     void runNetworkOnAutoStart();  // 运行网络（开机自启）
 
 private slots:
@@ -121,8 +124,6 @@ private slots:
     void onRpcPortTextChanged(const QString &text);
 
     // ===============运行状态页面相关===============
-    // 初始化运行日志窗口
-    void initRunningLogWindow();
     // 运行网络
     void onRunNetwork();
     // 进程输出处理
@@ -135,6 +136,9 @@ private slots:
     // ===============配置导入导出相关===============
     void onImportConfigClicked();
     void onExportConfigClicked();
+
+    // ===============日志相关===============
+    void onOpenLogFileClicked();  // 打开日志文件
 
 private:
     Ui::NetPage *ui;
@@ -208,13 +212,24 @@ private:
     // 运行et相关
     QPlainTextEdit *m_logTextEdit;
     QProcess *m_easytierProcess;
-    bool m_isRunning;      // 运行状态跟踪
 
     // 运行状态页面相关
-    QProcess *m_asyncProcess;     // 执行cli异步获取节点信息
+    QProcess *m_cliProcess;     // 执行cli异步获取节点信息
     QLabel *m_runningStatusLabel;
     QTableWidget *m_peerTable;
     QTimer *m_peerUpdateTimer;
+
+    // 启动过程对话框相关
+    QDialog *m_processDialog;
+    QPlainTextEdit *m_processLogTextEdit;
+
+    // 日志文件相关
+    QFile *m_logFile;
+    QTextStream *m_logStream;
+    QString m_currentLogFileName;
+    QPushButton *m_openLogFileBtn;
+
+// ============== 网络设置相关===============
 
     // 初始化网络设置界面（基本设置）
     void initNetworkSettings();
@@ -232,15 +247,45 @@ private:
     void initListenAddrManagement();
     // 初始化子网代理CIDR管理界面
     void initCidrManagement();
-    // 重置运行按钮状态
-    void resetStateDisplay();
-
     // 初始化运行状态页面
     void initRunningStatePage();
+
+// ============== 运行状态相关===============
+
     // 更新节点信息
     void updatePeerInfo();
     // 解析并显示节点信息
     void parseAndDisplayPeerInfo(const QByteArray &jsonData);
+
+// ===============运行EasyTier与日志相关===============
+
+    // 检查并准备EasyTier程序
+    bool prepareEasyTierProgram(QString& appDir, QString& easytierPath);
+    // 创建并配置进程
+    void setupProcessConnections();
+    // 启动EasyTier进程
+    bool startEasyTierProcess(const QStringList& arguments, const QString& appDir, const QString& easytierPath);
+    // 处理进程启动结果
+    void handleProcessStartResult(bool success, const QString& errorMessage = "");
+    // 更新UI状态
+    void updateUIState(bool isRunning);
+    // 创建启动过程对话框
+    void createProcessDialog(const QString& title);
+    // 关闭启动过程对话框
+    void closeProcessDialog();
+    // 限制日志行数
+    void limitLogLines(int maxLines = 1000);
+    // 初始化日志文件
+    bool initLogFile();
+    // 关闭日志文件
+    void closeLogFile();
+    // 停止当前网络
+    void stopCurrentNetwork();
+    // 初始化运行日志窗口
+    void initRunningLogWindow();
+    // 保存日志到文件
+    void saveLogToFile(const QString& text);
+
 
 signals:
     void networkStarted();    // 网络启动信号
