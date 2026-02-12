@@ -7,7 +7,7 @@ CIDRCalculator::CIDRCalculator(QWidget *parent)
     // 设置窗口属性
     setWindowTitle("CIDR计算器");
     setFixedSize(500, 320);
-    setAttribute(Qt::WA_DeleteOnClose); // 关闭即销毁
+    //setAttribute(Qt::WA_DeleteOnClose); // 关闭即销毁
     setWindowIcon(QIcon(":/icons/icon.ico"));
 
     // 设置中央部件

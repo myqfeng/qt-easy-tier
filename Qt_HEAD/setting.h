@@ -4,8 +4,9 @@
 #include <QDialog>
 #include <QProcess>
 #include <QSettings>
-#include <QJsonObject>
+#include <QStandardPaths>
 #include <QThread>
+#include <QApplication>
 
 namespace Ui {
     class setting;
@@ -46,17 +47,27 @@ public:
     /// @warning 外部调用时，检测完成后会自动delete该setting对象，无需再次释放
     void detectSoftwareVersion(const bool &isFromInternal =  false);
 
+    /// @brief 获取自动回连状态
+    /// @return 为true时表示设置项中启用了自动回连
+    bool isAutoRun() const { return m_autoRun; }
+
+    /// @brief 是否隐藏到系统托盘
+    bool isHideOnTray() const { return m_isHideOnTray; }
+
+    /// @brief 获取配置保存路径
+    QString getConfigPath() {return m_configPath;};
+
 private slots:
     // 重新检测版本按钮点击事件
-    void on_detAgainPushButton_clicked();
+    void onDetAgainPushButtonClicked();
     // 打开核心目录按钮点击事件
-    void on_pushButton_2_clicked();
+    void onOpenFileBtnClicked();
     // 确定按钮点击事件
-    void on_buttonBox_accepted();
+    void onButtonBoxAccepted();
     // 取消按钮点击事件
-    void on_buttonBox_rejected();
+    void onButtonBoxRejected();
     // 检查更新按钮点击事件
-    void on_newVerPushButton_clicked();
+    void onNewVerPushButtonClicked();
 
     // 版本检测结果处理
     void onCoreVersionDetected(const QString &version);
@@ -64,6 +75,13 @@ private slots:
 
 private:
     Ui::setting *ui;
+
+    // 配置保存路径
+#if SAVE_CONF_IN_APP_DIR == true
+    QString m_configPath = QApplication::applicationDirPath() + "/config";
+#else
+    QString m_configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);;
+#endif
 
     // 启动版本检测线程
     void startVersionDetection();
@@ -76,12 +94,14 @@ private:
     void setAutoStart(bool enable);
 
     // 设置项
-    bool m_autoStart; // 是否开机自启
+    bool m_autoRun = false;   // 自动回连
+    bool m_autoStart = false; // 是否开机自启
+    bool m_isHideOnTray = true; //是否藏窗口到系统托盘
     QString m_softwareVer = PROJECT_VERSION;
 
     // 线程相关
-    QThread *m_versionThread;
-    VersionDetectionWorker *m_versionWorker;
+    QThread *m_versionThread =  nullptr;
+    VersionDetectionWorker *m_versionWorker =  nullptr;
 
 protected:
     void showEvent(QShowEvent *event) override
@@ -91,6 +111,6 @@ protected:
         startVersionDetection();
     }
 };
-inline bool g_autoRun; // 自动运行上次关闭前没退出的网络
+//inline bool g_autoRun; // 自动运行上次关闭前没退出的网络
 
 #endif // SETTING_H

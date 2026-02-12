@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>500</width>
+    <width>518</width>
     <height>300</height>
    </rect>
   </property>
@@ -49,19 +49,6 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="label_7">
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>15</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>配置文件保存在：~AppDataLocalQtEasyTier (Windows)</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QGroupBox" name="formGroupBox">
      <property name="font">
       <font>
@@ -69,83 +56,30 @@
       </font>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="5" column="2">
+      <item row="6" column="4">
        <widget class="QPushButton" name="newVerPushButton">
         <property name="text">
          <string>检查更新</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_2">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>35</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>40</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;right&quot;&gt;EasyTier Cli 版本：&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-       </widget>
-      </item>
       <item row="1" column="2">
-       <widget class="QPushButton" name="detAgainPushButton">
-        <property name="text">
-         <string>重新检测</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;right&quot;&gt;QtEasyTier 版本：&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLabel" name="label_3">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>35</height>
-         </size>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>40</height>
-         </size>
+       <widget class="QLabel" name="coreVerLabel">
+        <property name="font">
+         <font>
+          <pointsize>12</pointsize>
+          <hintingpreference>PreferDefaultHinting</hintingpreference>
+         </font>
         </property>
         <property name="text">
          <string>检测中......</string>
         </property>
        </widget>
       </item>
-      <item row="4" column="0">
-       <widget class="QCheckBox" name="autoStartCheckBox">
+      <item row="1" column="4">
+       <widget class="QPushButton" name="detAgainPushButton">
         <property name="text">
-         <string>是否开机自启</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1" colspan="2">
-       <widget class="QCheckBox" name="autoRuncheckBox">
-        <property name="text">
-         <string>自动运行上次关闭前没退出的网络</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="2">
-       <widget class="QPushButton" name="pushButton_2">
-        <property name="text">
-         <string>打开核心目录</string>
+         <string>重新检测</string>
         </property>
        </widget>
       </item>
@@ -174,23 +108,89 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QLabel" name="coreVerLabel">
-        <property name="font">
-         <font>
-          <pointsize>12</pointsize>
-          <hintingpreference>PreferDefaultHinting</hintingpreference>
-         </font>
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>40</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;right&quot;&gt;EasyTier Cli 版本：&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;right&quot;&gt;QtEasyTier 版本：&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="2">
+       <widget class="QLabel" name="label_3">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>40</height>
+         </size>
         </property>
         <property name="text">
          <string>检测中......</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="3" column="4">
+       <widget class="QPushButton" name="openFileBtn">
+        <property name="text">
+         <string>打开核心目录</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="4">
+       <widget class="QCheckBox" name="autoRuncheckBox">
+        <property name="toolTip">
+         <string>自动连接上次退出时未关闭的网络</string>
+        </property>
+        <property name="text">
+         <string>自动回连</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="2">
        <widget class="QLabel" name="versionLabel">
         <property name="text">
          <string>v114514</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QCheckBox" name="hideOnTrayBox">
+        <property name="text">
+         <string>关闭时隐藏到托盘</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="2">
+       <widget class="QCheckBox" name="autoStartCheckBox">
+        <property name="text">
+         <string>是否开机自启</string>
         </property>
        </widget>
       </item>

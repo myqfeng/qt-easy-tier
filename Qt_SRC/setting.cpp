@@ -91,25 +91,32 @@ setting::setting(QWidget *parent)
     loadSettings();
 
     // 设置界面初始状态
-    ui->autoRuncheckBox->setChecked(g_autoRun);
-    ui->autoStartCheckBox->setChecked(m_autoStart);
+    ui->autoRuncheckBox->setChecked(m_autoRun);
     ui->versionLabel->setText(m_softwareVer);
+    ui->hideOnTrayBox->setChecked(m_isHideOnTray);
+    ui->autoStartCheckBox->setChecked(m_autoStart);
+#if SAVE_CONF_IN_APP_DIR == true
+    ui->autoStartCheckBox->setEnabled(false);
+#endif
+
 
     // 创建版本检测线程
     m_versionThread = new QThread(this);
+
+    connect(ui->detAgainPushButton, &QPushButton::clicked, this, &setting::onDetAgainPushButtonClicked);
+    connect(ui->openFileBtn, &QPushButton::clicked, this, &setting::onOpenFileBtnClicked);
+    connect(ui->newVerPushButton, &QPushButton::clicked, this, &setting::onNewVerPushButtonClicked);
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &setting::onButtonBoxAccepted);
+    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &setting::onButtonBoxRejected);
 }
 
 setting::~setting()
 {
     // 第一步：立即断开所有信号槽连接，防止后续调用
     this->disconnect();
-
-    // 断开与worker相关的所有连接
     if (m_versionWorker) {
         m_versionWorker->disconnect();
     }
-
-    // 断开与线程相关的所有连接
     if (m_versionThread) {
         m_versionThread->disconnect();
     }
@@ -196,7 +203,7 @@ void setting::startVersionDetection()
 }
 
 // 重新检测版本按钮点击事件
-void setting::on_detAgainPushButton_clicked()
+void setting::onDetAgainPushButtonClicked()
 {
     ui->coreVerLabel->setText("检测中......");
     ui->label_3->setText("检测中......");
@@ -224,7 +231,7 @@ void setting::onCliVersionDetected(const QString &version)
 }
 
 // 打开核心目录按钮点击事件
-void setting::on_pushButton_2_clicked()
+void setting::onOpenFileBtnClicked()
 {
     QString appDir = QCoreApplication::applicationDirPath();
     QString etcoreDir = appDir + "/etcore";
@@ -241,7 +248,7 @@ void setting::on_pushButton_2_clicked()
 }
 
 // 检查更新按钮点击事件
-void setting::on_newVerPushButton_clicked()
+void setting::onNewVerPushButtonClicked()
 {
     detectSoftwareVersion(true);
 }
@@ -255,6 +262,16 @@ void setting::detectSoftwareVersion(const bool &isFromInternal)
 
     // 发送 GET 请求
     QNetworkReply *reply = manager->get(QNetworkRequest(url));
+
+    // 超时处理
+    QTimer::singleShot(5000, reply, [=, this] {
+        if (reply) {
+            reply->abort();
+            reply->deleteLater();
+        }
+        manager->deleteLater();
+        std::clog << "请求超时" << std::endl;
+    });
 
     // 连接请求完成信号
     connect(reply, &QNetworkReply::finished, this, [=, this]() {
@@ -299,22 +316,25 @@ void setting::detectSoftwareVersion(const bool &isFromInternal)
 }
 
 // 确定按钮点击事件
-void setting::on_buttonBox_accepted()
+void setting::onButtonBoxAccepted()
 {
     // 保存设置
-    g_autoRun = ui->autoRuncheckBox->isChecked();
-    m_autoStart = ui->autoStartCheckBox->isChecked();
-
-    saveSettings();
+    m_autoRun = ui->autoRuncheckBox->isChecked();
+    m_isHideOnTray = ui->hideOnTrayBox->isChecked();
 
     // 设置开机自启
-    setAutoStart(m_autoStart);
+    if (m_autoRun != ui->autoStartCheckBox->isChecked()) {
+        m_autoStart = ui->autoStartCheckBox->isChecked();
+        setAutoStart(m_autoStart);
+    }
+
+    saveSettings();
 
     accept();
 }
 
 // 取消按钮点击事件
-void setting::on_buttonBox_rejected()
+void setting::onButtonBoxRejected()
 {
     reject();
 }
@@ -322,22 +342,15 @@ void setting::on_buttonBox_rejected()
 // 加载设置
 void setting::loadSettings()
 {
-    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    QDir().mkpath(configPath);
-    QString settingsFile = configPath + "/settings.json";
+    QDir().mkpath(m_configPath);
+    QString settingsFile = m_configPath + "/settings.json";
 
     QFile file(settingsFile);
-    if (!file.exists()) {
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
         // 默认设置
-        g_autoRun = false;
+        m_autoRun = false;
         m_autoStart = false;
-        return;
-    }
-
-    if (!file.open(QIODevice::ReadOnly)) {
-        // 默认设置
-        g_autoRun = false;
-        m_autoStart = false;
+        m_isHideOnTray = true;
         return;
     }
 
@@ -349,25 +362,30 @@ void setting::loadSettings()
 
     if (error.error != QJsonParseError::NoError || !doc.isObject()) {
         // 默认设置
-        g_autoRun = false;
+        m_autoRun = false;
         m_autoStart = false;
+        m_isHideOnTray = true;
         return;
     }
 
     QJsonObject settings = doc.object();
-    g_autoRun = settings.value("autoRun").toBool(false);
+    m_autoRun = settings.value("autoRun").toBool(false);
     m_autoStart = settings.value("autoStart").toBool(false);
+    m_isHideOnTray = settings.value("isHideOnTray").toBool(true);
+
+    // 设置界面组件状态
+
 }
 
 // 保存设置
 void setting::saveSettings()
 {
-    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    QString settingsFile = configPath + "/settings.json";
+    QString settingsFile = m_configPath + "/settings.json";
 
     QJsonObject settings;
-    settings["autoRun"] = g_autoRun;
+    settings["autoRun"] = m_autoRun;
     settings["autoStart"] = m_autoStart;
+    settings["isHideOnTray"] = m_isHideOnTray;
 
     QJsonDocument doc(settings);
 
@@ -384,6 +402,10 @@ void setting::saveSettings()
 // 设置开机自启
 void setting::setAutoStart(bool enable)
 {
+#if SAVE_CONF_IN_APP_DIR == true
+    return;
+#endif
+
     // 仅在Windows系统下执行
 #ifdef WIN32
     QString appName = "QtEasyTier";

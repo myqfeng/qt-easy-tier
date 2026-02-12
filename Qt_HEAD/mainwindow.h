@@ -11,6 +11,7 @@
 #include <QSystemTrayIcon>  // 添加系统托盘支持
 #include <QMenu>           // 添加菜单支持
 #include <QAction>         // 添加动作支持
+#include <QStandardPaths>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -27,7 +28,7 @@ public:
     ~MainWindow();
 
     // 网络配置管理
-    void loadNetworkConfig();  // 加载网络配置
+    void loadConfig();  // 加载配置
     void saveNetworkConfig();  // 保存网络配置
 
 private slots:
@@ -47,16 +48,24 @@ private:
 
     // 界面组件
     QVector<NetPage*> m_netpages;
-    OneClick *m_oneClick;
-    setting *m_settingsWindow;
+    OneClick *m_oneClick = nullptr;
+    setting *m_settingsWindow = nullptr;
 
     // 系统托盘相关
-    QSystemTrayIcon *trayIcon;
-    QMenu *trayMenu;
-    QAction *showAction;
-    QAction *exitAction;
+    QSystemTrayIcon *trayIcon = nullptr;
+    QMenu *trayMenu = nullptr;
+    QAction *showAction = nullptr;
+    QAction *exitAction = nullptr;
+    bool m_isHideOnTray =  true;
 
-    void __changeWidget(QWidget *newWidget);
+    // 配置保存路径
+#if SAVE_CONF_IN_APP_DIR == true
+    QString m_configPath = QApplication::applicationDirPath() + "/config";
+#else
+    QString m_configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);;
+#endif
+
+    void _changeWidget(QWidget *newWidget);
     void setupContextMenu();
     void createTrayIcon();  // 创建系统托盘
 };

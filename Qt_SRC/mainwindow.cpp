@@ -6,7 +6,6 @@
 #include "./ui_mainwindow.h"
 
 #include <QListWidget>
-#include <QListWidgetItem>
 #include <QDesktopServices>
 #include <QVBoxLayout>
 #include <QLayout>
@@ -27,8 +26,6 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , m_oneClick(nullptr)
-    , m_settingsWindow(nullptr)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -47,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 当点击首页按钮时，把主页换成首页
     connect(ui->homeButton, &QPushButton::clicked, this, [=, this]() {
-        __changeWidget(ui->homePage);
+        _changeWidget(ui->homePage);
     });
 
     // 点击关于按钮时，打开关于对话框
@@ -65,6 +62,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->setPushButton, &QPushButton::clicked, this, [=, this]() {
         m_settingsWindow = new setting(this);
         m_settingsWindow->exec();
+        m_isHideOnTray = m_settingsWindow->isHideOnTray();
         m_settingsWindow->deleteLater();
     });
 
@@ -91,24 +89,24 @@ MainWindow::MainWindow(QWidget *parent)
         item->setIcon(QIcon(":/icons/network.svg"));
 
         // 连接网络启动与关闭信号设置列表字体颜色
-        connect(newNetPage, &NetPage::networkStarted, this, [=, this]() {
+        connect(newNetPage, &NetPage::networkStarted, this, [=]() {
             item->setIcon(QIcon(":/icons/network-running.svg"));
         });
 
-        connect(newNetPage, &NetPage::networkFinished, this, [=, this]() {
+        connect(newNetPage, &NetPage::networkFinished, this, [=]() {
             item->setIcon(QIcon(":/icons/network.svg")); // 设置图标颜色为默认值
         });
 
 
         // 调用__changeWidget函数将新的NetPage实例显示在主窗口右侧
-        __changeWidget(newNetPage);
+        _changeWidget(newNetPage);
     });
 
     // 当列表项被点击时，切换到对应的network页面
-    connect(ui->netListWidget, &QListWidget::itemClicked, this, [=, this](QListWidgetItem *item) {
+    connect(ui->netListWidget, &QListWidget::itemClicked, this, [=, this](const QListWidgetItem *item) {
         int index = ui->netListWidget->row(item);
         if (index >= 0 && index < m_netpages.size()) {
-            __changeWidget(m_netpages[index]);
+            _changeWidget(m_netpages[index]);
         } else {
             std::cerr << "无效的索引，程序出错" << std::endl;
             std::exit(1);
@@ -122,7 +120,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupContextMenu();
 
     // 启动时自动加载配置
-    loadNetworkConfig();
+    loadConfig();
 
     // 创建系统托盘
     createTrayIcon();
@@ -204,7 +202,7 @@ void MainWindow::onDeleteNetwork()
         return;
     }
 
-    int index = ui->netListWidget->row(currentItem);
+    const int &index = ui->netListWidget->row(currentItem);
     if (index < 0 || index >= m_netpages.size()) {
         QMessageBox::critical(this, "错误", "无效的网络项索引");
         std::exit(1);
@@ -216,7 +214,7 @@ void MainWindow::onDeleteNetwork()
                                  QMessageBox::Yes | QMessageBox::No);
 
     if (reply == QMessageBox::Yes) {
-        __changeWidget(ui->homePage);
+        _changeWidget(ui->homePage);
         // 删除对应的NetPage实例
         m_netpages[index]->deleteLater();
         m_netpages.remove(index);
@@ -231,7 +229,7 @@ void MainWindow::onClickOneClickBtn() {
     if (!m_oneClick) {
         m_oneClick = new OneClick(this);
     }
-    __changeWidget(m_oneClick);
+    _changeWidget(m_oneClick);
 }
 
 /// @brief 页面替换函数
@@ -239,7 +237,7 @@ void MainWindow::onClickOneClickBtn() {
 ///
 /// @note 该函数用于替换主窗口右侧的页面为首页或者network页面
 /// @warning 该函数的设计初衷是为了主窗口右侧的界面，并没有考虑其他使用情况，不要乱用
-void MainWindow::__changeWidget(QWidget *newWidget) {
+void MainWindow::_changeWidget(QWidget *newWidget) {
     // 获取centralWidget的box布局
     QBoxLayout *boxLayout = qobject_cast<QBoxLayout*>(ui->centralwidget->layout());
     if (!boxLayout) {
@@ -278,27 +276,28 @@ void MainWindow::__changeWidget(QWidget *newWidget) {
 
 
 // 加载网络配置
-void MainWindow::loadNetworkConfig() {
+void MainWindow::loadConfig() {
+    m_settingsWindow = new setting(); // 创建一次设置栏使其加载配置
+
     QWidget loadingMessage ;
     loadingMessage.setWindowTitle("QtEasyTier");
     loadingMessage.resize(300, 100);
     loadingMessage.setWindowIcon(QIcon(":/icons/icon.ico"));
-    QHBoxLayout *layout = new QHBoxLayout(&loadingMessage);
+    QHBoxLayout layout(&loadingMessage);
     QLabel loadingLabel("正在加载网络配置, 请稍后...", &loadingMessage);
     loadingLabel.setStyleSheet("font-size: 14px;");
     loadingLabel.setAlignment(Qt::AlignCenter);
-    layout->addWidget(&loadingLabel);
+    layout.addWidget(&loadingLabel);
     loadingMessage.show();
 
     // 配置目录
     QDir configDir;
-    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    if (!configDir.exists(configPath)) {
-        configDir.mkpath(configPath);
+    if (!configDir.exists(m_configPath)) {
+        configDir.mkpath(m_configPath);
     }
 
     // 配置文件路径
-    QString configFile = configPath + "/network.json";
+    QString configFile = m_configPath + "/network.json";
 
     // 检查配置文件是否存在
     QFile file(configFile);
@@ -351,17 +350,14 @@ void MainWindow::loadNetworkConfig() {
     QJsonArray networks = rootObj["networks"].toArray();
 
     // 加载网络配置
-    m_settingsWindow = new setting(); // 创建一次设置栏使其加载配置
     for (int i = 0; i < networks.size(); ++i) {
         QJsonValue networkValue = networks[i];
         if (!networkValue.isObject()) continue;
 
         QJsonObject networkObj = networkValue.toObject();
 
-        NetPage *netPage;
-
         // 创建新页面
-        netPage = new NetPage();
+        NetPage *netPage = new NetPage();
         m_netpages.append(netPage);
         QListWidgetItem *item = new QListWidgetItem(ui->netListWidget);
         QString name = networkObj.contains("name") ? networkObj["name"].toString() : ("Network " + QString::number(i + 1));
@@ -383,11 +379,14 @@ void MainWindow::loadNetworkConfig() {
         // 如果网络是活跃的，尝试重新启动它
         if (networkObj.contains("isActive") && networkObj["isActive"].toBool()) {
             // 从settings文件加载autoRun设置
-            if (g_autoRun) {
+            if (m_settingsWindow->isAutoRun()) {
                 netPage->runNetworkOnAutoStart();
             }
         }
     }
+
+    // 是否隐藏到系统托盘
+    m_isHideOnTray = m_settingsWindow->isHideOnTray();
     m_settingsWindow->detectSoftwareVersion();
 }
 
@@ -395,13 +394,12 @@ void MainWindow::loadNetworkConfig() {
 void MainWindow::saveNetworkConfig() {
     // 创建配置目录
     QDir configDir;
-    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    if (!configDir.exists(configPath)) {
-        configDir.mkpath(configPath);
+    if (!configDir.exists(m_configPath)) {
+        configDir.mkpath(m_configPath);
     }
 
     // 构建配置文件路径
-    QString configFile = configPath + "/network.json";
+    QString configFile = m_configPath + "/network.json";
 
     QJsonObject rootObj;
     rootObj["version"] = "1.0";
@@ -437,20 +435,25 @@ void MainWindow::saveNetworkConfig() {
     file.close();
 }
 
+// ============================系统托盘相关=============================
+
 // 重写关闭事件，使窗口隐藏到系统托盘而不是退出
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // 隐藏主窗口而不是关闭
-    hide();
-    event->ignore();  // 忽略关闭事件，防止程序退出
+    if (m_isHideOnTray) {
+        // 隐藏主窗口而不是关闭
+        hide();
+        event->ignore();  // 忽略关闭事件，防止程序退出
 
-    // 显示提示信息（可选）
-    if (trayIcon) {
-        trayIcon->showMessage("QtEasyTier", "程序已隐藏到系统托盘", QSystemTrayIcon::Information, 2000);
+        // 显示提示信息（可选）
+        if (trayIcon) {
+            trayIcon->showMessage("QtEasyTier", "程序已隐藏到系统托盘", QSystemTrayIcon::Information, 2000);
+        }
+    } else {
+        QMainWindow::closeEvent(event);
     }
-}
 
-// ============================系统托盘相关=============================
+}
 
 // 创建系统托盘
 void MainWindow::createTrayIcon()

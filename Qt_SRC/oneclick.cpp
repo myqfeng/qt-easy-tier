@@ -3,7 +3,6 @@
 #include "generateconf.h"
 #include "publicserver.h"
 #include <QVBoxLayout>
-#include <QHBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
 #include <QApplication>
@@ -13,28 +12,12 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QIntValidator>
 #include <iostream>
 
 OneClick::OneClick(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::OneClick)
-    , m_hostCodeLineEdit(nullptr)
-    , m_serverAddrEdit(nullptr)
-    , m_addServerBtn(nullptr)
-    , m_removeServerBtn(nullptr)
-    , m_publicServerBtn(nullptr)
-    , m_hostStartBtn(nullptr)
-    , m_serverListWidget(nullptr)
-    , m_guestCodeLineEdit(nullptr)
-    , m_guestIpLineEdit(nullptr)
-    , m_guestStartBtn(nullptr)
-    , m_coreProcess(nullptr)
-    , m_cliProcess(nullptr)
-    , m_processDialog(nullptr)
-    , m_processLogTextEdit(nullptr)
-    , m_hostIpUpdateTimer(nullptr)
-    , m_lastHostIp("")
-    , m_currentRole(UserRole::None)
 {
     ui->setupUi(this);
     initHostComponents();
@@ -49,29 +32,17 @@ OneClick::~OneClick()
 {
     stopCurrentProcess();
     closeProcessDialog();
-
-    // 停止并清理IP更新定时器和进程
-    if (m_hostIpUpdateTimer) {
-        m_hostIpUpdateTimer->stop();
-        m_hostIpUpdateTimer->deleteLater();
-    }
-
     delete ui;
 }
 
 // 创建或重建启动过程对话框
 void OneClick::createProcessDialog(const QString& title) {
     // 如果已有对话框，先删除
-    if (m_processDialog) {
-        m_processDialog->deleteLater();
-        m_processDialog = nullptr;
-        m_processLogTextEdit = nullptr;
-    }
-
+    closeProcessDialog();
     // 创建新的对话框
     m_processDialog = new QDialog(this);
     QVBoxLayout *dialogLayout = new QVBoxLayout(m_processDialog);
-    QLabel *dialogTitleLabel = new QLabel("启动日志", m_processDialog);
+    QLabel *dialogTitleLabel = new QLabel(tr("启动日志"), m_processDialog);
     m_processLogTextEdit = new QPlainTextEdit(m_processDialog);
 
     m_processDialog->setWindowTitle(title);
@@ -85,6 +56,7 @@ void OneClick::createProcessDialog(const QString& title) {
     dialogLayout->addWidget(m_processLogTextEdit);
     m_processDialog->setWindowFlag(Qt::WindowCloseButtonHint, false);
     m_processDialog->show();
+    QApplication::processEvents();
 
     m_processLogTextEdit->appendPlainText("启动EasyTier进程...");
     QApplication::processEvents();
@@ -102,13 +74,14 @@ void OneClick::closeProcessDialog() {
 
 void OneClick::initHostComponents() {
     // 获取房主界面的组件
-    m_hostCodeLineEdit = ui->lineEdit;  // 房间号显示框
+    m_hostCodeLineEdit = ui->roomNumEdit;  // 房间号显示框
     m_serverAddrEdit = ui->serverAddrEdit;
     m_addServerBtn = ui->addBtn;
     m_removeServerBtn = ui->removeBtn;
     m_publicServerBtn = ui->publicServerBtn;
-    m_hostStartBtn = ui->pushButton;  // 开始联机按钮
+    m_hostStartBtn = ui->hostStartBtn;  // 开始联机按钮
     m_serverListWidget = ui->serverListWidget;
+    m_playerNumEdit = ui->playerNumEdit;
 
     // 连接信号槽
     connect(m_addServerBtn, &QPushButton::clicked, this, &OneClick::onAddServerClicked);
@@ -124,9 +97,9 @@ void OneClick::initHostComponents() {
 
 void OneClick::initGuestComponents() {
     // 获取房客界面的组件
-    m_guestCodeLineEdit = ui->lineEdit_2;  // 房间号输入框
-    m_guestIpLineEdit = ui->lineEdit_3;    // IP地址显示框
-    m_guestStartBtn = ui->pushButton_2;    // 开始联机按钮
+    m_guestCodeLineEdit = ui->guestRoomNumEdit;  // 房间号输入框
+    m_guestIpLineEdit = ui->ipEdit;    // IP地址显示框
+    m_guestStartBtn = ui->guestStartBtn;    // 开始联机按钮
 
     // 连接信号槽
     connect(m_guestStartBtn, &QPushButton::clicked, this, &OneClick::onGuestStartClicked);
@@ -137,9 +110,9 @@ void OneClick::initGuestComponents() {
     // 设置房主虚拟ip框为只读
     m_guestIpLineEdit->setReadOnly(true);
 
-    // 初始化房主IP更新定时器
-    m_hostIpUpdateTimer = new QTimer(this);
-    connect(m_hostIpUpdateTimer, &QTimer::timeout, this, &OneClick::updateHostIpAddress);
+    // 设置房客编号输入验证器
+    QIntValidator *guestNumValidator = new QIntValidator(1, 253, ui->guestNumEdit);
+    ui->guestNumEdit->setValidator(guestNumValidator);
 }
 
 void OneClick::setupServerList() {
@@ -152,7 +125,7 @@ void OneClick::setupServerList() {
     });
 }
 
-// 提取的核心启动逻辑
+// 核心启动逻辑
 bool OneClick::startEasyTierProcess(const QStringList& arguments, const QString& windowTitle) {
     try {
         m_coreProcess = new QProcess(this);
@@ -227,8 +200,10 @@ void OneClick::stopCurrentProcess() {
     }
 
     // 停止IP更新定时器
-    if (m_hostIpUpdateTimer) {
-        m_hostIpUpdateTimer->stop();
+    if (m_cliUpdateTimer) {
+        m_cliUpdateTimer->stop();
+        m_cliUpdateTimer->deleteLater();
+        m_cliUpdateTimer = nullptr;
     }
 
     // 停止并清理IP查询进程
@@ -259,6 +234,7 @@ void OneClick::updateInterfaceState(UserRole role) {
         m_hostCodeLineEdit->clear();
         m_guestIpLineEdit->clear();
         m_lastHostIp.clear();
+        m_playerNumEdit->clear();
         break;
 
     case UserRole::Host:
@@ -274,7 +250,6 @@ void OneClick::updateInterfaceState(UserRole role) {
         m_hostStartBtn->setText("开始联机");
         m_hostStartBtn->setStyleSheet("");
         // 启动IP更新定时器
-        m_hostIpUpdateTimer->start(2000);
         break;
     }
 }
@@ -304,82 +279,6 @@ void OneClick::onTabChanged(int index) {
         // 恢复到原来的Tab
         int currentIndex = (m_currentRole == UserRole::Host) ? 0 : 1;
         ui->tabWidget->setCurrentIndex(currentIndex);
-    }
-}
-
-// 房主点击开始联机按钮
-void OneClick::onHostStartClicked() {
-    // 如果当前是房主且正在运行，则停止
-    if (m_currentRole == UserRole::Host && m_coreProcess) {
-        stopCurrentProcess();
-        return;
-    }
-
-    // 如果当前是房客正在运行，不允许切换
-    if (m_currentRole == UserRole::Guest) {
-        QMessageBox::warning(this, "警告", "当前正在以房客身份运行，无法切换到房主模式。\n请先停止房客运行。");
-        return;
-    }
-
-    // 创建启动过程对话框
-    createProcessDialog("启动EasyTier中。。。");
-
-    try {
-        // 生成房间凭证
-        QPair<QString, QString> credentials = generateRoomCredentials();
-        m_currentNetworkId = credentials.first;   // 原始网络号（十六进制）
-        m_currentPassword = credentials.second;   // 原始密码（十六进制）
-
-        // 生成联机码（Base32编码）
-        QString connectionCode = encodeConnectionCode(m_currentNetworkId, m_currentPassword);
-
-        if (connectionCode.isEmpty()) {
-            throw std::runtime_error("无法生成房间凭证");
-        }
-
-        QStringList arguments;
-        arguments << "--private-mode" << "true" << "--enable-kcp-proxy"
-                  << "--dhcp" << "false" << "--hostname" << "host"
-                  << "--ipv4" << "11.45.14.1/24"
-                  << "--network-name" << m_currentNetworkId
-                  << "--network-secret" << m_currentPassword
-                  << "--rpc-portal" << "55666";
-
-        // 服务器列表
-        for (int i = 0; i < m_serverListWidget->count(); ++i) {
-            arguments << "--peers" << m_serverListWidget->item(i)->text();
-        }
-
-        if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText("使用RPC端口：55666");
-            QApplication::processEvents();
-        }
-
-        // 启动进程
-        if (startEasyTierProcess(arguments, "启动EasyTier中。。。")) {
-            // 显示联机码
-            m_hostCodeLineEdit->setText(connectionCode);
-            m_hostCodeLineEdit->setReadOnly(true);
-
-            // 输出调试信息
-            std::clog << "=== 房主信息 ===" << std::endl;
-            std::clog << "联机码: " << connectionCode.toStdString() << std::endl;
-            std::clog << "网络号(原始): " << m_currentNetworkId.toStdString() << std::endl;
-            std::clog << "密码(原始): " << m_currentPassword.toStdString() << std::endl;
-
-            // 更新状态
-            updateInterfaceState(UserRole::Host);
-
-            QTimer::singleShot(800, this, &OneClick::closeProcessDialog);
-        } else {
-            QTimer::singleShot(1600, this, &OneClick::closeProcessDialog);
-        }
-    } catch (const std::exception& e) {
-        if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
-        }
-        QMessageBox::warning(this, "警告", QString("启动异常: %1").arg(e.what()));
-        QTimer::singleShot(1600, this, &OneClick::closeProcessDialog);
     }
 }
 
@@ -446,6 +345,91 @@ void OneClick::onPublicServerClicked() {
     publicServer->deleteLater();
 }
 
+// 房主点击开始联机按钮
+void OneClick::onHostStartClicked() {
+    // 如果当前是房主且正在运行，则停止
+    if (m_currentRole == UserRole::Host && m_coreProcess) {
+        stopCurrentProcess();
+        return;
+    }
+
+    // 如果当前是房客正在运行，不允许切换
+    if (m_currentRole == UserRole::Guest) {
+        QMessageBox::warning(this, "警告", "当前正在以房客身份运行，无法切换到房主模式。\n请先停止房客运行。");
+        return;
+    }
+
+    // 创建启动过程对话框
+    createProcessDialog("启动EasyTier中。。。");
+
+    try {
+        // 生成房间凭证
+        QPair<QString, QString> credentials = generateRoomCredentials();
+        m_currentNetworkId = credentials.first;   // 原始网络号（十六进制）
+        m_currentPassword = credentials.second;   // 原始密码（十六进制）
+
+        // 生成联机码（Base32编码）
+        QString connectionCode = encodeConnectionCode(m_currentNetworkId, m_currentPassword);
+
+        if (connectionCode.isEmpty()) {
+            throw std::runtime_error("无法生成房间凭证");
+        }
+
+        QStringList arguments;
+        arguments << "--private-mode" << "true" << "--enable-kcp-proxy"
+                  << "--dhcp" << "false" << "--hostname" << "host"
+                  << "--ipv4" << "11.45.14.1/24"
+                  << "--network-name" << m_currentNetworkId
+                  << "--network-secret" << m_currentPassword
+                  << "--rpc-portal" << "55666";
+
+        // 服务器列表
+        for (int i = 0; i < m_serverListWidget->count(); ++i) {
+            arguments << "--peers" << m_serverListWidget->item(i)->text();
+        }
+
+        if (m_processLogTextEdit) {
+            m_processLogTextEdit->appendPlainText("使用RPC端口：55666");
+            QApplication::processEvents();
+        }
+
+        // 启动进程
+        if (startEasyTierProcess(arguments, "启动EasyTier中。。。")) {
+            // 显示联机码
+            m_hostCodeLineEdit->setText(connectionCode);
+            m_hostCodeLineEdit->setReadOnly(true);
+
+            // 输出调试信息
+            std::clog << "=== 房主信息 ===" << std::endl;
+            std::clog << "联机码: " << connectionCode.toStdString() << std::endl;
+            std::clog << "网络号(原始): " << m_currentNetworkId.toStdString() << std::endl;
+            std::clog << "密码(原始): " << m_currentPassword.toStdString() << std::endl;
+
+            // 更新状态
+            updateInterfaceState(UserRole::Host);
+
+            // 初始化定时器
+            if (m_cliUpdateTimer) {
+                m_cliUpdateTimer->stop();
+                m_cliUpdateTimer->deleteLater();
+            }
+            m_cliUpdateTimer = new QTimer(this);
+            connect(m_cliUpdateTimer, &QTimer::timeout, this, &OneClick::updatePlayerNum);
+            m_cliUpdateTimer->start(2000);
+
+            QTimer::singleShot(800, this, &OneClick::closeProcessDialog);
+        } else {
+            QTimer::singleShot(1600, this, &OneClick::closeProcessDialog);
+        }
+    } catch (const std::exception& e) {
+        if (m_processLogTextEdit) {
+            m_processLogTextEdit->appendPlainText(QString("启动异常: %1").arg(e.what()));
+        }
+        QMessageBox::warning(this, "警告", QString("启动异常: %1").arg(e.what()));
+        QTimer::singleShot(1600, this, &OneClick::closeProcessDialog);
+    }
+}
+
 // 房客点击开始联机按钮
 void OneClick::onGuestStartClicked() {
     // 如果当前是房客且正在运行，则停止
@@ -488,12 +472,17 @@ void OneClick::onGuestStartClicked() {
     createProcessDialog("启动EasyTier中。。。");
 
     // 构造房客启动参数
-    QStringList arguments;
+    QStringList arguments {"--dhcp"};
+    if (!ui->guestNumEdit->text().isEmpty() && ui->guestNumEdit->text().toInt() > 0) {
+        arguments << "false" << "--ipv4" << "11.45.14."+QString::number(ui->guestNumEdit->text().toInt()+1);
+    } else {
+        arguments << "true";
+    }
     arguments << "--private-mode" << "true" << "--enable-kcp-proxy"
-              << "--dhcp" << "true" << "--hostname" << "guest"
+              << "--latency-first" << "--hostname" << "guest"
               << "--network-name" << networkId
               << "--network-secret" << password
-              << "--rpc-portal" << "55667";  // 使用不同的RPC端口
+              << "--rpc-portal" << "55666";  // 使用不同的RPC端口
 
     // 服务器列表（使用相同的服务器）
     for (int i = 0; i < m_serverListWidget->count(); ++i) {
@@ -501,7 +490,7 @@ void OneClick::onGuestStartClicked() {
     }
 
     if (m_processLogTextEdit) {
-        m_processLogTextEdit->appendPlainText("使用RPC端口：55667");
+        m_processLogTextEdit->appendPlainText("使用RPC端口：55666");
         QApplication::processEvents();
     }
 
@@ -513,13 +502,101 @@ void OneClick::onGuestStartClicked() {
         // 更新状态
         updateInterfaceState(UserRole::Guest);
 
+        // 创建定时器
+        if (m_cliUpdateTimer) {
+            m_cliUpdateTimer->stop();
+            m_cliUpdateTimer->deleteLater();
+        }
+        m_cliUpdateTimer = new QTimer(this);
+        connect(m_cliUpdateTimer, &QTimer::timeout, this, &OneClick::updateHostIpAddress);
+        m_cliUpdateTimer->start(2000);
+
         QTimer::singleShot(800, this, &OneClick::closeProcessDialog);
     } else {
         QTimer::singleShot(1600, this, &OneClick::closeProcessDialog);
     }
 }
 
-// 更新房主IP地址
+// 更新联机人数
+void OneClick::updatePlayerNum() {
+    // 如果房客未运行，停止更新
+    if (m_currentRole != UserRole::Host || !m_coreProcess || m_coreProcess->state() != QProcess::Running) {
+        return;
+    }
+
+    // 如果查询进程还在运行则终止
+    if (m_cliProcess && m_cliProcess->state() == QProcess::Running) {
+        m_cliProcess->kill();
+        return;
+    }
+
+    // et-cli 命令路径信息
+    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
+    QString cliPath = appDir + "/easytier-cli.exe";
+
+    // 如果异步进程为nullptr，创建新的进程
+    if (!m_cliProcess) {
+        m_cliProcess = new QProcess(this);
+
+        // 检查CLI程序是否存在
+        QFileInfo fileInfo(cliPath);
+        if (!fileInfo.exists()) {
+            return;
+        }
+        m_cliProcess->setWorkingDirectory(appDir);
+
+        // 连接进程完成信号
+        connect(m_cliProcess, &QProcess::finished, m_cliProcess, [=, this]() {
+            QByteArray output = m_cliProcess->readAllStandardOutput();
+            QString errorOutput = m_cliProcess->readAllStandardError();
+
+            if (!errorOutput.isEmpty()) {
+                return;
+            }
+
+            if (!output.isEmpty()) {
+                parsePlayerNum(output);
+            }
+        });
+    }
+
+    // 运行CLI进程查询节点信息
+    m_cliProcess->start(cliPath, QStringList() << "-p" << "127.0.0.1:55666" << "-o" << "json" << "peer");
+
+}
+
+void OneClick::parsePlayerNum(const QByteArray& jsonData) {
+    QJsonParseError jsonError;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &jsonError);
+
+    if (jsonError.error != QJsonParseError::NoError) {
+        return;
+    }
+
+    if (!doc.isArray()) {
+        return;
+    }
+
+    QJsonArray peers = doc.array();
+    int count = 0;  // 计数
+
+    for (const auto &peerValue : peers) {
+        if (!peerValue.isObject()) continue;
+
+        QJsonObject peerObj = peerValue.toObject();
+        QString hostname = peerObj.value("hostname").toString();
+        QString ipv4 = peerObj.value("ipv4").toString();
+
+        if (hostname.contains("PublicServer") || ipv4.isEmpty()) {
+            continue;
+        }
+        count++;
+    }
+
+    m_playerNumEdit->setText(QString::number(count));
+}
+
+// 更新房主IP地址(房客)
 void OneClick::updateHostIpAddress() {
     // 如果房客未运行，停止更新
     if (m_currentRole != UserRole::Guest || !m_coreProcess || m_coreProcess->state() != QProcess::Running) {
@@ -563,7 +640,7 @@ void OneClick::updateHostIpAddress() {
     }
 
     // 运行CLI进程查询节点信息
-    m_cliProcess->start(cliPath, QStringList() << "-p" << "127.0.0.1:55667" << "-o" << "json" << "peer");
+    m_cliProcess->start(cliPath, QStringList() << "-p" << "127.0.0.1:55666" << "-o" << "json" << "peer");
 }
 
 // 解析CLI输出获取房主IP
@@ -596,9 +673,13 @@ void OneClick::parseHostIpAddress(const QByteArray& jsonData) {
     }
 
     // 只有IP有变动时才更新显示
-    if (!hostIp.isEmpty() && hostIp != m_lastHostIp) {
-        m_guestIpLineEdit->setText(hostIp);
+    if (hostIp != m_lastHostIp) {
+        if (hostIp.isEmpty()) {
+            m_guestIpLineEdit->setText("......" + tr("房主可能已经断开连接"));
+        } else {
+            m_guestIpLineEdit->setText(hostIp);
+        }
         m_lastHostIp = hostIp;
-        std::clog << "房主IP地址更新为: " << hostIp.toStdString() << std::endl;
+        std::clog << "The IP of host has been changed: " << hostIp.toStdString() << std::endl;
     }
 }
