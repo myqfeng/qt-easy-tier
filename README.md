@@ -49,7 +49,11 @@ cd build
 
 3. 编译并安装项目
 ```bash
-cmake ..
+# 注意:构建QtEasyTier有两种模式
+#   1. 正常模式, 配置保存在系统路径下
+#   2. 便携模式, 配置保存在程序目录下, 构建命令加上 -DSAVE_CONF_IN_APP_DIR=true
+#   ps: 为了不污染系统环境, 便携模式构建的程序禁用开机自启
+cmake  ..
 cmake --build . --config Release
 cmake --install . --config Release
 ```

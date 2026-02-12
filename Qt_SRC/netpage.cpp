@@ -26,15 +26,6 @@
 NetPage::NetPage(QWidget *parent)
     : QGroupBox(parent)
     , ui(new Ui::NetPage)
-    , m_logTextEdit(nullptr)
-    , m_easytierProcess(nullptr)
-    , m_cliProcess(nullptr)
-    , m_processDialog(nullptr)
-    , m_processLogTextEdit(nullptr)
-    , m_logFile(nullptr)
-    , m_logStream(nullptr)
-    , m_openLogFileBtn(nullptr)
-    , realRpcPort(0)
 {
     ui->setupUi(this);
     createScrollArea();          // 初始化简单设置页面
@@ -187,6 +178,7 @@ void NetPage::initNetworkSettings()
     // DHCP设置，默认勾选
     m_dhcpCheckBox = new QCheckBox(tr("启用DHCP"), this);
     m_dhcpCheckBox->setChecked(true);
+    m_dhcpCheckBox->setToolTip(tr("自动分配虚拟IP地址"));
 
     // IP地址设置
     m_ipEdit = new QLineEdit(this);
@@ -200,10 +192,12 @@ void NetPage::initNetworkSettings()
     // 低延迟优先选项
     m_lowLatencyCheckBox = new QCheckBox(tr("低延迟优先"), this);
     m_lowLatencyCheckBox->setChecked(false);
+    m_lowLatencyCheckBox->setToolTip(tr("开启后,会根据算法自动选择低延时的线路进行连接"));
 
     // 私有模式选项
     m_privateModeCheckBox = new QCheckBox(tr("私有模式"), this);
     m_privateModeCheckBox->setChecked(true);
+    m_privateModeCheckBox->setToolTip(tr("开启后,不允许网络号和密码不相同的节点使用本节点进行数据中转"));
 
     // 连接信号槽 - 使用新的checkStateChanged信号
     connect(m_dhcpCheckBox, &QCheckBox::checkStateChanged, this, &NetPage::onDhcpStateChanged);
@@ -260,13 +254,11 @@ void NetPage::initServerManagement()
     });
 }
 
-void NetPage::onDhcpStateChanged(Qt::CheckState state)
-{
+void NetPage::onDhcpStateChanged(Qt::CheckState state) const {
     m_ipEdit->setEnabled(state != Qt::Checked);
 }
 
-void NetPage::onTogglePasswordVisibility()
-{
+void NetPage::onTogglePasswordVisibility() const {
     if (m_togglePasswordBtn->isChecked()) {
         m_passwordEdit->setEchoMode(QLineEdit::Normal);
         m_togglePasswordBtn->setIcon(QIcon(":/icons/eye.svg"));
@@ -321,18 +313,15 @@ void NetPage::onAddServer()
     m_serverEdit->clear();
 }
 
-void NetPage::onRemoveServer()
-{
-    QListWidgetItem *selectedItem = m_serverListWidget->currentItem();
-    if (selectedItem) {
+void NetPage::onRemoveServer() const {
+    if (QListWidgetItem *selectedItem = m_serverListWidget->currentItem()) {
         delete selectedItem;
         //m_removeServerBtn->setEnabled(false);
     }
 }
 
 // 服务器地址补全数据更新
-void NetPage::onServerEditCompleterChanged()
-{
+void NetPage::onServerEditCompleterChanged() const {
     QString input = m_serverEdit->text();
     // 如果输入为空或者满足完整的地址格式(xx://xxx:xxx),用正则表达式匹配
     static const QRegularExpression serverRegex("^[a-zA-Z0-9+.-]+://.+:\\d+$");
@@ -415,54 +404,70 @@ void NetPage::initAdvancedSettings()
     // 初始化高级设置组件
     m_kcpProxyCheckBox = new QCheckBox(tr("启用 KCP 代理"), this);
     m_kcpProxyCheckBox->setChecked(true);
+    m_kcpProxyCheckBox->setToolTip(tr("使用UDP协议代理TCP流量,启用以获得更好的UDP P2P效果"));
 
     m_quicInputDisableCheckBox = new QCheckBox(tr("禁用 QUIC 输入"), this);
     m_quicInputDisableCheckBox->setChecked(false);
+    m_quicInputDisableCheckBox->setToolTip(tr("不接受通过QUIC协议传输的流量"));
 
     m_noTunModeCheckBox = new QCheckBox(tr("无 TUN 模式"), this);
     m_noTunModeCheckBox->setChecked(false);
+    m_noTunModeCheckBox->setToolTip(tr("不创建TUN网卡,开启时本节点无法主动访问其他节点,只能被动访问"));
 
     m_multithreadCheckBox = new QCheckBox(tr("启用多线程"), this);
     m_multithreadCheckBox->setChecked(true);
+    m_multithreadCheckBox->setToolTip(tr("后端启用多线程,可提升组网性能,但可能会增加占用"));
 
     m_udpHolePunchingDisableCheckBox = new QCheckBox(tr("禁用 UDP 打洞"), this);
     m_udpHolePunchingDisableCheckBox->setChecked(false);
+    m_udpHolePunchingDisableCheckBox->setToolTip(tr("禁用UDP打洞,仅允许通过TCP进行P2P访问"));
 
     m_userModeStackCheckBox = new QCheckBox(tr("使用用户态协议栈"), this);
     m_userModeStackCheckBox->setChecked(false);
+    m_userModeStackCheckBox->setToolTip(tr("使用用户态协议栈,默认使用系统协议栈"));
 
     m_kcpInputDisableCheckBox = new QCheckBox(tr("禁用 KCP 输入"), this);
     m_kcpInputDisableCheckBox->setChecked(false);
+    m_kcpInputDisableCheckBox->setToolTip(tr("不接受通过KCP协议传输的流量"));
 
     m_p2pDisableCheckBox = new QCheckBox(tr("禁用 P2P"), this);
     m_p2pDisableCheckBox->setChecked(false);
+    m_p2pDisableCheckBox->setToolTip(tr("流量需要经过你添加的中转服务器,不直接与其他节点建立P2P连接\n注意: 如果添加的服务器都是仅建立P2P连接,会导致无法访问其他节点"));
 
     m_exitNodeCheckBox = new QCheckBox(tr("启用出口节点"), this);
     m_exitNodeCheckBox->setChecked(false);
+    m_exitNodeCheckBox->setToolTip(tr("本节点可作为VPN的出口节点, 可被用于端口转发"));
 
     m_systemForwardingCheckBox = new QCheckBox(tr("系统转发"), this);
     m_systemForwardingCheckBox->setChecked(false);
+    m_systemForwardingCheckBox->setToolTip(tr("通过系统内核转发子网代理数据包，禁用内置NAT"));
 
     m_symmetricNatHolePunchingDisableCheckBox = new QCheckBox(tr("禁用对称 NAT 打洞"), this);
     m_symmetricNatHolePunchingDisableCheckBox->setChecked(false);
 
     m_ipv6DisableCheckBox = new QCheckBox(tr("禁用 IPv6"), this);
     m_ipv6DisableCheckBox->setChecked(false);
+    m_ipv6DisableCheckBox->setToolTip(tr("禁用IPv6连接, 仅使用IPv4"));
 
     m_quicProxyCheckBox = new QCheckBox(tr("启用 QUIC 代理"), this);
     m_quicProxyCheckBox->setChecked(false);
+    m_quicProxyCheckBox->setToolTip(tr("QUIC是一个由Google设计,基于UDP的新一代可靠传输层协议,启用以获得更好的UDP P2P效果"));
 
     m_onlyPhysicalNicCheckBox = new QCheckBox(tr("仅使用物理网卡"), this);
     m_onlyPhysicalNicCheckBox->setChecked(true);
+    m_onlyPhysicalNicCheckBox->setToolTip(tr("仅使用物理网卡与其他节点建立P2P连接"));
 
     m_rpcPacketForwardingCheckBox = new QCheckBox(tr("转发 RPC 包"), this);
     m_rpcPacketForwardingCheckBox->setChecked(false);
+    m_rpcPacketForwardingCheckBox->setToolTip(tr("转发其他节点的网络配置,不论该节点是否在网络白名单中, 帮助其他节点建立P2P连接"));
 
     m_encryptionDisableCheckBox = new QCheckBox(tr("禁用加密"), this);
     m_encryptionDisableCheckBox->setChecked(false);
+    m_encryptionDisableCheckBox->setToolTip(tr("禁用本节点通信的加密，必须与对等节点相同,正常情况下请保持加密"));
 
     m_magicDnsCheckBox = new QCheckBox(tr("启用魔法 DNS"), this);
     m_magicDnsCheckBox->setChecked(false);
+    m_magicDnsCheckBox->setToolTip(tr("启用后可通过\"用户名.et.net\"访问本节点\n注意: Linux下要手动配置DNS服务器为 100.100.100.101 才可正常使用"));
 
     // 初始化RPC端口输入框
     m_rpcPortEdit = new QLineEdit(this);
@@ -483,6 +488,7 @@ void NetPage::initRelayNetworkWhitelistManagement()
 {
     // 网络白名单启用复选框
     m_relayNetworkWhitelistCheckBox = new QCheckBox(tr("启用网络白名单"), this);
+    m_relayNetworkWhitelistCheckBox->setToolTip(tr("仅转发网络白名单中VPN的流量, 留空则为不转发任何网络的流量"));
     m_relayNetworkWhitelistCheckBox->setChecked(false);
     connect(m_relayNetworkWhitelistCheckBox, &QCheckBox::checkStateChanged,
         this, &NetPage::onRelayNetworkWhitelistStateChanged);
@@ -523,8 +529,7 @@ void NetPage::initListenAddrManagement()
 {
     // 监听地址输入框
     m_listenAddrEdit = new QLineEdit(this);
-    m_listenAddrEdit->setPlaceholderText(tr("请输入监听地址"));
-
+    m_listenAddrEdit->setPlaceholderText(tr("请输入监听地址与端口"));
     // 监听地址补全组件
     m_listenAddrEditCompleter = new QCompleter(this);
     m_listenAddrListEditModel = new QStringListModel(this);
@@ -585,24 +590,10 @@ void NetPage::initCidrManagement()
     // 连接信号槽
     connect(m_addCidrBtn, &QPushButton::clicked, this, &NetPage::onAddCidr);
     connect(m_removeCidrBtn, &QPushButton::clicked, this, &NetPage::onRemoveCidr);
-    connect(m_cidrListWidget, &QListWidget::itemSelectionChanged, [this]() {
+    connect(m_cidrListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
         m_removeCidrBtn->setEnabled(m_cidrListWidget->selectedItems().count() > 0);
     });
-    connect(m_calculateCidrBtn, &QPushButton::clicked, this, [=,  this] {
-        // 检测CidrCalculator.exe是否存在
-            // 获取当前程序目录
-       const QString calculatorDir = QCoreApplication::applicationDirPath() + "/CIDRCalculator.exe";
-
-       // 检查程序是否存在
-       QFileInfo fileInfo(calculatorDir);
-       if (!fileInfo.exists()) {
-           m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(calculatorDir));
-           QMessageBox::critical(this, tr("错误"), tr("找不到 CIDRCalculator.exe"));
-           return;
-       }
-        // 打开目录下的CidrCalculator.exe
-        QProcess::startDetached(calculatorDir);
-    });
+    connect(m_calculateCidrBtn, &QPushButton::clicked, this, &NetPage::onClickCidrCalculator);
 }
 
 void NetPage::createAdvancedSetPage()
@@ -670,6 +661,7 @@ void NetPage::createAdvancedSetPage()
     // 添加RPC端口输入框
     QHBoxLayout *rpcPortInputLayout = new QHBoxLayout(rpcPortWidget);
     QLabel *rpcPortLabel = new QLabel(tr("RPC端口号:"), rpcPortWidget);
+    rpcPortLabel->setToolTip(tr("RPC是EasyTier去中心化组网中用于下发组网配置的通道"));
     rpcPortInputLayout->addWidget(rpcPortLabel);
     rpcPortInputLayout->addWidget(m_rpcPortEdit);
     rpcPortInputLayout->addStretch();
@@ -730,6 +722,7 @@ void NetPage::createAdvancedSetPage()
 
     // 添加监听地址管理标题
     QLabel *listenAddrTitle = new QLabel(tr("监听地址:"), listenAddrWidget);
+    listenAddrTitle->setToolTip(tr("监听节点连接,他人若想通过本节点加入组网需要连接监听地址"));
     listenAddrTitle->setStyleSheet("font-size: 12px;");
     listenAddrLayout->addWidget(listenAddrTitle);
     // 添加监听地址输入和按钮
@@ -754,6 +747,7 @@ void NetPage::createAdvancedSetPage()
 
     // 添加子网代理CIDR管理标题
     QLabel *cidrTitle = new QLabel(tr("子网代理CIDR:"), cidrWidget);
+    cidrTitle->setToolTip(tr("输入想要进行子网代理的IP范围, CIDR格式"));
     cidrTitle->setStyleSheet("font-size: 12px;");
     cidrLayout->addWidget(cidrTitle);
     // 添加子网代理CIDR输入和按钮
@@ -872,8 +866,7 @@ bool NetPage::isMagicDnsEnabled() const
 }
 
 // 网络白名单启用状态变化处理
-void NetPage::onRelayNetworkWhitelistStateChanged(Qt::CheckState state)
-{
+void NetPage::onRelayNetworkWhitelistStateChanged(Qt::CheckState state) const {
     bool enabled = (state == Qt::Checked);
     m_relayNetworkWhitelistEdit->setEnabled(enabled);
     m_addRelayNetworkWhitelistBtn->setEnabled(enabled);
@@ -914,8 +907,7 @@ void NetPage::onAddRelayNetworkWhitelist()
 // 删除网络白名单
 void NetPage::onRemoveRelayNetworkWhitelist()
 {
-    QListWidgetItem *selectedItem = m_relayNetworkWhitelistListWidget->currentItem();
-    if (selectedItem) {
+    if (QListWidgetItem *selectedItem = m_relayNetworkWhitelistListWidget->currentItem()) {
         delete selectedItem;
     }
 }
@@ -1045,8 +1037,7 @@ void NetPage::onAddCidr()
 
 void NetPage::onRemoveCidr()
 {
-    QListWidgetItem *selectedItem = m_cidrListWidget->currentItem();
-    if (selectedItem) {
+    if (QListWidgetItem *selectedItem = m_cidrListWidget->currentItem()) {
         delete selectedItem;
     }
 }
@@ -1089,6 +1080,22 @@ void NetPage::onRpcPortTextChanged(const QString &text)
         // 输入有效，恢复正常样式
         m_rpcPortEdit->setStyleSheet("");
     }
+}
+
+void NetPage::onClickCidrCalculator() {
+    // 检测CidrCalculator.exe是否存在
+    // 获取当前程序目录
+    const QString calculatorDir = QCoreApplication::applicationDirPath() + "/CIDRCalculator.exe";
+
+    // 检查程序是否存在
+    const QFileInfo fileInfo(calculatorDir);
+    if (!fileInfo.exists()) {
+        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(calculatorDir));
+        QMessageBox::critical(this, tr("错误"), tr("找不到 CIDRCalculator.exe"));
+        return;
+    }
+    // 打开目录下的CidrCalculator.exe
+    QProcess::startDetached(calculatorDir);
 }
 
 
@@ -1153,28 +1160,47 @@ void NetPage::onRunNetwork()
     }
 
     // 创建启动过程对话框
-    createProcessDialog("启动EasyTier中。。。");
+    closeProcessDialog();  // 如果已有对话框，先删除
+    // 创建新的对话框
+    m_processDialog = new QDialog(this);
+    auto *dialogLayout = new QVBoxLayout(m_processDialog);
+    auto *dialogTitleLabel = new QLabel("启动日志", m_processDialog);
+    m_processLogTextEdit = new QPlainTextEdit(m_processDialog);
+
+    m_processDialog->setWindowTitle(tr("启动EasyTier中。。。"));
+    m_processDialog->setModal(true);
+    dialogLayout->setContentsMargins(20, 20, 20, 20);
+    m_processDialog->setMinimumSize(400, 300);
+    dialogTitleLabel->setStyleSheet("font-size: 14px; font-weight: bold;");
+    dialogLayout->addWidget(dialogTitleLabel);
+    m_processLogTextEdit->setReadOnly(true);
+    m_processLogTextEdit->setFont(QFont("Consolas", 12));
+    dialogLayout->addWidget(m_processLogTextEdit);
+    m_processDialog->setWindowFlag(Qt::WindowCloseButtonHint, false);
+    m_processDialog->show();
+
+    m_processLogTextEdit->appendPlainText(tr("启动EasyTier进程..."));
+    QApplication::processEvents();
 
     try {
         if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText("生成启动配置...");
-            m_processLogTextEdit->appendPlainText("正在检测RPC端口...");
+            m_processLogTextEdit->appendPlainText(tr("生成启动配置..."));
+            m_processLogTextEdit->appendPlainText(tr("正在检测RPC端口..."));
             QApplication::processEvents();
         }
 
         QStringList arguments = generateConfCommand(this);
 
         if (m_processLogTextEdit) {
-            m_processLogTextEdit->appendPlainText("检测到可用端口: " + QString::number(realRpcPort));
-            m_processLogTextEdit->appendPlainText("启动配置已生成: " + arguments.join(" "));
-            m_processLogTextEdit->appendPlainText("正在传入参数并启动EasyTier进程...");
+            m_processLogTextEdit->appendPlainText(tr("检测到可用端口: ") + QString::number(realRpcPort));
+            m_processLogTextEdit->appendPlainText(tr("启动配置已生成: ") + arguments.join(" "));
+            m_processLogTextEdit->appendPlainText(tr("正在传入参数并启动EasyTier进程..."));
             QApplication::processEvents();
         }
 
         // 启动进程
-        bool success = startEasyTierProcess(arguments, appDir, easytierPath);
 
-        if (success) {
+        if (bool success = startEasyTierProcess(arguments, appDir, easytierPath)) {
             m_logTextEdit->appendPlainText(QString("正在启动 %1").arg(easytierPath));
             m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
 
@@ -1232,6 +1258,7 @@ void NetPage::stopCurrentNetwork()
         m_cliProcess->deleteLater();
         m_cliProcess = nullptr;
     }
+    closeLogFile();
 }
 
 // 检查并准备EasyTier程序
@@ -1304,17 +1331,10 @@ void NetPage::setupProcessConnections()
 void NetPage::handleProcessStartResult(bool success, const QString& errorMessage)
 {
     if (success) {
-        // 更新按钮状态
-        ui->startPushButton->setText("运行中");
-        ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
-
-        // 更新运行状态标签, 显示节点表格
-        m_runningStatusLabel->setText(getNetworkName() + tr(" 网络已运行"));
-        m_peerTable->show();
-
+        updateUIState(true);
         emit networkStarted();  // 发送网络启动信号
     } else {
-        updateUIState(false);;
+        updateUIState(false);
         if (m_easytierProcess) {
             emit networkFinished(); // 发送网络停止信号
             m_easytierProcess->deleteLater();
@@ -1329,48 +1349,19 @@ void NetPage::updateUIState(bool isRunning)
     if (isRunning) {
         ui->startPushButton->setText("运行中");
         ui->startPushButton->setStyleSheet("color: green; font-weight: bold;");
-        m_runningStatusLabel->setText(getNetworkName() + tr(" 网络已运行"));
-        m_peerTable->show();
+        m_runningStatusLabel->setText(tr("正在运行 ") + getNetworkName());
     } else {
         ui->startPushButton->setStyleSheet("");
         ui->startPushButton->setText("运行网络");
         m_runningStatusLabel->setText("EasyTier实例未运行，请先点击运行网络");
-        m_peerTable->hide();
     }
-}
-
-// 创建启动过程对话框
-void NetPage::createProcessDialog(const QString& title)
-{
-    // 如果已有对话框，先删除
-    closeProcessDialog();
-
-    // 创建新的对话框
-    m_processDialog = new QDialog(this);
-    QVBoxLayout *dialogLayout = new QVBoxLayout(m_processDialog);
-    QLabel *dialogTitleLabel = new QLabel("启动日志", m_processDialog);
-    m_processLogTextEdit = new QPlainTextEdit(m_processDialog);
-
-    m_processDialog->setWindowTitle(title);
-    m_processDialog->setModal(true);
-    dialogLayout->setContentsMargins(20, 20, 20, 20);
-    m_processDialog->setMinimumSize(400, 300);
-    dialogTitleLabel->setStyleSheet("font-size: 14px; font-weight: bold;");
-    dialogLayout->addWidget(dialogTitleLabel);
-    m_processLogTextEdit->setReadOnly(true);
-    m_processLogTextEdit->setFont(QFont("Consolas", 12));
-    dialogLayout->addWidget(m_processLogTextEdit);
-    m_processDialog->setWindowFlag(Qt::WindowCloseButtonHint, false);
-    m_processDialog->show();
-
-    m_processLogTextEdit->appendPlainText("启动EasyTier进程...");
-    QApplication::processEvents();
 }
 
 // 关闭启动过程对话框
 void NetPage::closeProcessDialog()
 {
     if (m_processDialog) {
+        m_processDialog->disconnect();
         m_processDialog->deleteLater();
         m_processDialog = nullptr;
         m_processLogTextEdit = nullptr;
@@ -1514,9 +1505,22 @@ void NetPage::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 void NetPage::initRunningStatePage()
 {
     // 创建运行状态标签
-    m_runningStatusLabel = new QLabel("EasyTier未运行，请先点击运行网络", ui->runningState);
-    m_runningStatusLabel->setAlignment(Qt::AlignCenter);
+    m_runningStatusLabel = new QLabel(tr("EasyTier未运行，请先点击运行网络"), ui->runningState);
+    m_runningStatusLabel->setAlignment(Qt::AlignLeft);
+    m_runningStatusLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_runningStatusLabel->setStyleSheet("font-size: 16px; font-weight: bold;");
+
+    // 创建隐藏服务器信息勾选框
+    m_isHideServersBox = new QCheckBox(tr("隐藏服务器信息"), ui->runningState);
+    m_isHideServersBox->setChecked(false);
+    m_isHideServersBox->setToolTip(tr("勾选后，将不会在列表中显示没有分配虚拟IP的节点的信息"));
+    m_isHideServersBox->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+
+    QWidget *infoWidget = new QWidget(ui->runningState);
+    QHBoxLayout *infoLayout = new QHBoxLayout(infoWidget);
+    infoLayout->addWidget(m_runningStatusLabel);
+    infoLayout->addWidget(m_isHideServersBox);
+    infoWidget->setLayout(infoLayout);
 
     // 创建节点信息表格
     m_peerTable = new QTableWidget(ui->runningState);
@@ -1540,11 +1544,9 @@ void NetPage::initRunningStatePage()
 
     // 布局
     QVBoxLayout *layout = new QVBoxLayout(ui->runningState);
-    layout->addWidget(m_runningStatusLabel);
+    layout->addWidget(infoWidget);
     layout->addWidget(m_peerTable);
-
-    // 移除这行代码：m_cliProcess = nullptr;  // 初始化异步进程对象
-    m_peerTable->hide();       // 初始隐藏表格（当网络未运行时）
+    layout->setAlignment(Qt::AlignTop);
 
     // 设置定时器，定期更新节点信息
     m_peerUpdateTimer = new QTimer(this);
@@ -1636,6 +1638,11 @@ void NetPage::parseAndDisplayPeerInfo(const QByteArray &jsonData)
         if (!peerValue.isObject()) continue;
 
         QJsonObject peerObj = peerValue.toObject();
+        if(m_isHideServersBox && m_isHideServersBox->isChecked() &&
+            peerObj.value("ipv4").toString().isEmpty() &&
+            !peerObj.value("hostname").toString().contains("Local") ) {
+            continue;
+        }
 
         int row = m_peerTable->rowCount();
         m_peerTable->insertRow(row);
@@ -1648,7 +1655,7 @@ void NetPage::parseAndDisplayPeerInfo(const QByteArray &jsonData)
         if ( ipv4.isEmpty() ) {
             if (peerObj.value("hostname").toString().contains("PublicServer")) {
                 ipv4 = tr("公共服务器");
-            } else {
+            } else if (!peerObj.value("hostname").toString().contains("Local")) {
                 ipv4 = tr("服务器");
             }
         }

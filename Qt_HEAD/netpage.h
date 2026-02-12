@@ -86,26 +86,26 @@ public:
     void setNetworkConfig(const QJsonObject &config);  // 设置网络配置
 
     // ===============运行与检测相关===============
-    int realRpcPort;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
+    int realRpcPort = 0;  // 实际的RPC端口号，运行Et前赋值，用于检测运行状态
     bool isRunning() const { return m_easytierProcess && (QProcess::Running == m_easytierProcess->state()); }
     void runNetworkOnAutoStart();  // 运行网络（开机自启）
 
 private slots:
     // ===============网络设置相关===============
     // DHCP复选框状态变化处理
-    void onDhcpStateChanged(Qt::CheckState state);
+    void onDhcpStateChanged(Qt::CheckState state) const;
     // 密码可见性切换
-    void onTogglePasswordVisibility();
+    void onTogglePasswordVisibility() const;
     // 添加服务器
     void onAddServer();
     // 删除服务器
-    void onRemoveServer();
+    void onRemoveServer() const;
     // 服务器地址补全数据更新
-    void onServerEditCompleterChanged();
+    void onServerEditCompleterChanged() const;
     // 打开公共服务器列表
     void onOpenPublicServerList();
     // 白名单开启按钮状态变化处理
-    void onRelayNetworkWhitelistStateChanged(Qt::CheckState state);
+    void onRelayNetworkWhitelistStateChanged(Qt::CheckState state) const;
     // 添加网络白名单
     void onAddRelayNetworkWhitelist();
     // 删除网络白名单
@@ -122,6 +122,8 @@ private slots:
     void onRemoveCidr();
     // RPC端口输入验证
     void onRpcPortTextChanged(const QString &text);
+    // CIDR 计算器按钮被点击时的处理
+    void onClickCidrCalculator();
 
     // ===============运行状态页面相关===============
     // 运行网络
@@ -144,90 +146,91 @@ private:
     Ui::NetPage *ui;
 
     // 界面组件
-    QLineEdit *m_usernameEdit;
-    QLineEdit *m_networkNameEdit;
-    QLineEdit *m_passwordEdit;
-    QPushButton *m_togglePasswordBtn;
-    QCheckBox *m_dhcpCheckBox;
-    QLineEdit *m_ipEdit;
+    QLineEdit *m_usernameEdit =  nullptr;
+    QLineEdit *m_networkNameEdit =  nullptr;
+    QLineEdit *m_passwordEdit =  nullptr;
+    QPushButton *m_togglePasswordBtn =  nullptr;
+    QCheckBox *m_dhcpCheckBox =  nullptr;
+    QLineEdit *m_ipEdit =  nullptr;
 
     // 低延迟优先和私有模式选项
-    QCheckBox *m_lowLatencyCheckBox;
-    QCheckBox *m_privateModeCheckBox;
+    QCheckBox *m_lowLatencyCheckBox =  nullptr;
+    QCheckBox *m_privateModeCheckBox =  nullptr;
 
     // 服务器管理组件
-    QLineEdit *m_serverEdit;
-    QPushButton *m_addServerBtn;
-    QListWidget *m_serverListWidget;
-    QPushButton *m_removeServerBtn;
-    QCompleter *m_serverEditCompleter;        // 用于服务器地址补全
-    QStringListModel *m_serverListEditModel;  // 补全器的模型
-    QPushButton *m_publicServerBtn;
-    QPushButton *m_serverHelpBtn;
+    QLineEdit *m_serverEdit =  nullptr;
+    QPushButton *m_addServerBtn =  nullptr;
+    QListWidget *m_serverListWidget =  nullptr;
+    QPushButton *m_removeServerBtn =  nullptr;
+    QCompleter *m_serverEditCompleter =  nullptr;        // 用于服务器地址补全
+    QStringListModel *m_serverListEditModel =  nullptr;  // 补全器的模型
+    QPushButton *m_publicServerBtn =  nullptr;
+    QPushButton *m_serverHelpBtn =  nullptr;
 
     // 高级设置组件
-    QCheckBox *m_kcpProxyCheckBox;        // 启用 KCP 代理
-    QCheckBox *m_quicInputDisableCheckBox; // 禁用 QUIC 输入
-    QCheckBox *m_noTunModeCheckBox;       // 无 TUN 模式
-    QCheckBox *m_multithreadCheckBox;     // 启用多线程
-    QCheckBox *m_udpHolePunchingDisableCheckBox; // 禁用 UDP 打洞
-    QCheckBox *m_userModeStackCheckBox;   // 使用用户态协议栈
-    QCheckBox *m_kcpInputDisableCheckBox; // 禁用 KCP 输入
-    QCheckBox *m_p2pDisableCheckBox;      // 禁用 P2P
-    QCheckBox *m_exitNodeCheckBox;        // 启用出口节点
-    QCheckBox *m_systemForwardingCheckBox; // 系统转发
-    QCheckBox *m_symmetricNatHolePunchingDisableCheckBox; // 禁用对称 NAT 打洞
-    QCheckBox *m_ipv6DisableCheckBox;     // 禁用 IPv6
-    QCheckBox *m_quicProxyCheckBox;       // 启用 QUIC 代理
-    QCheckBox *m_onlyPhysicalNicCheckBox; // 仅使用物理网卡
-    QCheckBox *m_rpcPacketForwardingCheckBox; // 转发 RPC 包
-    QCheckBox *m_encryptionDisableCheckBox; // 禁用加密
-    QCheckBox *m_magicDnsCheckBox;        // 启用魔法 DNS
+    QCheckBox *m_kcpProxyCheckBox =  nullptr;        // 启用 KCP 代理
+    QCheckBox *m_quicInputDisableCheckBox =  nullptr; // 禁用 QUIC 输入
+    QCheckBox *m_noTunModeCheckBox =  nullptr;       // 无 TUN 模式
+    QCheckBox *m_multithreadCheckBox =  nullptr;     // 启用多线程
+    QCheckBox *m_udpHolePunchingDisableCheckBox =  nullptr; // 禁用 UDP 打洞
+    QCheckBox *m_userModeStackCheckBox =  nullptr;   // 使用用户态协议栈
+    QCheckBox *m_kcpInputDisableCheckBox =  nullptr; // 禁用 KCP 输入
+    QCheckBox *m_p2pDisableCheckBox =  nullptr;      // 禁用 P2P
+    QCheckBox *m_exitNodeCheckBox =  nullptr;        // 启用出口节点
+    QCheckBox *m_systemForwardingCheckBox =  nullptr; // 系统转发
+    QCheckBox *m_symmetricNatHolePunchingDisableCheckBox =  nullptr; // 禁用对称 NAT 打洞
+    QCheckBox *m_ipv6DisableCheckBox =  nullptr;     // 禁用 IPv6
+    QCheckBox *m_quicProxyCheckBox =  nullptr;       // 启用 QUIC 代理
+    QCheckBox *m_onlyPhysicalNicCheckBox =  nullptr; // 仅使用物理网卡
+    QCheckBox *m_rpcPacketForwardingCheckBox =  nullptr; // 转发 RPC 包
+    QCheckBox *m_encryptionDisableCheckBox =  nullptr; // 禁用加密
+    QCheckBox *m_magicDnsCheckBox =  nullptr;        // 启用魔法 DNS
 
     // RPC端口输入框
-    QLineEdit *m_rpcPortEdit;
+    QLineEdit *m_rpcPortEdit =  nullptr;
 
     // 网络白名单管理组件
-    QCheckBox *m_relayNetworkWhitelistCheckBox; // 是否启用网络白名单
-    QLineEdit *m_relayNetworkWhitelistEdit; // 网络白名单输入框
-    QPushButton *m_addRelayNetworkWhitelistBtn; // 添加按钮
-    QListWidget *m_relayNetworkWhitelistListWidget; // 白名单列表
-    QPushButton *m_removeRelayNetworkWhitelistBtn; // 删除按钮
+    QCheckBox *m_relayNetworkWhitelistCheckBox =  nullptr; // 是否启用网络白名单
+    QLineEdit *m_relayNetworkWhitelistEdit =  nullptr; // 网络白名单输入框
+    QPushButton *m_addRelayNetworkWhitelistBtn =  nullptr; // 添加按钮
+    QListWidget *m_relayNetworkWhitelistListWidget =  nullptr; // 白名单列表
+    QPushButton *m_removeRelayNetworkWhitelistBtn =  nullptr; // 删除按钮
 
     // 监听地址管理组件
-    QLineEdit *m_listenAddrEdit;
-    QPushButton *m_addListenAddrBtn;
-    QListWidget *m_listenAddrListWidget;
-    QPushButton *m_removeListenAddrBtn;
-    QCompleter *m_listenAddrEditCompleter;        // 用于监听地址补全
-    QStringListModel *m_listenAddrListEditModel;  // 补全器的模型
+    QLineEdit *m_listenAddrEdit =  nullptr;
+    QPushButton *m_addListenAddrBtn =  nullptr;
+    QListWidget *m_listenAddrListWidget =  nullptr;
+    QPushButton *m_removeListenAddrBtn =  nullptr;
+    QCompleter *m_listenAddrEditCompleter =  nullptr;        // 用于监听地址补全
+    QStringListModel *m_listenAddrListEditModel =  nullptr;  // 补全器的模型
 
     // 子网代理CIDR管理组件
-    QLineEdit *m_cidrEdit;
-    QPushButton *m_addCidrBtn;
-    QListWidget *m_cidrListWidget;
-    QPushButton *m_removeCidrBtn;
-    QPushButton *m_calculateCidrBtn;
+    QLineEdit *m_cidrEdit =  nullptr;
+    QPushButton *m_addCidrBtn =  nullptr;
+    QListWidget *m_cidrListWidget =  nullptr;
+    QPushButton *m_removeCidrBtn =  nullptr;
+    QPushButton *m_calculateCidrBtn =  nullptr;
 
     // 运行et相关
-    QPlainTextEdit *m_logTextEdit;
-    QProcess *m_easytierProcess;
+    QPlainTextEdit *m_logTextEdit =  nullptr;
+    QProcess *m_easytierProcess =  nullptr;
 
     // 运行状态页面相关
-    QProcess *m_cliProcess;     // 执行cli异步获取节点信息
-    QLabel *m_runningStatusLabel;
-    QTableWidget *m_peerTable;
-    QTimer *m_peerUpdateTimer;
+    QProcess *m_cliProcess =  nullptr;     // 执行cli异步获取节点信息
+    QLabel *m_runningStatusLabel =  nullptr;
+    QTableWidget *m_peerTable =  nullptr;
+    QTimer *m_peerUpdateTimer =  nullptr;
+    QCheckBox *m_isHideServersBox =  nullptr;  //是否隐藏服务器的信息
 
     // 启动过程对话框相关
-    QDialog *m_processDialog;
-    QPlainTextEdit *m_processLogTextEdit;
+    QDialog *m_processDialog =  nullptr;
+    QPlainTextEdit *m_processLogTextEdit =  nullptr;
 
     // 日志文件相关
-    QFile *m_logFile;
-    QTextStream *m_logStream;
-    QString m_currentLogFileName;
-    QPushButton *m_openLogFileBtn;
+    QFile *m_logFile =  nullptr;
+    QTextStream *m_logStream =  nullptr;
+    QString m_currentLogFileName =  "";
+    QPushButton *m_openLogFileBtn =  nullptr;
 
 // ============== 网络设置相关===============
 
@@ -269,8 +272,6 @@ private:
     void handleProcessStartResult(bool success, const QString& errorMessage = "");
     // 更新UI状态
     void updateUIState(bool isRunning);
-    // 创建启动过程对话框
-    void createProcessDialog(const QString& title);
     // 关闭启动过程对话框
     void closeProcessDialog();
     // 限制日志行数

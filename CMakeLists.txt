@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 set(ProjectName QtEasyTier)
 
 # 设置项目名称
-project(${ProjectName} VERSION 1.1.1 LANGUAGES CXX)
+project(${ProjectName} VERSION 1.1.2 LANGUAGES CXX)
 
 # 启用Qt的自动MOC和RCC
 set(CMAKE_AUTOUIC ON)
@@ -77,8 +77,12 @@ else()
     )
 endif()
 
-# =============== 设置版本号 ===============
-target_compile_definitions(${ProjectName} PRIVATE PROJECT_VERSION="${PROJECT_VERSION}")
+# =============== 设置版本号与配置保存目录 ===============
+target_compile_definitions(${ProjectName} PRIVATE
+        PROJECT_VERSION="${PROJECT_VERSION}"
+        SAVE_CONF_IN_APP_DIR=false  # 是否将配置保存到程序目录
+)
+
 # ==========================================
 
 # 链接Qt库
