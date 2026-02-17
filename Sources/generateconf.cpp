@@ -7,11 +7,17 @@
 #include <QString>
 #include <iostream>
 #include <QTcpServer>
-#include <QUdpSocket>
-#include <QHostAddress>
-#include <QAbstractSocket>
 #include <random>
 #include <QCryptographicHash>
+
+#ifdef __WIN32
+
+#include <winsock2.h>
+#include <iphlpapi.h>
+#include <Windows.h>
+
+#endif
+
 
 /// @brief 生成随机端口号
 int getRandomPort()
@@ -22,7 +28,6 @@ int getRandomPort()
     return dis(gen);
 }
 
-bool isPortOccupied(const int &port);
 bool isRpcPortOccupied(const int &port);
 
 // @brief: 生成EasyTier配置文件
@@ -36,8 +41,8 @@ QStringList generateConfCommand(NetPage *netPage)
 
     // 先解决RPC端口号
     if (netPage->getRpcPort() != 0) {
-        if (isPortOccupied(netPage->getRpcPort()) || isRpcPortOccupied(netPage->getRpcPort())) {
-            throw std::runtime_error("RPC端口已被占用");
+        if (isPortOccupied(netPage->getRpcPort())) {
+            throw std::runtime_error("RPC port is in use");
         }
         netPage->realRpcPort = netPage->getRpcPort();
         conf << "--rpc-portal" << QString::number(netPage->getRpcPort());
@@ -47,14 +52,14 @@ QStringList generateConfCommand(NetPage *netPage)
         // 循环找到一个未被占用的端口
         for (int i = 10000; i < 50000; i++) {
             int port = getRandomPort();
-            if (!isPortOccupied(port) && !isRpcPortOccupied(port)) {
+            if (!isPortOccupied(port)) {
                 conf << "--rpc-portal" << QString::number(port);
                 netPage->realRpcPort = port;
                 break;
             }
         }
         if (netPage->realRpcPort == 0) {
-            throw std::runtime_error("未找到未被占用的RPC端口");
+            throw std::runtime_error("could not find an available RPC port");
         }
     }
 
@@ -109,7 +114,7 @@ QStringList generateConfCommand(NetPage *netPage)
         if (!netPage->getIpAddress().isEmpty()) {
             conf << "--ipv4" << netPage->getIpAddress();  // IPv4地址
         } else {
-            std::clog << "注意：则此节点将仅转发数据包，不会创建TUN设备" << std::endl;
+            std::clog << "No IP address set. This node will only forward packets." << std::endl;
         }
     }
 
@@ -160,76 +165,67 @@ bool isPortOccupied(const int &port)
         return true;
     }
 
-    // 检测UDP端口：绑定失败 → 端口被占用
-    QUdpSocket udpSocket;
-    bool udpBindOk = udpSocket.bind(
-        QHostAddress::LocalHost,
-        port,
-        QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint
-    );
-    if (!udpBindOk) {
-        std::clog << "[PortDetect] UDP port " << port << " is occupied:" << udpSocket.errorString().toStdString() << std::endl;
+#ifdef __WIN32
+    // 使用 IP Helper API 查询端口状态
+    // 通过 GetTcpTable2 获取 TCP 连接表，检查端口是否被监听或占用
+    
+    PMIB_TCPTABLE2 pTcpTable = nullptr;
+    ULONG size = 0;   // 缓冲区大小
+    
+    // 第一次调用获取所需缓冲区大小
+    DWORD result = GetTcpTable2(nullptr, &size, TRUE);
+    if (result != ERROR_INSUFFICIENT_BUFFER) {
+        std::cerr << "[PortDetect] GetTcpTable2 failed to get size, error: " << result << std::endl;
         return true;
     }
-    udpSocket.close(); // 显式释放UDP端口
-
-    // 检测TCP端口：监听失败 → 端口被占用
-    QTcpServer tcpServer;
-    bool tcpListenOk = tcpServer.listen(QHostAddress::LocalHost, port);
-    if (!tcpListenOk) {
-        std::cerr << "[PortDetect] TCP port " << port << " is occupied:" << tcpServer.errorString().toStdString() << std::endl;
+    
+    // 分配缓冲区
+    pTcpTable = static_cast<PMIB_TCPTABLE2>(malloc(size));
+    if (pTcpTable == nullptr) {
+        std::cerr << "[PortDetect] Memory allocation failed" << std::endl;
         return true;
     }
-    tcpServer.close(); // 显式关闭TCP监听
-
-    // 4. UDP和TCP均未被占用
-    std::clog << "[PortDetect] Port " << port << " is available (UDP + TCP)" << std::endl;
-    return false;
-}
-
-/// @brief 检测端口是否被其他实例的RPC占用
-/// @return 如果端口被其他实例的RPC占用则返回true，否则返回false
-bool isRpcPortOccupied(const int &port)
-{
-    // 端口合法性校验
-    if (port < 1 || port > 65535) {
-        std::cerr << "[RpcDetect] Invalid port:" << port << "(must be 1-65535)" << std::endl;
+    
+    // 第二次调用获取实际数据
+    result = GetTcpTable2(pTcpTable, &size, TRUE);
+    if (result != NO_ERROR) {
+        std::cerr << "[PortDetect] GetTcpTable2 failed, error: " << result << std::endl;
+        free(pTcpTable);
         return true;
     }
-
-    // 使用QProcess执行easytier-cli -p 127.0.0.1:port peer 命令
-    // 将输出返回给QString
-    // 获取当前程序目录
-    QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
-    QString cliPath = appDir + "/easytier-cli.exe";
-
-    // 检查CLI程序是否存在
-    QFileInfo fileInfo(cliPath);
-    if (!fileInfo.exists()) {
-        std::cerr << "[RpcDetect] Error: CLI program not found at " << cliPath.toStdString() << std::endl;
-        //QMessageBox::critical(nullptr, "端口占用检测", QString("错误: 找不到 %1").arg(cliPath));
-        throw std::runtime_error("RPC端口占用检测失败,找不到CLI程序");
+    
+    // 遍历 TCP 表检查端口是否被占用
+    bool isOccupied = false;
+    u_short targetPort = htons(static_cast<u_short>(port)); // 转换为网络字节序
+    
+    for (DWORD i = 0; i < pTcpTable->dwNumEntries; ++i) {
+        MIB_TCPROW2* pRow = &pTcpTable->table[i];
+        if (pRow->dwLocalPort == targetPort) {
+            // 端口被占用
+            isOccupied = true;
+            std::clog << "[PortDetect] Port " << port << " is in use (state: " 
+                      << pRow->dwState << ", PID: " << pRow->dwOwningPid << ")" << std::endl;
+            break;
+        }
     }
-
-    // 创建临时进程获取节点信息
-    QProcess process;
-    process.setWorkingDirectory(appDir);
-    process.start(cliPath, QStringList() << "-p" << "127.0.0.1:" + QString::number(port) << "peer");
-    if (!process.waitForFinished(5000)) { // 5秒超时
-        std::cerr << "[RpcDetect] RPC port " << port << " check timeout" << std::endl;
-        //QMessageBox::critical(nullptr, "端口占用检测", "RPC端口检查超时");
-        throw std::runtime_error("端口占用检测失败, RPC端口检查超时");
+    
+    free(pTcpTable);
+    
+    if (!isOccupied) {
+        std::clog << "[PortDetect] Port " << port << " is available" << std::endl;
     }
-    QString output = QString::fromLocal8Bit(process.readAllStandardError());
-
-    // 检查输出是否包含"Error",包含则表示端口没有实例占用
-    if (output.contains("Error: failed to get peer manager client")) {
-        std::clog << "[RpcDetect] RPC port " << port << " is available:"<< std::endl;
-        return false;
+    
+    return isOccupied;
+#else
+    // 非Windows平台，使用 Qt 的方式检测
+    QTcpServer server;
+    bool isOccupied = !server.listen(QHostAddress::LocalHost, port);
+    if (!isOccupied) {
+        server.close();
     }
+    return isOccupied;
+#endif
 
-    std::clog << "[RpcDetect] RPC port " << port << " is occupied:"<< std::endl;
-    return true;
 }
 
 // =================== Base32 编码/解码相关函数 ===================
@@ -243,7 +239,7 @@ QString base32Encode(const QByteArray& data) {
     int buffer = 0;
     int bitsLeft = 0;
 
-    for (int i = 0; i < data.size(); ++i) {
+    for (int i = 0; i < static_cast<int>(data.size()); ++i) {
         buffer = (buffer << 8) | static_cast<unsigned char>(data[i]);
         bitsLeft += 8;
 
@@ -272,11 +268,11 @@ QByteArray base32Decode(const QString& encoded) {
     int buffer = 0;
     int bitsLeft = 0;
 
-    for (int i = 0; i < encoded.length(); ++i) {
+    for (int i = 0; i < static_cast<int>(encoded.length()); ++i) {
         QChar ch = encoded[i];
         if (ch == '=') continue;
 
-        int val = BASE32_CHARS.indexOf(ch.toUpper());
+        int val = static_cast<int>(BASE32_CHARS.indexOf(ch.toUpper()));
         if (val == -1) continue;
 
         buffer = (buffer << 5) | val;

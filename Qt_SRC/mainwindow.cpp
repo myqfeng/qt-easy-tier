@@ -86,7 +86,7 @@ MainWindow::MainWindow(QWidget *parent)
         // 将新的NetPage实例添加到列表中
         m_netpages.append(newNetPage);
         QListWidgetItem *item = new QListWidgetItem(ui->netListWidget);
-        item->setText("Network " + QString::number(m_netpages.size())); // 默认名称设置
+        item->setText("Network " + QString::number(static_cast<int>(m_netpages.size()))); // 默认名称设置
         ui->netListWidget->addItem(item);
         item->setSelected(true);
         item->setIcon(QIcon(":/icons/network.svg"));
@@ -108,7 +108,7 @@ MainWindow::MainWindow(QWidget *parent)
     // 当列表项被点击时，切换到对应的network页面
     connect(ui->netListWidget, &QListWidget::itemClicked, this, [=, this](const QListWidgetItem *item) {
         int index = ui->netListWidget->row(item);
-        if (index >= 0 && index < m_netpages.size()) {
+        if (index >= 0 && index < static_cast<int>(m_netpages.size())) {
             _changeWidget(m_netpages[index]);
         } else {
             std::cerr << "无效的索引，程序出错" << std::endl;
@@ -221,7 +221,7 @@ void MainWindow::onDeleteNetwork()
     }
 
     const int &index = ui->netListWidget->row(currentItem);
-    if (index < 0 || index >= m_netpages.size()) {
+    if (index < 0 || index >= static_cast<int>(m_netpages.size())) {
         QMessageBox::critical(this, "错误", "无效的网络项索引");
         std::exit(1);
     }
@@ -426,7 +426,7 @@ void MainWindow::loadConfig() {
     QJsonArray networks = rootObj["networks"].toArray();
 
     // 加载网络配置
-    for (int i = 0; i < networks.size(); ++i) {
+    for (int i = 0; i < static_cast<int>(networks.size()); ++i) {
         QJsonValue networkValue = networks[i];
         if (!networkValue.isObject()) continue;
 
@@ -463,7 +463,9 @@ void MainWindow::loadConfig() {
 
     // 是否隐藏到系统托盘
     m_isHideOnTray = m_settingsWindow->isHideOnTray();
-    m_settingsWindow->detectSoftwareVersion();
+
+    // 暂时关闭自启检查更新
+    //m_settingsWindow->detectSoftwareVersion();
 }
 
 // 保存网络配置
@@ -481,7 +483,7 @@ void MainWindow::saveNetworkConfig() {
     rootObj["version"] = "1.0";
 
     QJsonArray networks;
-    for (int i = 0; i < m_netpages.size(); ++i) {
+    for (int i = 0; i < static_cast<int>(m_netpages.size()); ++i) {
         QJsonObject networkConfig = m_netpages[i]->getNetworkConfig();
 
         // 添加网络名称
