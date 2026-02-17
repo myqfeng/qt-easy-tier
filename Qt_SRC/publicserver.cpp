@@ -68,10 +68,10 @@ void PublicServer::populateTable()
     ui->tableWidget->setRowCount(0);
 
     // 设置表格行数
-    ui->tableWidget->setRowCount(serverData.size());
+    ui->tableWidget->setRowCount(static_cast<int>(serverData.size()));
 
     // 填充数据
-    for (int i = 0; i < serverData.size(); ++i) {
+    for (int i = 0; i < static_cast<int>(serverData.size()); ++i) {
         QJsonValue serverValue = serverData[i];
         QJsonObject serverObj = serverValue.toObject();
 

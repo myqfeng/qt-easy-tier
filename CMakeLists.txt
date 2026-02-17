@@ -89,6 +89,12 @@ target_compile_definitions(${ProjectName} PRIVATE
 # 链接Qt库
 target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
 
+# 链接Win API相关库
+if(WIN32)
+target_link_libraries(${ProjectName} PRIVATE iphlpapi ws2_32)
+elseif(LINUX)
+# target_link_libraries(${ProjectName} PRIVATE iphlpapi ws2_32)
+endif()
 # 设置目标属性，包括Bundle ID、版本号、短版本号、是否为Bundle、是否为Win32可执行文件
 set_target_properties(${ProjectName} PROPERTIES
         ${BUNDLE_ID_OPTION}

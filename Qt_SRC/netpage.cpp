@@ -1216,7 +1216,7 @@ void NetPage::onRunNetwork()
 
         // 启动进程
 
-        if (bool success = startEasyTierProcess(arguments, appDir, easytierPath)) {
+        if (startEasyTierProcess(arguments, appDir, easytierPath)) {
             m_logTextEdit->appendPlainText(QString("正在启动 %1").arg(easytierPath));
             m_logTextEdit->appendPlainText(QString("启动参数: %1").arg(arguments.join(" ")));
 
@@ -1249,21 +1249,17 @@ void NetPage::stopCurrentNetwork()
         m_easytierProcess->kill();
 
         // 等待强制终止完成
-        if (m_easytierProcess->waitForFinished(1000)) {
+        if (m_easytierProcess->waitForFinished(60000)) {
             m_logTextEdit->appendPlainText("EasyTier进程终止成功");
+            emit networkFinished(); // 发送网络停止信号
+            updateUIState(false);;    // 更新UI状态
+            m_easytierProcess->deleteLater();
+            m_easytierProcess = nullptr;
         } else {
             m_logTextEdit->appendPlainText("警告：EasyTier进程可能未完全终止");
             QMessageBox::warning(this, "警告", "强制终止EasyTier进程失败");
+            return;
         }
-    }
-
-    emit networkFinished(); // 发送网络停止信号
-    updateUIState(false);;    // 更新UI状态
-
-    // 清理进程对象
-    if (m_easytierProcess) {
-        m_easytierProcess->deleteLater();
-        m_easytierProcess = nullptr;
     }
 
     // 停止cli进程
@@ -1274,6 +1270,9 @@ void NetPage::stopCurrentNetwork()
         m_cliProcess = nullptr;
     }
     closeLogFile();
+
+    // 清理节点列表
+    m_peerTable->clear();
 }
 
 // 检查并准备EasyTier程序
