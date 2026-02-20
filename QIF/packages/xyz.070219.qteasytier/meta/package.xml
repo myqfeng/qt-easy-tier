@@ -6,7 +6,8 @@
     <ReleaseDate>2026-02-12</ReleaseDate>
     <Licenses>
         <License name="1. QtEasyTier 软件许可协议" file="license.txt" />
-        <License name="2. GPLv3" file="gplv3.txt" />
+        <License name="2. QtEasyTier 隐私政策" file="privacy.txt" />
+        <License name="3. GPLv3" file="gplv3.txt" />
     </Licenses>
     <Default>true</Default>
     <Script>installscript.qs</Script>
