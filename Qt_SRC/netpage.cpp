@@ -1272,7 +1272,7 @@ void NetPage::stopCurrentNetwork()
     closeLogFile();
 
     // 清理节点列表
-    m_peerTable->clear();
+    //m_peerTable->clear();
 }
 
 // 检查并准备EasyTier程序
@@ -1379,6 +1379,7 @@ void NetPage::closeProcessDialog()
         m_processDialog->deleteLater();
         m_processDialog = nullptr;
         m_processLogTextEdit = nullptr;
+        QApplication::processEvents();
     }
 }
 
