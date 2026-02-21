@@ -220,7 +220,6 @@ void Settings::setupUi()
     ui->hideOnTrayBox->setChecked(m_isHideOnTray);
     ui->autoStartCheckBox->setChecked(m_autoStart);
     ui->autoUpdateCheckBox->setChecked(m_autoUpdate);
-    ui->autoStartCheckBox->setEnabled(false);
 }
 
 void Settings::setupWebConfigUi()
@@ -411,11 +410,11 @@ void Settings::onDialogAccepted()
     int configPort = ui->confSendEdit->text().toInt(&ok1);
     int webPagePort = ui->webPageEdit->text().toInt(&ok2);
     
-    if (!ok1 || configPort < 1 || configPort > 65535) {
+    if (!ok1 || configPort < 1 || configPort >= 65535) {
         QMessageBox::warning(this, "输入错误", "配置下发端口必须在 1-65535 之间");
         return;
     }
-    if (!ok2 || webPagePort < 1 || webPagePort > 65535) {
+    if (!ok2 || webPagePort < 1 || webPagePort >= 65535) {
         QMessageBox::warning(this, "输入错误", "控制台前端端口必须在 1-65535 之间");
         return;
     }
@@ -630,14 +629,6 @@ void Settings::incrementLaunchCount()
 
 void Settings::setAutoStart(bool enable)
 {
-#if SAVE_CONF_IN_APP_DIR == true
-    int ret = QMessageBox::information(this, tr("提示"), tr("开机自启会写入计划任务，若是便携使用可能污染系统环境，是否继续？"),
-                                       QMessageBox::Yes | QMessageBox::No);
-    if (ret != QMessageBox::Yes) {
-        return;
-    }
-#endif
-
 #ifdef WIN32
     const QString appName = "QtEasyTier";
     const QString appPath = QCoreApplication::applicationFilePath().replace("/", "\\");
@@ -645,6 +636,14 @@ void Settings::setAutoStart(bool enable)
 
     QStringList args;
     if (enable) {
+#if SAVE_CONF_IN_APP_DIR == true
+        int ret = QMessageBox::information(this, tr("提示"), tr("开机自启会写入计划任务，若是便携使用可能污染系统环境，是否继续？"),
+                                           QMessageBox::Yes | QMessageBox::No);
+        if (ret != QMessageBox::Yes) {
+            m_autoStart = false;
+            return;
+        }
+#endif
         // 创建开机自启任务
         args << "/create"
              << "/tn" << appName
