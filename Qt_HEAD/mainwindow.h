@@ -7,7 +7,6 @@
 
 #include <QMainWindow>
 #include <QVector>
-#include <QJsonObject>  // 添加JSON支持
 #include <QSystemTrayIcon>  // 添加系统托盘支持
 #include <QMenu>           // 添加菜单支持
 #include <QAction>         // 添加动作支持
@@ -18,6 +17,9 @@ namespace Ui {
     class MainWindow;
 }
 QT_END_NAMESPACE
+
+// 前向声明
+class Donate;
 
 class MainWindow : public QMainWindow
 {
@@ -40,6 +42,7 @@ private slots:
     void onExitApp();     // 退出应用程序
     void onClickOneClickBtn(); // 当点击一键联机按钮时
     void onClickWebDashboardBtn(); // 当点击Web控制台按钮时
+    void onClickSettingBtn(); // 当点击设置按钮时
 
 protected:
     void closeEvent(QCloseEvent *event) override;  // 重写关闭事件
@@ -50,7 +53,6 @@ private:
     // 界面组件
     QVector<NetPage*> m_netpages;
     OneClick *m_oneClick = nullptr;
-    setting *m_settingsWindow = nullptr;
 
     // 系统托盘相关
     QSystemTrayIcon *trayIcon = nullptr;

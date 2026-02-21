@@ -760,7 +760,7 @@ gridline-color: rgb(255, 55, 14);</string>
           <item alignment="Qt::AlignmentFlag::AlignHCenter|Qt::AlignmentFlag::AlignBottom">
            <widget class="QLabel" name="_authorLabel">
             <property name="text">
-             <string>Made by 明月清风. © All rights reserved.</string>
+             <string>Copyright © 2026 明月清风. All rights reserved.</string>
             </property>
            </widget>
           </item>

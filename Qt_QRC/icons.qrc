@@ -11,5 +11,7 @@
         <file>network.svg</file>
         <file>network-running.svg</file>
         <file>one-click.svg</file>
+        <file>alipay.png</file>
+        <file>wechat.png</file>
     </qresource>
 </RCC>

@@ -1,10 +1,7 @@
 #include "setting.h"
-
-#include <iostream>
-
 #include "ui_setting.h"
+
 #include <QDir>
-#include <QStandardPaths>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QMessageBox>
@@ -13,230 +10,317 @@
 #include <QJsonDocument>
 #include <QFile>
 #include <QTimer>
-#include <QThread>
 #include <QNetworkReply>
+#include <iostream>
 
-// VersionDetectionWorker实现
+// =============================================================================
+// VersionDetectionWorker 实现
+// =============================================================================
+
 VersionDetectionWorker::VersionDetectionWorker(QObject *parent)
     : QObject(parent)
 {
 }
 
-void VersionDetectionWorker::detectVersions()
+VersionDetectionWorker::~VersionDetectionWorker()
+{
+    // 清理进程对象（确保线程安全的资源释放）
+    if (m_process) {
+        m_process->disconnect();
+        if (m_process->state() != QProcess::NotRunning) {
+            m_process->kill();
+            m_process->waitForFinished(1000);
+        }
+        m_process->deleteLater();
+    }
+}
+
+void VersionDetectionWorker::startDetection()
+{
+    // 重置检测状态
+    m_coreDetected = false;
+    m_cliDetected = false;
+
+    // 获取可执行文件目录
+    QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
+    QString corePath = execDir + "/easytier-core.exe";
+    QString cliPath = execDir + "/easytier-cli.exe";
+
+    // 先检测核心版本
+    detectSingleExecutable(corePath, "core");
+}
+
+void VersionDetectionWorker::detectSingleExecutable(const QString &executablePath, const QString &type)
+{
+    m_currentDetectType = type;
+
+    // 检查文件是否存在
+    if (!QFile::exists(executablePath)) {
+        if (type == "core") {
+            m_coreDetected = true;
+            emit coreVersionReady(QString());
+            // 继续检测 CLI
+            QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
+            detectSingleExecutable(execDir + "/easytier-cli.exe", "cli");
+        } else {
+            m_cliDetected = true;
+            emit cliVersionReady(QString());
+            emit detectionFinished();
+        }
+        return;
+    }
+
+    // 清理旧进程（确保不会有残留进程占用资源）
+    if (m_process) {
+        m_process->disconnect();
+        if (m_process->state() != QProcess::NotRunning) {
+            m_process->kill();
+            m_process->waitForFinished(500);
+        }
+        m_process->deleteLater();
+    }
+
+    // 创建新进程（进程对象作为 worker 的子对象，随 worker 一起销毁）
+    m_process = new QProcess(this);
+    connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &VersionDetectionWorker::onProcessFinished);
+
+    // 启动进程获取版本（异步执行）
+    m_process->start(executablePath, QStringList{"-V"});
+}
+
+void VersionDetectionWorker::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
+{
+    Q_UNUSED(exitStatus)
+
+    QString version;
+
+    if (exitCode == 0 && m_process) {
+        QString output = QString::fromLocal8Bit(m_process->readAllStandardOutput()).trimmed();
+        version = parseVersionOutput(output, m_currentDetectType);
+    }
+
+    // 根据当前检测类型发送信号
+    if (m_currentDetectType == "core") {
+        m_coreDetected = true;
+        emit coreVersionReady(version);
+
+        // 继续检测 CLI
+        QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
+        detectSingleExecutable(execDir + "/easytier-cli.exe", "cli");
+    } else {
+        m_cliDetected = true;
+        emit cliVersionReady(version);
+        emit detectionFinished();
+    }
+}
+
+QString VersionDetectionWorker::parseVersionOutput(const QString &output, const QString &type)
+{
+    QString result = output;
+
+    // 移除程序名前缀，只保留版本号
+    if (type == "core" && result.startsWith("easytier-core", Qt::CaseInsensitive)) {
+        result = result.mid(13).trimmed();
+    } else if (type == "cli" && result.startsWith("easytier-cli", Qt::CaseInsensitive)) {
+        result = result.mid(12).trimmed();
+    }
+
+    return result.isEmpty() ? QString("未知") : result;
+}
+
+QString VersionDetectionWorker::findExecutableDir() const
 {
     QString appDir = QCoreApplication::applicationDirPath();
-    QString etcoreDir = appDir + "/etcore";
+    QStringList searchPaths = {
+        appDir + "/etcore",
+        appDir + "/../EasyTier",
+        appDir
+    };
 
-    // 如果目录不存在，尝试在当前目录下查找
-    if (!QDir(etcoreDir).exists()) {
-        etcoreDir = appDir + "/../EasyTier";
-        if (!QDir(etcoreDir).exists()) {
-            etcoreDir = appDir;
+    for (const QString &path : searchPaths) {
+        if (QDir(path).exists()) {
+            return QDir::cleanPath(path);
         }
     }
 
-    QString corePath = etcoreDir + "/easytier-core.exe";
-    QString cliPath = etcoreDir + "/easytier-cli.exe";
-
-    // 检测core版本
-    QString coreVersion = getExecutableVersion(corePath);
-    emit coreVersionDetected(coreVersion);
-
-    // 检测cli版本
-    QString cliVersion = getExecutableVersion(cliPath);
-    emit cliVersionDetected(cliVersion);
-
-    emit detectionFinished();
+    return appDir;
 }
 
-QString VersionDetectionWorker::getExecutableVersion(const QString &executablePath)
-{
-    if (!QFile::exists(executablePath)) {
-        return QString();
-    }
+// =============================================================================
+// Settings 实现
+// =============================================================================
 
-    QProcess process;
-    process.start(executablePath, QStringList() << "-V");
-    process.waitForFinished(3000);
-
-    if (process.exitCode() != 0) {
-        return QString();
-    }
-
-    QString output = process.readAllStandardOutput();
-    // 去掉"easytier"和空格，只保留版本号
-    output = output.trimmed();
-    if (output.startsWith("easytier-core", Qt::CaseInsensitive)) {
-        output = output.mid(14).trimmed();
-    } else if (output.startsWith("easytier-cli", Qt::CaseInsensitive)) {
-        output = output.mid(13).trimmed();
-    } else {
-        output = "Error";
-    }
-
-    return output;
-}
-
-
-// setting类实现
-setting::setting(QWidget *parent)
+Settings::Settings(QWidget *parent)
     : QDialog(parent)
     , ui(new Ui::setting)
-    , m_versionThread(nullptr)
-    , m_versionWorker(nullptr)
 {
     ui->setupUi(this);
+
+    // 初始化网络管理器（作为 Settings 的子对象，随 Settings 一起销毁）
+    m_networkManager = new QNetworkAccessManager(this);
 
     // 加载设置
     loadSettings();
 
     // 设置界面初始状态
+    setupUi();
+
+    // 连接信号槽
+    connectSignals();
+
+    // 增加启动计数
+    incrementLaunchCount();
+}
+
+Settings::~Settings()
+{
+    // 取消正在进行的网络请求
+    if (m_currentReply) {
+        m_currentReply->abort();
+        m_currentReply->deleteLater();
+        m_currentReply = nullptr;
+    }
+
+    // 清理版本检测线程（确保线程安全退出）
+    cleanupVersionThread();
+
+    delete ui;
+}
+
+void Settings::showEvent(QShowEvent *event)
+{
+    QDialog::showEvent(event);
+    // 窗口显示时启动版本检测
+    startVersionDetection();
+}
+
+void Settings::setupUi()
+{
     ui->autoRuncheckBox->setChecked(m_autoRun);
     ui->versionLabel->setText(m_softwareVer);
     ui->hideOnTrayBox->setChecked(m_isHideOnTray);
     ui->autoStartCheckBox->setChecked(m_autoStart);
+    ui->autoUpdateCheckBox->setChecked(m_autoUpdate);
+
 #if SAVE_CONF_IN_APP_DIR == true
     ui->autoStartCheckBox->setEnabled(false);
 #endif
-
-
-    // 创建版本检测线程
-    m_versionThread = new QThread(this);
-
-    connect(ui->detAgainPushButton, &QPushButton::clicked, this, &setting::onDetAgainPushButtonClicked);
-    connect(ui->openFileBtn, &QPushButton::clicked, this, &setting::onOpenFileBtnClicked);
-    connect(ui->newVerPushButton, &QPushButton::clicked, this, &setting::onNewVerPushButtonClicked);
-    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &setting::onButtonBoxAccepted);
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &setting::onButtonBoxRejected);
 }
 
-setting::~setting()
+void Settings::connectSignals()
 {
-    // 第一步：立即断开所有信号槽连接，防止后续调用
-    this->disconnect();
-    if (m_versionWorker) {
-        m_versionWorker->disconnect();
-    }
-    if (m_versionThread) {
-        m_versionThread->disconnect();
-    }
-
-    // 第二步：停止并等待线程安全退出
-    if (m_versionThread && m_versionThread->isRunning()) {
-        // 请求线程退出
-        m_versionThread->quit();
-
-        // 等待线程退出，设置合理的超时时间
-        if (!m_versionThread->wait(5000)) {  // 增加到5秒超时
-            // 如果线程仍未退出，强制终止
-            m_versionThread->terminate();
-            m_versionThread->wait(2000);  // 增加等待时间
-        }
-    }
-
-    // 第三步：按正确顺序销毁对象
-    // 先销毁worker对象（同步销毁）
-    if (m_versionWorker) {
-        // 在销毁前确保worker不在任何线程中运行
-        if (m_versionWorker->thread() != QThread::currentThread()) {
-            m_versionWorker->moveToThread(QThread::currentThread());
-        }
-        delete m_versionWorker;
-        m_versionWorker = nullptr;
-    }
-
-    // 再销毁线程对象（同步销毁）
-    if (m_versionThread) {
-        delete m_versionThread;
-        m_versionThread = nullptr;
-    }
-
-    // 最后销毁UI
-    delete ui;
+    // UI 按钮信号
+    connect(ui->detAgainPushButton, &QPushButton::clicked, this, &Settings::onRedetectButtonClicked);
+    connect(ui->openFileBtn, &QPushButton::clicked, this, &Settings::onOpenFolderButtonClicked);
+    connect(ui->newVerPushButton, &QPushButton::clicked, this, &Settings::onCheckUpdateButtonClicked);
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &Settings::onDialogAccepted);
+    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &Settings::onDialogRejected);
 }
 
-// 启动版本检测线程
-void setting::startVersionDetection()
+// =============================================================================
+// 版本检测线程管理
+// =============================================================================
+
+void Settings::startVersionDetection()
 {
-    // 如果已有线程在运行，直接返回，避免重复启动
-    if (m_versionThread && m_versionThread->isRunning()) {
+    // 防止重复检测
+    if (m_versionDetecting) {
         return;
     }
 
-    // 清理之前的worker对象（如果存在）
-    if (m_versionWorker) {
-        // 确保worker在正确的线程中
-        if (m_versionWorker->thread() != QThread::currentThread()) {
-            m_versionWorker->moveToThread(QThread::currentThread());
-        }
-        delete m_versionWorker;
-        m_versionWorker = nullptr;
-    }
+    // 清理之前的线程
+    cleanupVersionThread();
 
-    // 重新创建线程（如果需要）
-    if (!m_versionThread) {
-        m_versionThread = new QThread(this);
-    }
+    m_versionDetecting = true;
 
-    // 创建新的工作对象
-    m_versionWorker = new VersionDetectionWorker(nullptr);  // 不设置父对象
+    // 创建线程和工作对象
+    m_versionThread = new QThread(this);
+    m_versionWorker = new VersionDetectionWorker();
 
-    // 将工作对象移动到线程
+    // 将 worker 移动到工作线程（符合 Qt 线程绑定规范）
     m_versionWorker->moveToThread(m_versionThread);
 
-    // 连接信号和槽
-    connect(m_versionThread, &QThread::started, m_versionWorker, &VersionDetectionWorker::detectVersions, Qt::DirectConnection);
-    connect(m_versionWorker, &VersionDetectionWorker::coreVersionDetected, this, &setting::onCoreVersionDetected, Qt::QueuedConnection);
-    connect(m_versionWorker, &VersionDetectionWorker::cliVersionDetected, this, &setting::onCliVersionDetected, Qt::QueuedConnection);
-    connect(m_versionWorker, &VersionDetectionWorker::detectionFinished, m_versionThread, &QThread::quit, Qt::DirectConnection);
+    // 连接信号
+    // 线程启动时开始检测
+    connect(m_versionThread, &QThread::started, m_versionWorker, &VersionDetectionWorker::startDetection);
+    // 线程结束时清理 worker
+    connect(m_versionThread, &QThread::finished, m_versionWorker, &QObject::deleteLater);
 
-    // 线程结束后清理worker对象
-    connect(m_versionThread, &QThread::finished, this, [this]() {
-        if (m_versionWorker) {
-            m_versionWorker->deleteLater();
-            m_versionWorker = nullptr;
-        }
-    }, Qt::DirectConnection);
+    // 版本检测结果信号（使用 QueuedConnection 确保跨线程安全）
+    connect(m_versionWorker, &VersionDetectionWorker::coreVersionReady,
+            this, &Settings::onCoreVersionReady, Qt::QueuedConnection);
+    connect(m_versionWorker, &VersionDetectionWorker::cliVersionReady,
+            this, &Settings::onCliVersionReady, Qt::QueuedConnection);
+    connect(m_versionWorker, &VersionDetectionWorker::detectionFinished,
+            this, &Settings::onVersionDetectionFinished, Qt::QueuedConnection);
 
     // 启动线程
     m_versionThread->start();
 }
 
-// 重新检测版本按钮点击事件
-void setting::onDetAgainPushButtonClicked()
+void Settings::cleanupVersionThread()
 {
-    ui->coreVerLabel->setText("检测中......");
-    ui->label_3->setText("检测中......");
+    if (!m_versionThread) {
+        return;
+    }
 
+    if (m_versionThread->isRunning()) {
+        // 请求线程退出
+        m_versionThread->quit();
+        // 等待线程结束（最多 2 秒）
+        if (!m_versionThread->wait(2000)) {
+            // 超时则强制终止（最后手段）
+            m_versionThread->terminate();
+            m_versionThread->wait(500);
+        }
+    }
+
+    // 线程对象会通过 finished 信号自动清理 worker
+    // 但需要手动删除线程对象（它有父对象，析构时会自动删除）
+    m_versionThread = nullptr;
+    m_versionWorker = nullptr;
+}
+
+// =============================================================================
+// 版本检测结果处理
+// =============================================================================
+
+void Settings::onCoreVersionReady(const QString &version)
+{
+    ui->coreVerLabel->setText(version.isEmpty() ? "未找到" : version);
+}
+
+void Settings::onCliVersionReady(const QString &version)
+{
+    ui->label_3->setText(version.isEmpty() ? "未找到" : version);
+}
+
+void Settings::onVersionDetectionFinished()
+{
+    m_versionDetecting = false;
+}
+
+// =============================================================================
+// UI 事件处理
+// =============================================================================
+
+void Settings::onRedetectButtonClicked()
+{
+    ui->coreVerLabel->setText("检测中...");
+    ui->label_3->setText("检测中...");
+
+    // 重置检测状态并启动新检测
+    m_versionDetecting = false;
     startVersionDetection();
 }
 
-// 版本检测结果处理
-void setting::onCoreVersionDetected(const QString &version)
-{
-    if (!version.isEmpty()) {
-        ui->coreVerLabel->setText(version);
-    } else {
-        ui->coreVerLabel->setText("未找到");
-    }
-}
-
-void setting::onCliVersionDetected(const QString &version)
-{
-    if (!version.isEmpty()) {
-        ui->label_3->setText(version);
-    } else {
-        ui->label_3->setText("未找到");
-    }
-}
-
-// 打开核心目录按钮点击事件
-void setting::onOpenFileBtnClicked()
+void Settings::onOpenFolderButtonClicked()
 {
     QString appDir = QCoreApplication::applicationDirPath();
     QString etcoreDir = appDir + "/etcore";
 
-    // 如果目录不存在，尝试在当前目录下查找
+    // 查找可执行文件目录
     if (!QDir(etcoreDir).exists()) {
         etcoreDir = appDir + "/../EasyTier";
         if (!QDir(etcoreDir).exists()) {
@@ -247,110 +331,121 @@ void setting::onOpenFileBtnClicked()
     QDesktopServices::openUrl(QUrl::fromLocalFile(etcoreDir));
 }
 
-// 检查更新按钮点击事件
-void setting::onNewVerPushButtonClicked()
+void Settings::onCheckUpdateButtonClicked()
 {
     detectSoftwareVersion(true);
 }
 
-void setting::detectSoftwareVersion(const bool &isFromInternal)
+void Settings::onDialogAccepted()
 {
-    const QString &currentVersion = m_softwareVer;
-
-    auto *manager = new QNetworkAccessManager(this);
-    const QUrl url("https://gitee.com/api/v5/repos/viagrahuang/qt-easy-tier/releases/latest");
-
-    // 发送 GET 请求
-    QNetworkReply *reply = manager->get(QNetworkRequest(url));
-
-    // 超时处理
-    QTimer::singleShot(5000, reply, [=, this] {
-        if (reply) {
-            reply->abort();
-            reply->deleteLater();
-        }
-        manager->deleteLater();
-        std::clog << "请求超时" << std::endl;
-    });
-
-    // 连接请求完成信号
-    connect(reply, &QNetworkReply::finished, this, [=, this]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            // 读取返回的 JSON 数据
-            QByteArray response = reply->readAll();
-            QJsonDocument jsonDoc = QJsonDocument::fromJson(response);
-            QJsonObject jsonObj = jsonDoc.object();
-
-            // 解析 tag_name 字段
-            QString latestVersion = jsonObj["tag_name"].toString();
-
-            // 对比版本号
-            if (latestVersion != currentVersion) {
-                QString msg = QString("发现新版本：%1\n当前版本：%2\n是否前往下载？")
-                              .arg(latestVersion).arg(currentVersion);
-                QMessageBox::StandardButton ret = QMessageBox::question(
-                    this, "检查更新", msg,
-                    QMessageBox::Yes | QMessageBox::No
-                );
-                if (ret == QMessageBox::Yes) {
-                    QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
-                }
-            } else if (isFromInternal) {
-                QMessageBox::information(this, "检查更新", "当前已经是最新版本！");
-            }
-        } else {
-            // 网络请求失败
-            QMessageBox::warning(this, "检查更新",
-                "检查更新失败：" + reply->errorString());
-        }
-
-        reply->deleteLater();
-
-        // 外部调用完毕后自动删除setting
-        if (!isFromInternal) {
-            this->deleteLater();
-        } else {
-            manager->deleteLater();
-        }
-    });
-}
-
-// 确定按钮点击事件
-void setting::onButtonBoxAccepted()
-{
-    // 保存设置
+    // 保存界面设置
     m_autoRun = ui->autoRuncheckBox->isChecked();
     m_isHideOnTray = ui->hideOnTrayBox->isChecked();
+    m_autoUpdate = ui->autoUpdateCheckBox->isChecked();
 
-    // 设置开机自启
+    // 处理开机自启设置变更
     if (m_autoStart != ui->autoStartCheckBox->isChecked()) {
         m_autoStart = ui->autoStartCheckBox->isChecked();
         setAutoStart(m_autoStart);
     }
 
     saveSettings();
-
     accept();
 }
 
-// 取消按钮点击事件
-void setting::onButtonBoxRejected()
+void Settings::onDialogRejected()
 {
     reject();
 }
 
-// 加载设置
-void setting::loadSettings()
+// =============================================================================
+// 软件版本检测（网络请求）
+// =============================================================================
+
+void Settings::detectSoftwareVersion(bool isFromInternal)
+{
+    const QUrl url("https://gitee.com/api/v5/repos/viagrahuang/qt-easy-tier/releases/latest");
+
+    // 取消之前的请求
+    if (m_currentReply) {
+        m_currentReply->abort();
+        m_currentReply->deleteLater();
+        m_currentReply = nullptr;
+    }
+
+    // 发送 GET 请求
+    m_currentReply = m_networkManager->get(QNetworkRequest(url));
+
+    // 设置超时（5 秒）
+    QTimer::singleShot(5000, this, [this]() {
+        if (m_currentReply && m_currentReply->isRunning()) {
+            m_currentReply->abort();
+        }
+    });
+
+    // 连接请求完成信号，传递 isFromInternal 参数
+    connect(m_currentReply, &QNetworkReply::finished, this, [this, isFromInternal]() {
+        onNetworkReplyFinished(isFromInternal);
+    });
+}
+
+void Settings::onNetworkReplyFinished(bool isFromInternal)
+{
+    if (!m_currentReply) {
+        return;
+    }
+
+    QNetworkReply *reply = m_currentReply;
+    m_currentReply = nullptr; // 清空指针，防止重复处理
+
+    // 使用智能指针确保资源清理
+    QScopedPointer<QNetworkReply, QScopedPointerDeleteLater> replyGuard(reply);
+
+    if (reply->error() == QNetworkReply::NoError) {
+        // 解析 JSON 响应
+        QByteArray response = reply->readAll();
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(response);
+        QJsonObject jsonObj = jsonDoc.object();
+
+        QString latestVersion = jsonObj["tag_name"].toString();
+
+        // 对比版本号
+        if (!latestVersion.isEmpty() && latestVersion != m_softwareVer) {
+            QString msg = QString("发现新版本：%1\n当前版本：%2\n是否前往下载？")
+                          .arg(latestVersion).arg(m_softwareVer);
+
+            QMessageBox::StandardButton ret = QMessageBox::question(
+                this, "检查更新", msg, QMessageBox::Yes | QMessageBox::No);
+
+            if (ret == QMessageBox::Yes) {
+                QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
+            }
+        } else if (isFromInternal) {
+            // 只有内部调用时才显示"已是最新"提示
+            QMessageBox::information(this, "检查更新", "当前已经是最新版本！");
+        }
+    } else if (reply->error() != QNetworkReply::OperationCanceledError) {
+        // 非取消操作才显示错误（且只在内部调用时显示）
+        if (isFromInternal) {
+            QMessageBox::warning(this, "检查更新", "检查更新失败：" + reply->errorString());
+        }
+    }
+
+    emit finishDetectUpdate();
+}
+
+// =============================================================================
+// 设置读写
+// =============================================================================
+
+void Settings::loadSettings()
 {
     QDir().mkpath(m_configPath);
     QString settingsFile = m_configPath + "/settings.json";
 
     QFile file(settingsFile);
-    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-        // 默认设置
-        m_autoRun = false;
-        m_autoStart = false;
-        m_isHideOnTray = true;
+    if (!file.open(QIODevice::ReadOnly)) {
+        // 使用默认设置
         return;
     }
 
@@ -361,10 +456,7 @@ void setting::loadSettings()
     QJsonDocument doc = QJsonDocument::fromJson(data, &error);
 
     if (error.error != QJsonParseError::NoError || !doc.isObject()) {
-        // 默认设置
-        m_autoRun = false;
-        m_autoStart = false;
-        m_isHideOnTray = true;
+        // 使用默认设置
         return;
     }
 
@@ -372,13 +464,11 @@ void setting::loadSettings()
     m_autoRun = settings.value("autoRun").toBool(false);
     m_autoStart = settings.value("autoStart").toBool(false);
     m_isHideOnTray = settings.value("isHideOnTray").toBool(true);
-
-    // 设置界面组件状态
-
+    m_autoUpdate = settings.value("autoUpdate").toBool(true);
+    m_launchCount = settings.value("launchCount").toInt(0);
 }
 
-// 保存设置
-void setting::saveSettings()
+void Settings::saveSettings()
 {
     QString settingsFile = m_configPath + "/settings.json";
 
@@ -386,6 +476,8 @@ void setting::saveSettings()
     settings["autoRun"] = m_autoRun;
     settings["autoStart"] = m_autoStart;
     settings["isHideOnTray"] = m_isHideOnTray;
+    settings["autoUpdate"] = m_autoUpdate;
+    settings["launchCount"] = m_launchCount;
 
     QJsonDocument doc(settings);
 
@@ -399,78 +491,67 @@ void setting::saveSettings()
     file.close();
 }
 
-// 设置开机自启
-void setting::setAutoStart(bool enable)
+// =============================================================================
+// 辅助功能
+// =============================================================================
+
+void Settings::incrementLaunchCount()
+{
+    // 启动次数计数（达到阈值后停止计数）
+    if (m_launchCount < DONATE_THRESHOLD) {
+        m_launchCount++;
+        saveSettings();
+    }
+
+    // 达到阈值时设置赞助弹窗标志
+    if (m_launchCount == DONATE_THRESHOLD) {
+        m_shouldShowDonate = true;
+    }
+}
+
+void Settings::setAutoStart(bool enable)
 {
 #if SAVE_CONF_IN_APP_DIR == true
+    // 便携模式禁用开机自启
     return;
 #endif
 
-    // 仅在Windows系统下执行
 #ifdef WIN32
-    QString appName = "QtEasyTier";
-    QString appPath = QCoreApplication::applicationFilePath().replace("/", "\\");
+    const QString appName = "QtEasyTier";
+    const QString appPath = QCoreApplication::applicationFilePath().replace("/", "\\");
     QProcess process;
 
+    QStringList args;
     if (enable) {
-        QStringList args;
+        // 创建开机自启任务
         args << "/create"
-             << "/tn" << appName                    // 任务名称
-             << "/tr" << QString("\"%1\"").arg(appPath) + " --auto-start" // 要执行的程序路径
-             << "/sc" << "onlogon"               // 触发条件：开机启动
+             << "/tn" << appName
+             << "/tr" << QString("\"%1\" --auto-start").arg(appPath)
+             << "/sc" << "onlogon"
              << "/delay" << "0000:02"
-             << "/rl" << "highest"               // 运行级别：最高权限（管理员）
-             << "/f";                               // 覆盖已存在的任务
-
-        std::clog << "schtasks.exe " << args.join(" ").toStdString() << std::endl;
-        process.start("schtasks.exe", args);
-
-        if (!process.waitForFinished(5000)) {
-            std::cerr << "创建自启任务失败：命令执行超时" << std::endl;
-            QMessageBox::warning(this, "错误", "创建自启任务失败：命令执行超时");
-            return;
-        }
-
-        // 检查schtasks命令是否执行成功
-        if (process.exitCode() != 0) {
-            std::cerr << "创建自启任务失败：" << process.readAllStandardError().toStdString() << std::endl;
-            QMessageBox::warning(this, "错误", "创建自启任务失败：" + QString(process.readAllStandardError()));
-            return;
-        }
-
+             << "/rl" << "highest"
+             << "/f";
     } else {
-        // 删除任务计划：关闭自启
-        QStringList args;
+        // 删除开机自启任务
         args << "/delete"
-             << "/tn" << appName                      // 任务名称
-             << "/f";                                 // 强制删除
-
-        process.start("schtasks.exe", args);
-
-        if (!process.waitForFinished(1000)) {
-            std::cerr << "删除自启任务失败：命令执行超时" << std::endl;
-            QMessageBox::warning(this, "错误", "删除自启任务失败：命令执行超时");
-            return;
-        }
-
-        // 检查schtasks命令是否执行成功
-        if (process.exitCode() != 0) {
-            std::cerr << "删除自启任务失败：" << process.readAllStandardError().toStdString() << std::endl;
-            QMessageBox::warning(this, "错误", "删除自启任务失败：" + QString(process.readAllStandardError()));
-            return;
-        }
+             << "/tn" << appName
+             << "/f";
     }
 
-    // 输出命令执行结果，方便排查问题
-    const QString error = process.readAllStandardError();
-    if (!error.isEmpty()) {
-        std::cerr << "schtasks命令执行错误：" << error.toStdString() << std::endl;
-        QMessageBox::warning(this, "Error", tr("设置计划任务失败，命令执行错误"));
-    }
-    const QString output = process.readAllStandardOutput();
-    if (!output.isEmpty() && process.exitCode() == 0) {
-        std::clog << "schtasks命令执行结果：" << output.toStdString() << std::endl;
+    process.start("schtasks.exe", args);
+
+    if (!process.waitForFinished(5000)) {
+        QMessageBox::warning(this, "错误",
+            QString("%1自启任务失败：命令执行超时").arg(enable ? "创建" : "删除"));
+        return;
     }
 
+    if (process.exitCode() != 0) {
+        QString error = QString::fromLocal8Bit(process.readAllStandardError());
+        QMessageBox::warning(this, "错误",
+            QString("%1自启任务失败：%2").arg(enable ? "创建" : "删除", error));
+    }
+#else
+    Q_UNUSED(enable)
 #endif
 }

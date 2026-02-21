@@ -1264,7 +1264,6 @@ void NetPage::onRunNetwork()
             arguments = generateConfCommand(this);
         }
 
-        m_logTextEdit->appendPlainText(tr("检测到可用RPC端口: ") + QString::number(realRpcPort));
         m_logTextEdit->appendPlainText(tr("启动参数: %1").arg(arguments.join(" ")));
 
         // 通过信号槽调用Worker的startEasyTier方法

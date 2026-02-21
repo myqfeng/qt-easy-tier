@@ -3,6 +3,7 @@
 #include "setting.h"
 #include "oneclick.h"
 #include "generateconf.h"
+#include "donate.h"
 #include "./ui_mainwindow.h"
 
 #include <QListWidget>
@@ -62,16 +63,13 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     // 点击设置按钮时打开设置窗口
-    connect(ui->setPushButton, &QPushButton::clicked, this, [=, this]() {
-        m_settingsWindow = new setting(this);
-        m_settingsWindow->exec();
-        m_isHideOnTray = m_settingsWindow->isHideOnTray();
-        m_settingsWindow->deleteLater();
-    });
+    connect(ui->setPushButton, &QPushButton::clicked, this, &MainWindow::onClickSettingBtn);
 
-    // 点击赞助按钮时跳转到赞助网页
-    connect(ui->donatePushButton, &QPushButton::clicked, this, []() {
-        QDesktopServices::openUrl(QUrl("https://qtet.070219.xyz/other/donate/"));
+    // 点击赞助按钮时打开赞助窗口
+    connect(ui->donatePushButton, &QPushButton::clicked, this, [=, this]() {
+        Donate *donateDialog = new Donate(this);
+        donateDialog->exec();
+        donateDialog->deleteLater();
     });
 
     // 点击etPushButton时，打开et官网
@@ -82,7 +80,7 @@ MainWindow::MainWindow(QWidget *parent)
     // 当点击添加按钮时，添加一个network页面并添加到列表中
     connect(ui->addPushButton, &QPushButton::clicked, this, [=, this]() {
         // 创建一个新的NetPage实例
-        NetPage *newNetPage = new NetPage();
+        NetPage *newNetPage = new NetPage(this);
         // 将新的NetPage实例添加到列表中
         m_netpages.append(newNetPage);
         QListWidgetItem *item = new QListWidgetItem(ui->netListWidget);
@@ -130,6 +128,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 创建系统托盘
     createTrayIcon();
+
+    std::clog << "配置文件路径: " << m_configPath.toStdString() << std::endl;
 }
 
 MainWindow::~MainWindow()
@@ -152,9 +152,9 @@ MainWindow::~MainWindow()
     // 杀死所有easytier-core进程
     QProcess process;
 #ifdef Q_OS_WIN
-    process.start("taskkill /F /IM easytier-core.exe");
+    process.startDetached("taskkill /F /IM easytier-core.exe");
 #elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
-    process.start("pkill easytier-core");
+    process.startDetached("pkill easytier-core");
 #endif
     process.waitForFinished(5000);
 
@@ -280,7 +280,8 @@ void MainWindow::onClickWebDashboardBtn() {
     }
 
     // 检测55667、55668端口占用情况
-    if (isPortOccupied(55667) || isPortOccupied(55668)) {
+    if (isPortOccupied(55667) || isPortOccupied(55668))
+    {
         QMessageBox::critical(this, "错误", "55667或55668端口被占用");
         return;
     }
@@ -347,13 +348,22 @@ void MainWindow::_changeWidget(QWidget *newWidget) {
     newWidget->show();
 }
 
+void MainWindow::onClickSettingBtn() {
+    Settings *settings = new Settings(this);
+    settings->exec();
+    m_isHideOnTray = settings->isHideOnTray();
+    settings->deleteLater();
+    settings = nullptr;
+}
+
 
 // ======================== 配置文件加载相关 ===========================
 
 
 // 加载网络配置
 void MainWindow::loadConfig() {
-    m_settingsWindow = new setting(); // 创建一次设置栏使其加载配置
+    // 创建一个setting对象用于加载配置
+    auto *tempSettings = new Settings();
 
     QWidget loadingMessage ;
     loadingMessage.setWindowTitle("QtEasyTier");
@@ -388,12 +398,14 @@ void MainWindow::loadConfig() {
             file.write(doc.toJson());
             file.close();
         }
+        tempSettings->deleteLater();
         return;
     }
 
     // 读取配置文件
     if (!file.open(QIODevice::ReadOnly)) {
         qDebug() << "无法打开配置文件进行读取:" << configFile;
+        tempSettings->deleteLater();
         return;
     }
 
@@ -406,12 +418,14 @@ void MainWindow::loadConfig() {
     if (error.error != QJsonParseError::NoError) {
         qDebug() << "JSON解析错误:" << error.errorString();
         QMessageBox::critical(this, "错误", "JSON解析错误:" + error.errorString());
+        tempSettings->deleteLater();
         return;
     }
 
     if (!doc.isObject()) {
         qDebug() << "配置文件格式错误，应为JSON对象";
         QMessageBox::critical(this, "错误", "配置文件格式错误，应为JSON对象");
+        tempSettings->deleteLater();
         return;
     }
 
@@ -420,6 +434,7 @@ void MainWindow::loadConfig() {
     if (!rootObj.contains("networks") || !rootObj["networks"].isArray()) {
         qDebug() << "配置文件缺少networks数组";
         QMessageBox::critical(this, "错误", "配置文件缺少networks数组");
+        tempSettings->deleteLater();
         return;
     }
 
@@ -433,7 +448,8 @@ void MainWindow::loadConfig() {
         QJsonObject networkObj = networkValue.toObject();
 
         // 创建新页面
-        NetPage *netPage = new NetPage();
+        NetPage *netPage = new NetPage(this);
+        netPage->hide();
         m_netpages.append(netPage);
         QListWidgetItem *item = new QListWidgetItem(ui->netListWidget);
         QString name = networkObj.contains("name") ? networkObj["name"].toString() : ("Network " + QString::number(i + 1));
@@ -455,23 +471,30 @@ void MainWindow::loadConfig() {
         // 如果网络是活跃的，尝试重新启动它
         if (networkObj.contains("isActive") && networkObj["isActive"].toBool()) {
             // 从settings文件加载autoRun设置
-            if (m_settingsWindow->isAutoRun()) {
+            if (tempSettings->isAutoRun()) {
                 netPage->runNetworkOnAutoStart();
             }
         }
     }
 
     // 是否隐藏到系统托盘
-    m_isHideOnTray = m_settingsWindow->isHideOnTray();
+    m_isHideOnTray = tempSettings->isHideOnTray();
+
+    if (tempSettings->shouldShowDonate()) {
+        Donate *donateWindow = new Donate(this);
+        donateWindow->exec();
+        donateWindow->deleteLater();
+    }
 
     // 自启检查更新
-    if (m_settingsWindow->isAutoUpdate())
+    if (tempSettings->isAutoUpdate())
     {
-        m_settingsWindow->detectSoftwareVersion();
+        tempSettings->detectSoftwareVersion();
     }
-    connect(m_settingsWindow, &setting::finishDetectUpdate, this, [=, this]() {
-        // 检测完成后删除setting窗口
-        if (m_settingsWindow) m_settingsWindow->deleteLater();
+    
+    // 检测完成后删除临时 setting 对象
+    connect(tempSettings, &Settings::finishDetectUpdate, this, [tempSettings]() {
+        if (tempSettings) tempSettings->deleteLater();
     });
 }
 

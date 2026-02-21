@@ -7,48 +7,100 @@
 #include <QStandardPaths>
 #include <QThread>
 #include <QApplication>
+#include <QNetworkAccessManager>
 
 namespace Ui {
-    class setting;
+class setting;
 }
 
-// 版本检测工作类
+/**
+ * @brief 版本检测工作类
+ * 
+ * 在独立线程中执行版本检测，封装所有 QProcess 操作。
+ * 符合 Qt 标准：工作对象在创建后 moveToThread 到目标线程运行。
+ * 
+ * 使用流程：
+ * 1. 创建 worker 实例（在主线程）
+ * 2. moveToThread 到工作线程
+ * 3. 连接 started 信号到 startDetection 槽
+ * 4. 启动线程，自动开始检测
+ */
 class VersionDetectionWorker : public QObject
 {
     Q_OBJECT
 
 public:
     explicit VersionDetectionWorker(QObject *parent = nullptr);
+    ~VersionDetectionWorker() override;
+
+    /// @brief 设置可执行文件目录（可选，默认自动检测）
+    void setExecutableDir(const QString &dir) { m_executableDir = dir; }
 
 public slots:
-    void detectVersions();
+    /// @brief 开始检测版本（线程入口点）
+    void startDetection();
 
 signals:
-    void coreVersionDetected(const QString &version);
-    void cliVersionDetected(const QString &version);
+    /// @brief 核心版本检测完成
+    void coreVersionReady(const QString &version);
+    /// @brief CLI版本检测完成
+    void cliVersionReady(const QString &version);
+    /// @brief 所有检测完成
     void detectionFinished();
 
+private slots:
+    /// @brief 处理进程输出
+    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+
 private:
-    QString getExecutableVersion(const QString &executablePath);
+    /// @brief 检测单个可执行文件的版本
+    void detectSingleExecutable(const QString &executablePath, const QString &type);
+
+    /// @brief 解析版本输出
+    QString parseVersionOutput(const QString &output, const QString &type);
+
+    /// @brief 自动查找可执行文件目录
+    QString findExecutableDir() const;
+
+    // 可执行文件目录（若为空则自动检测）
+    QString m_executableDir;
+
+    // 当前正在检测的类型（"core" 或 "cli"）
+    QString m_currentDetectType;
+
+    // 进程对象（作为成员变量，确保正确的线程亲和性）
+    QProcess *m_process = nullptr;
+
+    // 检测状态
+    bool m_coreDetected = false;
+    bool m_cliDetected = false;
 };
 
-// ==================================================
+// =============================================================================
 
-class setting : public QDialog
+/**
+ * @brief 设置对话框类
+ * 
+ * 管理应用程序设置，包括：
+ * - 开机自启、自动回连、隐藏到托盘、自动检查更新
+ * - 软件版本检测与显示
+ * - 检查更新功能
+ * - 启动次数统计与赞助弹窗控制
+ */
+class Settings : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit setting(QWidget *parent = nullptr);
-    ~setting();
+    explicit Settings(QWidget *parent = nullptr);
+    ~Settings() override;
 
     /// @brief 检测软件版本
     /// @param isFromInternal 是否来自内部调用
-    /// @warning 外部调用时，检测完成后会自动delete该setting对象，无需再次释放
-    void detectSoftwareVersion(const bool &isFromInternal =  false);
+    /// @warning 外部调用时，检测完成后会自动 delete 该 setting 对象，无需再次释放
+    void detectSoftwareVersion(bool isFromInternal = false);
 
     /// @brief 获取自动回连状态
-    /// @return 为true时表示设置项中启用了自动回连
     bool isAutoRun() const { return m_autoRun; }
 
     /// @brief 是否隐藏到系统托盘
@@ -58,78 +110,82 @@ public:
     bool isAutoUpdate() const { return m_autoUpdate; }
 
     /// @brief 获取配置保存路径
-    QString getConfigPath() {return m_configPath;};
+    QString getConfigPath() const { return m_configPath; }
 
     /// @brief 是否应该弹出赞助窗口
-    /// @return 当启动次数达到50次且未弹出过赞助窗口时返回true
+    /// @return 当启动次数达到阈值且未弹出过赞助窗口时返回 true
     bool shouldShowDonate() const { return m_shouldShowDonate; }
 
-private slots:
-    // 重新检测版本按钮点击事件
-    void onDetAgainPushButtonClicked();
-    // 打开核心目录按钮点击事件
-    void onOpenFileBtnClicked();
-    // 确定按钮点击事件
-    void onButtonBoxAccepted();
-    // 取消按钮点击事件
-    void onButtonBoxRejected();
-    // 检查更新按钮点击事件
-    void onNewVerPushButtonClicked();
+signals:
+    /// @brief 更新检测完成信号
+    void finishDetectUpdate();
 
-    // 版本检测结果处理
-    void onCoreVersionDetected(const QString &version);
-    void onCliVersionDetected(const QString &version);
+protected:
+    void showEvent(QShowEvent *event) override;
+
+private slots:
+    // === UI 事件处理 ===
+    void onRedetectButtonClicked();
+    void onOpenFolderButtonClicked();
+    void onCheckUpdateButtonClicked();
+    void onDialogAccepted();
+    void onDialogRejected();
+
+    // === 版本检测结果处理 ===
+    void onCoreVersionReady(const QString &version);
+    void onCliVersionReady(const QString &version);
+    void onVersionDetectionFinished();
+
+    // === 网络更新检查 ===
+    void onNetworkReplyFinished(bool isFromInternal);
+
+private:
+    // === 初始化相关 ===
+    void setupUi();
+    void connectSignals();
+
+    // === 版本检测线程管理 ===
+    void startVersionDetection();
+    void cleanupVersionThread();
+
+    // === 设置读写 ===
+    void loadSettings();
+    void saveSettings();
+
+    // === 功能实现 ===
+    void setAutoStart(bool enable);
+    void incrementLaunchCount();
 
 private:
     Ui::setting *ui;
 
     // 配置保存路径
 #if SAVE_CONF_IN_APP_DIR == true
-    QString m_configPath = QApplication::applicationDirPath() + "/config";
+    const QString m_configPath = QApplication::applicationDirPath() + "/config";
 #else
-    QString m_configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);;
+    const QString m_configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
 #endif
 
-    // 启动版本检测线程
-    void startVersionDetection();
-
-    // 加载设置
-    void loadSettings();
-    // 保存设置
-    void saveSettings();
-    // 设置开机自启
-    void setAutoStart(bool enable);
-
-    // 增加启动计数（上限50）
-    void incrementLaunchCount();
-    // 标记赞助窗口已弹出
-    void markDonateShown();
-
-    // 设置项
-    bool m_autoRun = false;   // 自动回连
-    bool m_autoStart = false; // 是否开机自启
-    bool m_isHideOnTray = true; //是否藏窗口到系统托盘
-    bool m_autoUpdate = true; // 是否自动检查更新
+    // === 设置项 ===
+    bool m_autoRun = false;       // 自动回连
+    bool m_autoStart = false;     // 开机自启
+    bool m_isHideOnTray = true;   // 隐藏到系统托盘
+    bool m_autoUpdate = true;     // 自动检查更新
     QString m_softwareVer = PROJECT_VERSION;
 
-    // 启动计数相关
-    int m_launchCount = 0;      // 启动次数计数
-    bool m_shouldShowDonate = false; // 是否应该弹出赞助窗口
+    // === 启动计数相关 ===
+    int m_launchCount = 0;        // 启动次数
+    bool m_shouldShowDonate = false; // 是否应弹出赞助窗口
+    static constexpr int DONATE_THRESHOLD = 50; // 弹出赞助窗口的启动次数阈值
 
-    // 线程相关
-    QThread *m_versionThread =  nullptr;
-    VersionDetectionWorker *m_versionWorker =  nullptr;
+    // === 版本检测线程相关 ===
+    QThread *m_versionThread = nullptr;
+    VersionDetectionWorker *m_versionWorker = nullptr;
+    bool m_versionDetecting = false; // 防止重复检测
 
-protected:
-    void showEvent(QShowEvent *event) override
-    {
-        QDialog::showEvent(event);
-        // 当窗口被打开的时候，启动版本检测线程
-        startVersionDetection();
-    }
-
-signals:
-    void finishDetectUpdate();
+    // === 网络更新检查相关 ===
+    QNetworkAccessManager *m_networkManager = nullptr;
+    QNetworkReply *m_currentReply = nullptr;
 };
 
 #endif // SETTING_H
