@@ -10,9 +10,38 @@
 #ifndef QTEASYTIER_GENERATECONF_H
 #define QTEASYTIER_GENERATECONF_H
 
-#include "netpage.h"
 #include <QString>
 #include <QPair>
+
+// 前向声明
+class NetPage;
+
+/**
+ * @brief Web 控制台配置结构体
+ */
+struct WebConsoleConfig {
+    int configPort = 55668;           // 配置下发端口
+    int webPagePort = 55667;          // 控制台前端端口
+    bool useLocalApi = true;          // 是否使用本地 API 地址
+    QString apiAddress;               // 控制台 API 地址
+    QString coreConnectAddress;       // Core 连接地址（留空则连接本地）
+    QString configProtocol = "udp";   // 配置下发协议（udp/tcp/ws）
+
+    /// @brief 获取协议字符串（用于命令行参数）
+    QString getConfigProtocolString() const {
+        if (configProtocol == "TCP") return "tcp";
+        if (configProtocol == "WebSocket") return "ws";
+        return "udp";
+    }
+
+    /// @brief 获取实际的 API 地址
+    QString getActualApiAddress() const {
+        if (useLocalApi) {
+            return QString("http://127.0.0.1:%1").arg(webPagePort);
+        }
+        return apiAddress;
+    }
+};
 
 /**
  * @brief: 生成EasyTier配置参数
@@ -27,6 +56,12 @@ QStringList generateConfCommand(NetPage *netPage);
 ///
 /// @note: 该函数用于检测指定端口是否被其他进程占用
 bool isPortOccupied(const int &port);
+
+/**
+ * @brief: 获取 Web 控制台配置
+ * @return: Web 控制台配置结构体
+ */
+WebConsoleConfig getWebConsoleConfig();
 
 /**
  * @brief: Base32编码函数

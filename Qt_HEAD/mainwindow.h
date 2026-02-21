@@ -63,6 +63,7 @@ private:
 
     // Web控制台
     QProcess *m_webDashboardProcess = nullptr;
+    WebConsoleConfig m_webConfig; // Web控制台配置
 
     // 配置保存路径
 #if SAVE_CONF_IN_APP_DIR == true

@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QTimer>
 #include <QNetworkReply>
+#include <QIntValidator>
 #include <iostream>
 
 // =============================================================================
@@ -40,11 +41,11 @@ void VersionDetectionWorker::startDetection()
     // 重置检测状态
     m_coreDetected = false;
     m_cliDetected = false;
+    m_webDetected = false;
 
     // 获取可执行文件目录
     QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
     QString corePath = execDir + "/easytier-core.exe";
-    QString cliPath = execDir + "/easytier-cli.exe";
 
     // 先检测核心版本
     detectSingleExecutable(corePath, "core");
@@ -62,9 +63,15 @@ void VersionDetectionWorker::detectSingleExecutable(const QString &executablePat
             // 继续检测 CLI
             QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
             detectSingleExecutable(execDir + "/easytier-cli.exe", "cli");
-        } else {
+        } else if (type == "cli") {
             m_cliDetected = true;
             emit cliVersionReady(QString());
+            // 继续检测 Web
+            QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
+            detectSingleExecutable(execDir + "/easytier-web-embed.exe", "web");
+        } else {
+            m_webDetected = true;
+            emit webVersionReady(QString());
             emit detectionFinished();
         }
         return;
@@ -100,17 +107,22 @@ void VersionDetectionWorker::onProcessFinished(int exitCode, QProcess::ExitStatu
         version = parseVersionOutput(output, m_currentDetectType);
     }
 
-    // 根据当前检测类型发送信号
+    // 根据当前检测类型发送信号并继续下一个检测
+    QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
+
     if (m_currentDetectType == "core") {
         m_coreDetected = true;
         emit coreVersionReady(version);
-
         // 继续检测 CLI
-        QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
         detectSingleExecutable(execDir + "/easytier-cli.exe", "cli");
-    } else {
+    } else if (m_currentDetectType == "cli") {
         m_cliDetected = true;
         emit cliVersionReady(version);
+        // 继续检测 Web
+        detectSingleExecutable(execDir + "/easytier-web-embed.exe", "web");
+    } else {
+        m_webDetected = true;
+        emit webVersionReady(version);
         emit detectionFinished();
     }
 }
@@ -124,6 +136,8 @@ QString VersionDetectionWorker::parseVersionOutput(const QString &output, const 
         result = result.mid(13).trimmed();
     } else if (type == "cli" && result.startsWith("easytier-cli", Qt::CaseInsensitive)) {
         result = result.mid(12).trimmed();
+    } else if (type == "web" && result.startsWith("easytier-web-embed", Qt::CaseInsensitive)) {
+        result = result.mid(18).trimmed();
     }
 
     return result.isEmpty() ? QString("未知") : result;
@@ -165,9 +179,13 @@ Settings::Settings(QWidget *parent)
 
     // 设置界面初始状态
     setupUi();
+    setupWebConfigUi();
 
     // 连接信号槽
     connectSignals();
+    
+    // 设置端口输入验证
+    setupPortValidation();
 
     // 增加启动计数
     incrementLaunchCount();
@@ -208,14 +226,46 @@ void Settings::setupUi()
 #endif
 }
 
+void Settings::setupWebConfigUi()
+{
+    // 配置下发端口
+    ui->confSendEdit->setText(QString::number(m_webConfig.configPort));
+    
+    // 控制台前端端口
+    ui->webPageEdit->setText(QString::number(m_webConfig.webPagePort));
+    
+    // 使用本地 API
+    ui->isUseLocalApiBox->setChecked(m_webConfig.useLocalApi);
+    
+    // API 地址
+    ui->apiAddrEdit->setText(m_webConfig.apiAddress);
+    ui->apiAddrEdit->setEnabled(!m_webConfig.useLocalApi);
+    
+    // Core 连接地址
+    ui->coreConnectAddrEdit->setText(m_webConfig.coreConnectAddress);
+    
+    // 配置下发协议
+    int protocolIndex = 0;
+    if (m_webConfig.configProtocol == "TCP") {
+        protocolIndex = 1;
+    } else if (m_webConfig.configProtocol == "WebSocket") {
+        protocolIndex = 2;
+    }
+    ui->configProtocolBox->setCurrentIndex(protocolIndex);
+}
+
 void Settings::connectSignals()
 {
     // UI 按钮信号
     connect(ui->detAgainPushButton, &QPushButton::clicked, this, &Settings::onRedetectButtonClicked);
+    connect(ui->detectWebBtn, &QPushButton::clicked, this, &Settings::onRedetectWebButtonClicked);
     connect(ui->openFileBtn, &QPushButton::clicked, this, &Settings::onOpenFolderButtonClicked);
     connect(ui->newVerPushButton, &QPushButton::clicked, this, &Settings::onCheckUpdateButtonClicked);
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &Settings::onDialogAccepted);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &Settings::onDialogRejected);
+    
+    // 使用本地 API 复选框状态变化
+    connect(ui->isUseLocalApiBox, &QCheckBox::checkStateChanged, this, &Settings::onUseLocalApiChanged);
 }
 
 // =============================================================================
@@ -252,6 +302,8 @@ void Settings::startVersionDetection()
             this, &Settings::onCoreVersionReady, Qt::QueuedConnection);
     connect(m_versionWorker, &VersionDetectionWorker::cliVersionReady,
             this, &Settings::onCliVersionReady, Qt::QueuedConnection);
+    connect(m_versionWorker, &VersionDetectionWorker::webVersionReady,
+            this, &Settings::onWebVersionReady, Qt::QueuedConnection);
     connect(m_versionWorker, &VersionDetectionWorker::detectionFinished,
             this, &Settings::onVersionDetectionFinished, Qt::QueuedConnection);
 
@@ -296,6 +348,11 @@ void Settings::onCliVersionReady(const QString &version)
     ui->label_3->setText(version.isEmpty() ? "未找到" : version);
 }
 
+void Settings::onWebVersionReady(const QString &version)
+{
+    ui->webVerBtn->setText(version.isEmpty() ? "未找到" : version);
+}
+
 void Settings::onVersionDetectionFinished()
 {
     m_versionDetecting = false;
@@ -313,6 +370,20 @@ void Settings::onRedetectButtonClicked()
     // 重置检测状态并启动新检测
     m_versionDetecting = false;
     startVersionDetection();
+}
+
+void Settings::onRedetectWebButtonClicked()
+{
+    ui->webVerBtn->setText("检测中...");
+    // 重置检测状态并启动新检测
+    m_versionDetecting = false;
+    startVersionDetection();
+}
+
+void Settings::onUseLocalApiChanged(int state)
+{
+    // 根据是否使用本地 API 来启用/禁用 API 地址输入框
+    ui->apiAddrEdit->setEnabled(state != Qt::Checked);
 }
 
 void Settings::onOpenFolderButtonClicked()
@@ -338,6 +409,20 @@ void Settings::onCheckUpdateButtonClicked()
 
 void Settings::onDialogAccepted()
 {
+    // 验证端口输入
+    bool ok1, ok2;
+    int configPort = ui->confSendEdit->text().toInt(&ok1);
+    int webPagePort = ui->webPageEdit->text().toInt(&ok2);
+    
+    if (!ok1 || configPort < 1 || configPort > 65535) {
+        QMessageBox::warning(this, "输入错误", "配置下发端口必须在 1-65535 之间");
+        return;
+    }
+    if (!ok2 || webPagePort < 1 || webPagePort > 65535) {
+        QMessageBox::warning(this, "输入错误", "控制台前端端口必须在 1-65535 之间");
+        return;
+    }
+
     // 保存界面设置
     m_autoRun = ui->autoRuncheckBox->isChecked();
     m_isHideOnTray = ui->hideOnTrayBox->isChecked();
@@ -349,7 +434,25 @@ void Settings::onDialogAccepted()
         setAutoStart(m_autoStart);
     }
 
+    // 保存 Web 控制台配置
+    m_webConfig.configPort = configPort;
+    m_webConfig.webPagePort = webPagePort;
+    m_webConfig.useLocalApi = ui->isUseLocalApiBox->isChecked();
+    m_webConfig.apiAddress = ui->apiAddrEdit->text();
+    m_webConfig.coreConnectAddress = ui->coreConnectAddrEdit->text();
+    
+    // 保存协议设置
+    switch (ui->configProtocolBox->currentIndex()) {
+        case 1: m_webConfig.configProtocol = "TCP"; break;
+        case 2: m_webConfig.configProtocol = "WebSocket"; break;
+        default: m_webConfig.configProtocol = "udp"; break;
+    }
+
     saveSettings();
+    
+    // 发送信号让配置立即生效
+    emit webConfigUpdated(m_webConfig);
+    
     accept();
 }
 
@@ -466,6 +569,15 @@ void Settings::loadSettings()
     m_isHideOnTray = settings.value("isHideOnTray").toBool(true);
     m_autoUpdate = settings.value("autoUpdate").toBool(true);
     m_launchCount = settings.value("launchCount").toInt(0);
+
+    // 加载 Web 控制台配置
+    QJsonObject webConfig = settings.value("webConsole").toObject();
+    m_webConfig.configPort = webConfig.value("configPort").toInt(55668);
+    m_webConfig.webPagePort = webConfig.value("webPagePort").toInt(55667);
+    m_webConfig.useLocalApi = webConfig.value("useLocalApi").toBool(true);
+    m_webConfig.apiAddress = webConfig.value("apiAddress").toString();
+    m_webConfig.coreConnectAddress = webConfig.value("coreConnectAddress").toString();
+    m_webConfig.configProtocol = webConfig.value("configProtocol").toString("udp");
 }
 
 void Settings::saveSettings()
@@ -478,6 +590,16 @@ void Settings::saveSettings()
     settings["isHideOnTray"] = m_isHideOnTray;
     settings["autoUpdate"] = m_autoUpdate;
     settings["launchCount"] = m_launchCount;
+
+    // 保存 Web 控制台配置
+    QJsonObject webConfig;
+    webConfig["configPort"] = m_webConfig.configPort;
+    webConfig["webPagePort"] = m_webConfig.webPagePort;
+    webConfig["useLocalApi"] = m_webConfig.useLocalApi;
+    webConfig["apiAddress"] = m_webConfig.apiAddress;
+    webConfig["coreConnectAddress"] = m_webConfig.coreConnectAddress;
+    webConfig["configProtocol"] = m_webConfig.configProtocol;
+    settings["webConsole"] = webConfig;
 
     QJsonDocument doc(settings);
 
@@ -554,4 +676,27 @@ void Settings::setAutoStart(bool enable)
 #else
     Q_UNUSED(enable)
 #endif
+}
+
+// =============================================================================
+// 端口输入验证
+// =============================================================================
+
+void Settings::setupPortValidation()
+{
+    // 设置端口输入框的验证器（只允许输入数字）
+    QIntValidator *portValidator = new QIntValidator(1, 65535, this);
+    ui->confSendEdit->setValidator(portValidator);
+    ui->webPageEdit->setValidator(portValidator);
+    
+    // 设置输入掩码提示
+    ui->confSendEdit->setPlaceholderText("1-65535");
+    ui->webPageEdit->setPlaceholderText("1-65535");
+}
+
+bool Settings::validatePortInput(const QString &text, int minPort, int maxPort)
+{
+    bool ok;
+    int port = text.toInt(&ok);
+    return ok && port >= minPort && port <= maxPort;
 }

@@ -1259,7 +1259,19 @@ void NetPage::onRunNetwork()
     try {
         QStringList arguments;
         if (ui->useWebBtn->isChecked()) {
-            arguments << "-w" << "udp://127.0.0.1:55668/admin";
+            // 获取 Web 控制台配置
+            WebConsoleConfig webConfig = getWebConsoleConfig();
+            
+            // 构建 Web 管理参数
+            QString protocol = webConfig.getConfigProtocolString();
+            QString webArg = QString("%1://127.0.0.1:%2/admin").arg(protocol).arg(webConfig.configPort);
+            arguments << "-w" << webArg;
+            
+            // 如果有 Core 连接地址，添加连接参数
+            if (!webConfig.coreConnectAddress.isEmpty()) {
+                // 连接到指定的 Core 地址
+                arguments << "--connect" << webConfig.coreConnectAddress;
+            }
         } else {
             arguments = generateConfCommand(this);
         }

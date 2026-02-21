@@ -279,19 +279,22 @@ void MainWindow::onClickWebDashboardBtn() {
         return;
     }
 
-    // 检测55667、55668端口占用情况
-    if (isPortOccupied(55667) || isPortOccupied(55668))
+    // 检测端口占用情况
+    if (isPortOccupied(m_webConfig.webPagePort) || isPortOccupied(m_webConfig.configPort))
     {
-        QMessageBox::critical(this, "错误", "55667或55668端口被占用");
+        QMessageBox::critical(this, "错误", 
+            QString("%1或%2端口被占用").arg(m_webConfig.webPagePort).arg(m_webConfig.configPort));
         return;
     }
 
-    //构建启动命令
-    QStringList args {"--api-server-port", "55667",
-                  "--api-host", "http://127.0.0.1:55667",
-                  "--config-server-port", "55668",
-                  "--config-server-protocol", "udp"
-                     };
+    // 构建启动命令
+    QStringList args;
+    args << "--api-server-port" << QString::number(m_webConfig.webPagePort);
+    args << "--api-host" << m_webConfig.getActualApiAddress();
+    args << "--config-server-port" << QString::number(m_webConfig.configPort);
+    args << "--config-server-protocol" << m_webConfig.getConfigProtocolString();
+
+    std::clog << "启动Web控制台命令：" << appFile.toStdString() << " " << args.join(" ").toStdString() << std::endl;
 
     m_webDashboardProcess = new QProcess(this);
     m_webDashboardProcess->start(appFile, args);
@@ -301,7 +304,7 @@ void MainWindow::onClickWebDashboardBtn() {
     // 等待一秒打开浏览器
     QTimer::singleShot(1000, [=, this]() {
         if (m_webDashboardProcess && m_webDashboardProcess->state() == QProcess::Running) {
-            QDesktopServices::openUrl(QUrl("http://127.0.0.1:55667"));
+            QDesktopServices::openUrl(QUrl(QString("http://127.0.0.1:%1").arg(m_webConfig.webPagePort)));
         } else {
             QMessageBox::warning(this, "警告", "Web控制台可能启动失败");
         }
@@ -350,6 +353,12 @@ void MainWindow::_changeWidget(QWidget *newWidget) {
 
 void MainWindow::onClickSettingBtn() {
     Settings *settings = new Settings(this);
+    
+    // 连接 Web 配置更新信号，使配置立即生效
+    connect(settings, &Settings::webConfigUpdated, this, [this](const WebConsoleConfig &config) {
+        m_webConfig = config;
+    });
+    
     settings->exec();
     m_isHideOnTray = settings->isHideOnTray();
     settings->deleteLater();
@@ -479,6 +488,9 @@ void MainWindow::loadConfig() {
 
     // 是否隐藏到系统托盘
     m_isHideOnTray = tempSettings->isHideOnTray();
+    
+    // 加载 Web 控制台配置
+    m_webConfig = tempSettings->getWebConsoleConfig();
 
     if (tempSettings->shouldShowDonate()) {
         Donate *donateWindow = new Donate(this);
