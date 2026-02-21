@@ -332,13 +332,10 @@
            <number>9</number>
           </property>
           <property name="bottomMargin">
-           <number>20</number>
-          </property>
-          <property name="horizontalSpacing">
            <number>9</number>
           </property>
-          <property name="verticalSpacing">
-           <number>13</number>
+          <property name="spacing">
+           <number>9</number>
           </property>
           <item row="0" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
            <widget class="QLineEdit" name="confSendEdit">
