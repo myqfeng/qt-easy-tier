@@ -57,6 +57,10 @@ QStringList generateConfCommand(NetPage *netPage);
 /// @note: 该函数用于检测指定端口是否被其他进程占用
 bool isPortOccupied(const int &port);
 
+/// @brief: 生成随机端口号
+/// @return: 10000-50000 范围内的随机端口
+int getRandomPort();
+
 /**
  * @brief: 获取 Web 控制台配置
  * @return: Web 控制台配置结构体
