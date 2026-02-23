@@ -1,5 +1,20 @@
 # QtEasyTier
 
+<div style="display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem;">
+  <a href="https://gitee.com/viagrahuang/qt-easy-tier/stargazers">
+    <img src="https://gitee.com/viagrahuang/qt-easy-tier/badge/star.svg?theme=dark" alt="star" />
+  </a>
+  <a href="https://gitee.com/viagrahuang/qt-easy-tier/members">
+    <img src="https://gitee.com/viagrahuang/qt-easy-tier/badge/fork.svg?theme=dark" alt="fork" />
+  </a>
+  <a href="https://github.com/myqfeng/qt-easy-tier/stargazers">
+    <img src="https://img.shields.io/github/stars/myqfeng/qt-easy-tier.svg" alt="star" />
+  </a>
+  <a href="https://github.com/myqfeng/qt-easy-tier">
+    <img src="https://img.shields.io/github/forks/myqfeng/qt-easy-tier.svg" alt="star" />
+  </a>
+</div>
+
 ## 项目简介
 
 QtEasyTier 是一个基于 Qt 框架开发的异地组网工具，用于创建和管理虚拟网络连接。
