@@ -124,6 +124,21 @@ public:
     /// @brief 获取 Web 控制台配置
     WebConsoleConfig getWebConsoleConfig() const { return m_webConfig; }
 
+    /// @brief 获取日志保存天数
+    int getLogRetentionDays() const { return m_logRetentionDays; }
+
+    /// @brief 清理过期日志文件
+    /// @param retentionDays 保留天数，0 表示清理所有日志
+    /// @return 清理的文件数量
+    static int cleanupOldLogs(int retentionDays);
+
+    /// @brief 清空所有日志文件
+    /// @return 清理的文件数量
+    static int clearAllLogs();
+
+    /// @brief 获取日志文件夹路径
+    static QString getLogDirPath();
+
 signals:
     /// @brief 更新检测完成信号
     void finishDetectUpdate();
@@ -143,6 +158,8 @@ private slots:
     void onDialogAccepted();
     void onDialogRejected();
     void onUseLocalApiChanged(int state);
+    void onOpenLogDirClicked();
+    void onClearLogClicked();
 
     // === 版本检测结果处理 ===
     void onCoreVersionReady(const QString &version);
@@ -190,6 +207,7 @@ private:
     bool m_autoStart = false;     // 开机自启
     bool m_isHideOnTray = true;   // 隐藏到系统托盘
     bool m_autoUpdate = true;     // 自动检查更新
+    int m_logRetentionDays = 7;   // 日志保存天数，默认7天
     QString m_softwareVer = PROJECT_VERSION;
 
     // === 启动计数相关 ===

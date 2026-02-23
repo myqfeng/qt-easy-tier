@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>300</height>
+    <height>360</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>500</width>
-    <height>300</height>
+    <height>360</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -42,8 +42,17 @@
           </font>
          </property>
          <layout class="QGridLayout" name="gridLayout">
+          <property name="verticalSpacing">
+           <number>9</number>
+          </property>
           <item row="6" column="4">
            <widget class="QPushButton" name="newVerPushButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="font">
              <font>
               <pointsize>10</pointsize>
@@ -84,7 +93,7 @@
             <property name="minimumSize">
              <size>
               <width>0</width>
-              <height>35</height>
+              <height>0</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -109,7 +118,7 @@
             <property name="minimumSize">
              <size>
               <width>0</width>
-              <height>35</height>
+              <height>0</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -145,7 +154,7 @@
             <property name="minimumSize">
              <size>
               <width>0</width>
-              <height>35</height>
+              <height>0</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -191,66 +200,153 @@
          </layout>
         </widget>
        </item>
-       <item>
-        <layout class="QGridLayout" name="gridLayout_2">
-         <item row="0" column="1">
-          <widget class="QCheckBox" name="autoRuncheckBox">
-           <property name="font">
-            <font>
-             <pointsize>10</pointsize>
-            </font>
-           </property>
-           <property name="toolTip">
-            <string>自动连接上次退出时未关闭的网络</string>
-           </property>
-           <property name="text">
-            <string>自动回连</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <widget class="QCheckBox" name="autoStartCheckBox">
-           <property name="font">
-            <font>
-             <pointsize>10</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>是否开机自启</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="0">
-          <widget class="QCheckBox" name="hideOnTrayBox">
-           <property name="font">
-            <font>
-             <pointsize>10</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>关闭时隐藏到托盘</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="QCheckBox" name="autoUpdateCheckBox">
-           <property name="font">
-            <font>
-             <pointsize>10</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>是否自动检查更新</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
+       <item alignment="Qt::AlignmentFlag::AlignVCenter">
+        <widget class="QWidget" name="" native="true">
+         <layout class="QGridLayout" name="gridLayout_2">
+          <property name="verticalSpacing">
+           <number>9</number>
+          </property>
+          <item row="0" column="1">
+           <widget class="QCheckBox" name="autoRuncheckBox">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <property name="toolTip">
+             <string>自动连接上次退出时未关闭的网络</string>
+            </property>
+            <property name="text">
+             <string>自动回连</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QCheckBox" name="autoUpdateCheckBox">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>是否自动检查更新</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QCheckBox" name="hideOnTrayBox">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>关闭时隐藏到托盘</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QCheckBox" name="autoStartCheckBox">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>是否开机自启</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item alignment="Qt::AlignmentFlag::AlignVCenter">
+        <widget class="QWidget" name="gridWidget" native="true">
+         <layout class="QGridLayout" name="gridLayout_6">
+          <property name="leftMargin">
+           <number>10</number>
+          </property>
+          <property name="rightMargin">
+           <number>10</number>
+          </property>
+          <item row="0" column="0" alignment="Qt::AlignmentFlag::AlignRight">
+           <widget class="QLabel" name="label_10">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>日志文件保留天数：</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignLeft">
+           <widget class="QComboBox" name="logRetentionDaysBox">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <item>
+             <property name="text">
+              <string>0</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>3</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>7</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>14</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>30</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="clearLogBtn">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>清空日志</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QPushButton" name="openLogDirBtn">
+            <property name="font">
+             <font>
+              <pointsize>10</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>打开日志文件夹</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -266,13 +362,13 @@
            <number>6</number>
           </property>
           <property name="topMargin">
-           <number>12</number>
+           <number>10</number>
           </property>
           <property name="rightMargin">
            <number>6</number>
           </property>
           <property name="bottomMargin">
-           <number>9</number>
+           <number>5</number>
           </property>
           <property name="horizontalSpacing">
            <number>9</number>
@@ -321,18 +417,24 @@
        </item>
        <item row="1" column="0">
         <widget class="QWidget" name="gridWidget_2" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <layout class="QGridLayout" name="gridLayout_5">
           <property name="leftMargin">
            <number>9</number>
           </property>
           <property name="topMargin">
-           <number>9</number>
+           <number>5</number>
           </property>
           <property name="rightMargin">
            <number>9</number>
           </property>
           <property name="bottomMargin">
-           <number>9</number>
+           <number>5</number>
           </property>
           <property name="spacing">
            <number>9</number>
@@ -394,7 +496,7 @@
           <item row="2" column="2" colspan="3">
            <widget class="QLineEdit" name="apiAddrEdit">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -483,6 +585,12 @@
           </item>
           <item row="3" column="2" colspan="3">
            <widget class="QLineEdit" name="coreConnectAddrEdit">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="font">
              <font>
               <pointsize>12</pointsize>
