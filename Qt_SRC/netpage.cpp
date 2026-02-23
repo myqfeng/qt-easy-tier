@@ -1504,6 +1504,8 @@ void NetPage::onWorkerProcessCrashed(int exitCode)
 {
     m_logTextEdit->appendPlainText(tr("EasyTier进程异常终止，退出码: %1").arg(exitCode));
     QMessageBox::warning(this, tr("警告"), tr("EasyTier进程异常终止，退出码: %1").arg(exitCode));
+    emit networkFinished();
+    updateUIState(false);
 }
 
 // 打开日志文件
