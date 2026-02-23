@@ -279,7 +279,7 @@ bool isPortOccupied(const int &port)
 
 // =================== Base32 编码/解码相关函数 ===================
 
-const QString BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+const QString BASE32_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /// @brief Base32编码
 /// @param data: 需要编码的字节数组
@@ -342,17 +342,20 @@ QPair<QString, QString> generateRoomCredentials() {
     std::string str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789*&#$!";  //字符集
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, 56); // ASCII可打印字符范围 32-126
+    std::uniform_int_distribution<> dis(0, 66); // 字符集范围 0-66
 
-    // 生成5字节的原始网络号数据（对应Base32编码8字符）
-    QByteArray networkIdRaw(5, 0);
-    for (int i = 0; i < 5; ++i) {
+    // 生成7字节的原始网络号数据（前2位固定为"QE"，后5位随机）
+    // 对应Base32编码约12字符
+    QByteArray networkIdRaw(7, 0);
+    networkIdRaw[0] = 'Q';  // 固定前缀
+    networkIdRaw[1] = 'E';  // 固定前缀
+    for (int i = 2; i < 7; ++i) {
         networkIdRaw[i] = str[dis(gen)];
     }
 
-    // 生成5字节的原始密码数据（对应Base32编码8字符）
-    QByteArray passwordRaw(5, 0);
-    for (int i = 0; i < 5; ++i) {
+    // 生成8字节的原始密码数据（对应Base32编码约13字符）
+    QByteArray passwordRaw(8, 0);
+    for (int i = 0; i < 8; ++i) {
         passwordRaw[i] = str[dis(gen)];
     }
 
@@ -372,20 +375,31 @@ QString encodeConnectionCode(const QString& networkId, const QString& password) 
     QByteArray networkIdData = networkPureId.toLatin1();
     QByteArray passwordData = password.toLatin1();
 
+    // 验证网络号前两位是否为"QE"
+    if (networkIdData.size() < 2 || networkIdData[0] != 'Q' || networkIdData[1] != 'E') {
+        return ""; // 返回空字符串表示错误
+    }
+
     // 使用Base32编码
     QString encodedNetworkId = base32Encode(networkIdData);
     QString encodedPassword = base32Encode(passwordData);
 
-    // 确保长度正确（5字节数据Base32编码后正好8个字符）
-    if (encodedNetworkId.length() != 8 || encodedPassword.length() != 8) {
+    // 7字节数据Base32编码后为12字符，8字节数据编码后为13字符
+    // 移除Base32填充字符'='
+    encodedNetworkId.remove('=');
+    encodedPassword.remove('=');
+
+    if (encodedNetworkId.length() != 12 || encodedPassword.length() != 13) {
         return ""; // 返回空字符串表示错误
     }
 
-    // 组合成格式：XXXX-XXXX-XXXX-XXXX
-    QString code = encodedNetworkId.left(4) + "-" +
-                   encodedNetworkId.mid(4, 4) + "-" +
-                   encodedPassword.left(4) + "-" +
-                   encodedPassword.mid(4, 4);
+    // 组合成格式：LFCV-GVLR-PKGSNW5YU-6CQNF-WYW
+    QString code = encodedNetworkId.left(4) + "-" +           // 4字符
+                   encodedNetworkId.mid(4, 4) + "-" +         // 4字符
+                   encodedNetworkId.mid(8, 4) +               // 4字符（网络号共12字符）
+                   encodedPassword.left(5) + "-" +            // 5字符（密码开始）
+                   encodedPassword.mid(5, 5) + "-" +          // 5字符
+                   encodedPassword.mid(10, 3);                // 3字符（密码共13字符）
 
     return code.toUpper();
 }
@@ -397,18 +411,29 @@ QPair<QString, QString> decodeConnectionCode(const QString& code) {
     cleanCode.remove(re);
     cleanCode = cleanCode.toUpper();
 
-    // 检查长度是否正确（应该是16个Base32字符）
-    if (cleanCode.length() != 16) {
+    // 检查长度是否正确（应该是25个Base32字符）
+    if (cleanCode.length() != 25) {
         return qMakePair(QString(), QString()); // 返回空pair表示错误
     }
 
-    // 分离网络号和密码的Base32编码（各8个字符）
-    QString encodedNetworkId = cleanCode.left(8);
-    QString encodedPassword = cleanCode.mid(8, 8);
+    // 分离网络号和密码的Base32编码
+    // 网络号：前12字符，密码：后13字符
+    QString encodedNetworkId = cleanCode.left(12);
+    QString encodedPassword = cleanCode.mid(12, 13);
 
-    // Base32解码（5字节数据编码后正好8字符，不需要额外填充）
+    // Base32解码
     QByteArray networkIdData = base32Decode(encodedNetworkId);
     QByteArray passwordData = base32Decode(encodedPassword);
+
+    // 验证解码结果长度
+    if (networkIdData.size() != 7 || passwordData.size() != 8) {
+        return qMakePair(QString(), QString()); // 返回空pair表示错误
+    }
+
+    // 验证网络号前两位是否为"QE"
+    if (networkIdData[0] != 'Q' || networkIdData[1] != 'E') {
+        return qMakePair(QString(), QString()); // 返回空pair表示验证失败
+    }
 
     // 转换为ASCII字符串
     QString networkPureId = QString::fromLatin1(networkIdData);
