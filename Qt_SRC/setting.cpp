@@ -136,8 +136,8 @@ QString VersionDetectionWorker::parseVersionOutput(const QString &output, const 
         result = result.mid(13).trimmed();
     } else if (type == "cli" && result.startsWith("easytier-cli", Qt::CaseInsensitive)) {
         result = result.mid(12).trimmed();
-    } else if (type == "web" && result.startsWith("easytier-web-embed", Qt::CaseInsensitive)) {
-        result = result.mid(18).trimmed();
+    } else if (type == "web" && result.startsWith("easytier-web", Qt::CaseInsensitive)) {
+        result = result.mid(12).trimmed();
     }
 
     return result.isEmpty() ? QString("未知") : result;
@@ -220,6 +220,15 @@ void Settings::setupUi()
     ui->hideOnTrayBox->setChecked(m_isHideOnTray);
     ui->autoStartCheckBox->setChecked(m_autoStart);
     ui->autoUpdateCheckBox->setChecked(m_autoUpdate);
+
+    // 设置日志保存天数下拉框
+    int daysIndex = 0;
+    if (m_logRetentionDays == 0) daysIndex = 0;
+    else if (m_logRetentionDays == 3) daysIndex = 1;
+    else if (m_logRetentionDays == 7) daysIndex = 2;
+    else if (m_logRetentionDays == 14) daysIndex = 3;
+    else if (m_logRetentionDays == 30) daysIndex = 4;
+    ui->logRetentionDaysBox->setCurrentIndex(daysIndex);
 }
 
 void Settings::setupWebConfigUi()
@@ -259,6 +268,8 @@ void Settings::connectSignals()
     connect(ui->newVerPushButton, &QPushButton::clicked, this, &Settings::onCheckUpdateButtonClicked);
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &Settings::onDialogAccepted);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &Settings::onDialogRejected);
+    connect(ui->clearLogBtn, &QPushButton::clicked, this, &Settings::onClearLogClicked);
+    connect(ui->openLogDirBtn, &QPushButton::clicked, this, &Settings::onOpenLogDirClicked);
     
     // 使用本地 API 复选框状态变化
     connect(ui->isUseLocalApiBox, &QCheckBox::checkStateChanged, this, &Settings::onUseLocalApiChanged);
@@ -444,6 +455,17 @@ void Settings::onDialogAccepted()
         default: m_webConfig.configProtocol = "udp"; break;
     }
 
+    // 保存日志保存天数
+    int logDaysIndex = ui->logRetentionDaysBox->currentIndex();
+    switch (logDaysIndex) {
+        case 0: m_logRetentionDays = 0; break;
+        case 1: m_logRetentionDays = 3; break;
+        case 2: m_logRetentionDays = 7; break;
+        case 3: m_logRetentionDays = 14; break;
+        case 4: m_logRetentionDays = 30; break;
+        default: m_logRetentionDays = 7; break;
+    }
+
     saveSettings();
     
     // 发送信号让配置立即生效
@@ -574,6 +596,9 @@ void Settings::loadSettings()
     m_webConfig.apiAddress = webConfig.value("apiAddress").toString();
     m_webConfig.coreConnectAddress = webConfig.value("coreConnectAddress").toString();
     m_webConfig.configProtocol = webConfig.value("configProtocol").toString("udp");
+
+    // 加载日志保存天数
+    m_logRetentionDays = settings.value("logRetentionDays").toInt(7);
 }
 
 void Settings::saveSettings()
@@ -596,6 +621,9 @@ void Settings::saveSettings()
     webConfig["coreConnectAddress"] = m_webConfig.coreConnectAddress;
     webConfig["configProtocol"] = m_webConfig.configProtocol;
     settings["webConsole"] = webConfig;
+
+    // 保存日志保存天数
+    settings["logRetentionDays"] = m_logRetentionDays;
 
     QJsonDocument doc(settings);
 
@@ -698,4 +726,107 @@ bool Settings::validatePortInput(const QString &text, int minPort, int maxPort)
     bool ok;
     int port = text.toInt(&ok);
     return ok && port >= minPort && port <= maxPort;
+}
+
+// =============================================================================
+// 日志管理
+// =============================================================================
+
+QString Settings::getLogDirPath()
+{
+    return QCoreApplication::applicationDirPath() + "/log";
+}
+
+int Settings::cleanupOldLogs(int retentionDays)
+{
+    QString logDirPath = getLogDirPath();
+    QDir logDir(logDirPath);
+    
+    if (!logDir.exists()) {
+        return 0;
+    }
+    
+    // 如果 retentionDays 为 0，清理所有日志
+    if (retentionDays <= 0) {
+        return clearAllLogs();
+    }
+    
+    QDateTime cutoffDate = QDateTime::currentDateTime().addDays(-retentionDays);
+    int deletedCount = 0;
+    
+    // 日志文件名格式：yyyyMMdd_HHmmss_Base32编码的网络名.log
+    QStringList logFiles = logDir.entryList(QStringList() << "*.log", QDir::Files);
+    
+    for (const QString &fileName : logFiles) {
+        // 提取文件名中的时间戳部分（前15个字符：yyyyMMdd_HHmmss）
+        if (fileName.length() < 15) {
+            continue;
+        }
+        
+        QString timestampStr = fileName.left(15);
+        QDateTime fileDateTime = QDateTime::fromString(timestampStr, "yyyyMMdd_HHmmss");
+        
+        if (!fileDateTime.isValid()) {
+            continue;
+        }
+        
+        // 如果文件时间早于截止日期，删除
+        if (fileDateTime < cutoffDate) {
+            QString filePath = logDir.filePath(fileName);
+            if (QFile::remove(filePath)) {
+                deletedCount++;
+            }
+        }
+    }
+    
+    return deletedCount;
+}
+
+int Settings::clearAllLogs()
+{
+    QString logDirPath = getLogDirPath();
+    QDir logDir(logDirPath);
+    
+    if (!logDir.exists()) {
+        return 0;
+    }
+    
+    int deletedCount = 0;
+    QStringList logFiles = logDir.entryList(QStringList() << "*.log", QDir::Files);
+    
+    for (const QString &fileName : logFiles) {
+        QString filePath = logDir.filePath(fileName);
+        if (QFile::remove(filePath)) {
+            deletedCount++;
+        }
+    }
+    
+    return deletedCount;
+}
+
+void Settings::onOpenLogDirClicked()
+{
+    QString logDirPath = getLogDirPath();
+    QDir logDir(logDirPath);
+    
+    // 如果目录不存在，创建它
+    if (!logDir.exists()) {
+        logDir.mkpath(".");
+    }
+    
+    QDesktopServices::openUrl(QUrl::fromLocalFile(logDirPath));
+}
+
+void Settings::onClearLogClicked()
+{
+    QMessageBox::StandardButton ret = QMessageBox::question(
+        this, tr("确认清空"),
+        tr("确定要清空所有日志文件吗？\n此操作不可恢复。"),
+        QMessageBox::Yes | QMessageBox::No);
+    
+    if (ret == QMessageBox::Yes) {
+        int deletedCount = clearAllLogs();
+        QMessageBox::information(this, tr("完成"), 
+            tr("已清空 %1 个日志文件").arg(deletedCount));
+    }
 }
