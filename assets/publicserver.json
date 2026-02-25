@@ -1,7 +1,23 @@
 [
   {
+    "url": "tcp://public.easytier.top:11010",
+    "contributor": "EasyTier官方"
+  },
+  {
+    "url": "tcp://public2.easytier.cn:54321",
+    "contributor": "EasyTier官方"
+  },
+  {
     "url": "txt://qtet-public.070219.xyz",
     "contributor": "QtEasyTier"
+  },
+  {
+    "url": "txt://qtet-public2.070219.xyz",
+    "contributor": "QtEasyTier"
+  },
+  {
+    "url": "tcp://et.rice-awa.top:21145",
+    "contributor": "Rice-awa"
   },
   {
     "url": "https://et-public.lctn.site",
@@ -12,20 +28,20 @@
     "contributor": "凉城听暖"
   },
   {
-    "url": "tcp://public2.easytier.cn:54321",
-    "contributor": "EasyTier官方"
-  },
-  {
     "url": "tcp://et.sbgov.cn:11010",
     "contributor": "折翼喵"
   },
   {
-    "url": "tcp://103.217.186.78:11011",
-    "contributor": "网络收集"
-  },
-  {
     "url": "tcp://easytier.weiai.org.cn:11010",
     "contributor": "为爱，唯爱"
+  },
+  {
+    "url": "tcp://dy-et.teleseon.com:33010",
+    "contributor": "Atomire"
+  },
+  {
+    "url": "tcp://ramon2009.dpdns.org:11010",
+    "contributor": "海波"
   },
   {
     "url": "tcp://turn.js.629957.xyz:11012",
@@ -76,11 +92,7 @@
     "contributor": "网络收集"
   },
   {
-    "url": "tcp://dy-et.teleseon.com:33010",
-    "contributor": "Atomire"
-  },
-  {
-    "url": "tcp://160.202.238.39:36046",
+    "url": "tcp://103.217.186.78:11011",
     "contributor": "网络收集"
   },
   {
@@ -89,11 +101,19 @@
   },
   {
     "url": "tcp://et.hongchenduzhe.cc.cd:25484",
-    "contributor": "[海外]网络收集"
+    "contributor": "[海外]红尘渡者"
   },
   {
     "url": "tcp://tcp.us-west-1.clawcloudrun.com:45238",
     "contributor": "[海外]凉城听暖"
+  },
+  {
+    "url": "tcp://et2.sbgov.cn:11010",
+    "contributor": "[海外]折翼喵"
+  },
+  {
+    "url": "tcp://et.ziyii.top:11010",
+    "contributor": "[海外]ziyii"
   },
   {
     "url": "tcp://23.95.37.209:11010",
