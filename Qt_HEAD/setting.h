@@ -148,7 +148,7 @@ public:
     {
         // 配置保存路径
 #if SAVE_CONF_IN_APP_DIR == true
-        return QApplication::applicationDirPath()+"/config"
+        return QApplication::applicationDirPath()+"/config";
         #else
         return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
 #endif
