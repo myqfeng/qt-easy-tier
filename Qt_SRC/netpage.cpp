@@ -246,6 +246,8 @@ void NetPage::initServerManagement()
     connect(m_serverListWidget, &QListWidget::itemSelectionChanged, [this]() {
         m_removeServerBtn->setEnabled(m_serverListWidget->selectedItems().count() > 0);
     });
+    // 双击编辑
+    connect(m_serverListWidget, &QListWidget::itemDoubleClicked, this, &NetPage::onServerListItemDoubleClicked);
     // 连接信号槽: 点击服务器帮助按钮
     connect(m_serverHelpBtn, &QPushButton::clicked, []() {
         QDesktopServices::openUrl(QUrl("https://qtet.070219.xyz/servers/server-instruction/"));
@@ -529,6 +531,8 @@ void NetPage::initRelayNetworkWhitelistManagement()
                 m_relayNetworkWhitelistListWidget->selectedItems().count() > 0);
         }
     });
+    // 双击编辑
+    connect(m_relayNetworkWhitelistListWidget, &QListWidget::itemDoubleClicked, this, &NetPage::onWhitelistItemDoubleClicked);
 }
 
 void NetPage::initListenAddrManagement()
@@ -568,6 +572,8 @@ void NetPage::initListenAddrManagement()
     connect(m_listenAddrListWidget, &QListWidget::itemSelectionChanged, [this]() {
         m_removeListenAddrBtn->setEnabled(m_listenAddrListWidget->selectedItems().count() > 0);
     });
+    // 双击编辑
+    connect(m_listenAddrListWidget, &QListWidget::itemDoubleClicked, this, &NetPage::onListenAddrItemDoubleClicked);
 }
 
 void NetPage::initCidrManagement()
@@ -599,6 +605,8 @@ void NetPage::initCidrManagement()
     connect(m_cidrListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
         m_removeCidrBtn->setEnabled(m_cidrListWidget->selectedItems().count() > 0);
     });
+    // 双击编辑
+    connect(m_cidrListWidget, &QListWidget::itemDoubleClicked, this, &NetPage::onCidrListItemDoubleClicked);
     connect(m_calculateCidrBtn, &QPushButton::clicked, this, &NetPage::onClickCidrCalculator);
 }
 
@@ -2427,4 +2435,38 @@ void NetPage::cleanupTempConfigFile()
         }
         m_tempConfigFilePath.clear();
     }
+}
+
+// =====================列表项编辑相关===================
+
+// 服务器列表：双击编辑
+void NetPage::onServerListItemDoubleClicked(QListWidgetItem *item)
+{
+    if (!item) return;
+    item->setFlags(item->flags() | Qt::ItemIsEditable);
+    m_serverListWidget->editItem(item);
+}
+
+// 子网代理列表：双击编辑
+void NetPage::onCidrListItemDoubleClicked(QListWidgetItem *item)
+{
+    if (!item) return;
+    item->setFlags(item->flags() | Qt::ItemIsEditable);
+    m_cidrListWidget->editItem(item);
+}
+
+// 网络白名单列表：双击编辑
+void NetPage::onWhitelistItemDoubleClicked(QListWidgetItem *item)
+{
+    if (!item) return;
+    item->setFlags(item->flags() | Qt::ItemIsEditable);
+    m_relayNetworkWhitelistListWidget->editItem(item);
+}
+
+// 监听地址列表：双击编辑
+void NetPage::onListenAddrItemDoubleClicked(QListWidgetItem *item)
+{
+    if (!item) return;
+    item->setFlags(item->flags() | Qt::ItemIsEditable);
+    m_listenAddrListWidget->editItem(item);
 }

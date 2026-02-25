@@ -186,6 +186,16 @@ private slots:
     // 自动配置RPC端口复选框状态变化
     void onAutoRpcBoxChanged(int state);
 
+    // ===============列表项编辑相关===============
+    // 服务器列表：双击编辑
+    void onServerListItemDoubleClicked(QListWidgetItem *item);
+    // 子网代理列表：双击编辑
+    void onCidrListItemDoubleClicked(QListWidgetItem *item);
+    // 网络白名单列表：双击编辑
+    void onWhitelistItemDoubleClicked(QListWidgetItem *item);
+    // 监听地址列表：双击编辑
+    void onListenAddrItemDoubleClicked(QListWidgetItem *item);
+
 private:
     Ui::NetPage *ui;
 
