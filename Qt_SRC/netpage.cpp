@@ -1094,19 +1094,26 @@ void NetPage::onRpcPortTextChanged(const QString &text)
 }
 
 void NetPage::onClickCidrCalculator() {
-    // 检测CidrCalculator.exe是否存在
-    // 获取当前程序目录
-    const QString calculatorDir = QCoreApplication::applicationDirPath() + "/CIDRCalculator.exe";
+    // 根据平台设置 CIDR 计算器路径
+#ifdef Q_OS_WIN
+    const QString calculatorPath = QCoreApplication::applicationDirPath() + "/CIDRCalculator.exe";
+#else
+    const QString calculatorPath = QCoreApplication::applicationDirPath() + "/CIDRCalculator";
+#endif
 
     // 检查程序是否存在
-    const QFileInfo fileInfo(calculatorDir);
+    const QFileInfo fileInfo(calculatorPath);
     if (!fileInfo.exists()) {
-        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(calculatorDir));
+        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(calculatorPath));
+#ifdef Q_OS_WIN
         QMessageBox::critical(this, tr("错误"), tr("找不到 CIDRCalculator.exe"));
+#else
+        QMessageBox::critical(this, tr("错误"), tr("找不到 CIDRCalculator"));
+#endif
         return;
     }
-    // 打开目录下的CidrCalculator.exe
-    QProcess::startDetached(calculatorDir);
+    // 打开 CIDR 计算器
+    QProcess::startDetached(calculatorPath);
 }
 
 

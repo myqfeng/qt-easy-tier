@@ -161,7 +161,7 @@ MainWindow::~MainWindow()
     QProcess::startDetached("taskkill /F /IM easytier-core.exe");
     QProcess::startDetached("taskkill /F /IM easytier-cli.exe");
     QProcess::startDetached("taskkill /F /IM easytier-web-embed.exe");
-#elif defined(Q_OS_LINUX) || defined(Q_OS_MAC)
+#elif defined(Q_OS_LINUX)
     QProcess::startDetached("pkill easytier-core");
     QProcess::startDetached("pkill easytier-cli");
     QProcess::startDetached("pkill easytier-web-embed");
@@ -272,11 +272,21 @@ void MainWindow::onClickWebDashboardBtn() {
 
     // 启动web控制台
     const QString &appDir = QCoreApplication::applicationDirPath()+"/etcore";
+    
+    // 根据平台设置可执行文件路径
+#ifdef Q_OS_WIN
     const QString &appFile = appDir + "/easytier-web-embed.exe";
+#else
+    const QString &appFile = appDir + "/easytier-web-embed";
+#endif
 
     // 检查appFile是否存在
     if (!QFile::exists(appFile)) {
+#ifdef Q_OS_WIN
         QMessageBox::critical(this, tr("错误"), tr("找不到easytier-web-embed.exe"));
+#else
+        QMessageBox::critical(this, tr("错误"), tr("找不到easytier-web-embed"));
+#endif
         return;
     }
     const Settings::WebConsoleConfig webConfig = Settings::getWebConsoleConfig();

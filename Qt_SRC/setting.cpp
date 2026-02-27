@@ -45,7 +45,17 @@ void VersionDetectionWorker::startDetection()
 
     // 获取可执行文件目录
     QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
+    
+    // 根据平台设置可执行文件路径
+#ifdef Q_OS_WIN
     QString corePath = execDir + "/easytier-core.exe";
+    QString cliPath = execDir + "/easytier-cli.exe";
+    QString webPath = execDir + "/easytier-web-embed.exe";
+#else
+    QString corePath = execDir + "/easytier-core";
+    QString cliPath = execDir + "/easytier-cli";
+    QString webPath = execDir + "/easytier-web-embed";
+#endif
 
     // 先检测核心版本
     detectSingleExecutable(corePath, "core");
@@ -55,20 +65,28 @@ void VersionDetectionWorker::detectSingleExecutable(const QString &executablePat
 {
     m_currentDetectType = type;
 
+    // 获取可执行文件目录
+    QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
+    
+    // 根据平台设置可执行文件后缀
+#ifdef Q_OS_WIN
+    QString exeSuffix = ".exe";
+#else
+    QString exeSuffix = "";
+#endif
+
     // 检查文件是否存在
     if (!QFile::exists(executablePath)) {
         if (type == "core") {
             m_coreDetected = true;
             emit coreVersionReady(QString());
             // 继续检测 CLI
-            QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
-            detectSingleExecutable(execDir + "/easytier-cli.exe", "cli");
+            detectSingleExecutable(execDir + "/easytier-cli" + exeSuffix, "cli");
         } else if (type == "cli") {
             m_cliDetected = true;
             emit cliVersionReady(QString());
             // 继续检测 Web
-            QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
-            detectSingleExecutable(execDir + "/easytier-web-embed.exe", "web");
+            detectSingleExecutable(execDir + "/easytier-web-embed" + exeSuffix, "web");
         } else {
             m_webDetected = true;
             emit webVersionReady(QString());
@@ -109,17 +127,24 @@ void VersionDetectionWorker::onProcessFinished(int exitCode, QProcess::ExitStatu
 
     // 根据当前检测类型发送信号并继续下一个检测
     QString execDir = m_executableDir.isEmpty() ? findExecutableDir() : m_executableDir;
+    
+    // 根据平台设置可执行文件后缀
+#ifdef Q_OS_WIN
+    QString exeSuffix = ".exe";
+#else
+    QString exeSuffix = "";
+#endif
 
     if (m_currentDetectType == "core") {
         m_coreDetected = true;
         emit coreVersionReady(version);
         // 继续检测 CLI
-        detectSingleExecutable(execDir + "/easytier-cli.exe", "cli");
+        detectSingleExecutable(execDir + "/easytier-cli" + exeSuffix, "cli");
     } else if (m_currentDetectType == "cli") {
         m_cliDetected = true;
         emit cliVersionReady(version);
         // 继续检测 Web
-        detectSingleExecutable(execDir + "/easytier-web-embed.exe", "web");
+        detectSingleExecutable(execDir + "/easytier-web-embed" + exeSuffix, "web");
     } else {
         m_webDetected = true;
         emit webVersionReady(version);
@@ -648,9 +673,10 @@ void Settings::incrementLaunchCount()
 
 void Settings::setAutoStart(bool enable)
 {
-#ifdef WIN32
+#ifdef Q_OS_WIN
+    // Windows 平台：使用任务计划程序实现开机自启
     const QString appName = "QtEasyTier";
-    const QString appPath = QCoreApplication::applicationFilePath().replace("/", "\\");
+    const QString appPath = QCoreApplication::applicationFilePath();
     QProcess process;
 
     QStringList args;
@@ -691,8 +717,59 @@ void Settings::setAutoStart(bool enable)
         QMessageBox::warning(this, "错误",
             QString("%1自启任务失败：%2").arg(enable ? "创建" : "删除", error));
     }
+
+#elif defined(Q_OS_LINUX)
+    // Linux 平台：使用 freedesktop.org autostart 规范
+    const QString appName = "QtEasyTier";
+    const QString appPath = QCoreApplication::applicationFilePath();
+    
+    // 获取 autostart 目录路径
+    QString configHome = qEnvironmentVariable("XDG_CONFIG_HOME");
+    if (configHome.isEmpty()) {
+        configHome = QDir::homePath() + "/.config";
+    }
+    QString autostartDir = configHome + "/autostart";
+    QString desktopFilePath = autostartDir + "/" + appName + ".desktop";
+    
+    if (enable) {
+        // 创建 autostart 目录（如果不存在）
+        QDir().mkpath(autostartDir);
+        
+        // 创建 .desktop 文件
+        QString desktopContent = QString(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=%1\n"
+            "Exec=%2 --auto-start\n"
+            "Icon=%1\n"
+            "Comment=QtEasyTier - EasyTier GUI Client\n"
+            "Terminal=false\n"
+            "Categories=Network;\n"
+        ).arg(appName, appPath);
+        
+        QFile desktopFile(desktopFilePath);
+        if (desktopFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            desktopFile.write(desktopContent.toUtf8());
+            desktopFile.close();
+            std::clog << "[AutoStart] Created autostart entry: " << desktopFilePath.toStdString() << std::endl;
+        } else {
+            QMessageBox::warning(this, "错误", tr("无法创建自启动文件：%1").arg(desktopFilePath));
+        }
+    } else {
+        // 删除 .desktop 文件
+        if (QFile::exists(desktopFilePath)) {
+            if (QFile::remove(desktopFilePath)) {
+                std::clog << "[AutoStart] Removed autostart entry: " << desktopFilePath.toStdString() << std::endl;
+            } else {
+                QMessageBox::warning(this, "错误", tr("无法删除自启动文件：%1").arg(desktopFilePath));
+            }
+        }
+    }
+
 #else
+    // 其他平台：暂不支持
     Q_UNUSED(enable)
+    QMessageBox::information(this, tr("提示"), tr("当前平台暂不支持开机自启功能"));
 #endif
 }
 

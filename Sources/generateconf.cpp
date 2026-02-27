@@ -15,12 +15,17 @@
 #include <QStandardPaths>
 #include <QApplication>
 
-#ifdef __WIN32
-
+#ifdef Q_OS_WIN
+// Windows 平台特定头文件
 #include <winsock2.h>
 #include <iphlpapi.h>
 #include <Windows.h>
-
+#elif defined(Q_OS_LINUX)
+// Linux 平台特定头文件
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 #endif
 
 
@@ -168,8 +173,8 @@ bool isPortOccupied(const int &port)
         return true;
     }
 
-#ifdef __WIN32
-    // 使用 IP Helper API 查询端口状态
+#ifdef Q_OS_WIN
+    // Windows 平台：使用 IP Helper API 查询端口状态
     // 通过 GetTcpTable2 获取 TCP 连接表，检查端口是否被监听或占用
     
     PMIB_TCPTABLE2 pTcpTable = nullptr;
@@ -219,16 +224,57 @@ bool isPortOccupied(const int &port)
     }
     
     return isOccupied;
+
+#elif defined(Q_OS_LINUX)
+    // Linux 平台：使用 socket 系统 API 检测端口占用
+    // 创建 TCP socket
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        std::cerr << "[PortDetect] Failed to create socket: " << strerror(errno) << std::endl;
+        return true;
+    }
+    
+    // 设置 SO_REUSEADDR 选项，允许端口重用
+    int opt = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    
+    // 尝试绑定端口
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    
+    bool isOccupied = false;
+    if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        if (errno == EADDRINUSE) {
+            isOccupied = true;
+            std::clog << "[PortDetect] Port " << port << " is in use (EADDRINUSE)" << std::endl;
+        } else {
+            std::cerr << "[PortDetect] bind() failed: " << strerror(errno) << std::endl;
+            isOccupied = true;  // 其他错误也认为端口不可用
+        }
+    } else {
+        std::clog << "[PortDetect] Port " << port << " is available" << std::endl;
+    }
+    
+    // 关闭 socket
+    close(sockfd);
+    
+    return isOccupied;
+
 #else
-    // 非Windows平台，使用 Qt 的方式检测
+    // 其他平台：使用 Qt 通用方式检测
     QTcpServer server;
     bool isOccupied = !server.listen(QHostAddress::LocalHost, port);
     if (!isOccupied) {
         server.close();
+        std::clog << "[PortDetect] Port " << port << " is available" << std::endl;
+    } else {
+        std::clog << "[PortDetect] Port " << port << " is in use" << std::endl;
     }
     return isOccupied;
 #endif
-
 }
 
 // =================== Base32 编码/解码相关函数 ===================
