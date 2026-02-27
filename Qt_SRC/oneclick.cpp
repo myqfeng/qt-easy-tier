@@ -526,14 +526,18 @@ void OneClick::onHostStartClicked() {
         std::clog << "密码(原始): " << m_currentPassword.toStdString() << std::endl;
         std::clog << "RPC端口: " << m_currentRpcPort << std::endl;
 
-        // 准备程序路径
+        // 准备程序路径（根据平台设置）
         QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
+#ifdef Q_OS_WIN
         QString easytierPath = appDir + "/easytier-core.exe";
+#else
+        QString easytierPath = appDir + "/easytier-core";
+#endif
 
         // 检查程序是否存在
         QFileInfo fileInfo(easytierPath);
         if (!fileInfo.exists()) {
-            throw std::runtime_error("无法找到EasyTier-core");
+            throw std::runtime_error("无法找到EasyTier核心程序");
         }
 
         // 显示联机码
@@ -626,14 +630,18 @@ void OneClick::onGuestStartClicked() {
     showProcessDialog(tr("启动EasyTier中..."));
 
     try {
-        // 准备程序路径
+        // 准备程序路径（根据平台设置）
         QString appDir = QCoreApplication::applicationDirPath() + "/etcore";
+#ifdef Q_OS_WIN
         QString easytierPath = appDir + "/easytier-core.exe";
+#else
+        QString easytierPath = appDir + "/easytier-core";
+#endif
 
         // 检查程序是否存在
         QFileInfo fileInfo(easytierPath);
         if (!fileInfo.exists()) {
-            throw std::runtime_error("无法找到EasyTier-core");
+            throw std::runtime_error("无法找到EasyTier核心程序");
         }
 
         // 构造房客启动参数

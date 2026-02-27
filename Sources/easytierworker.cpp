@@ -50,7 +50,13 @@ void EasyTierWorker::startEasyTier(const QString& networkName, const QStringList
     // 保存配置
     m_appDir = appDir;
     m_rpcPort = rpcPort;
+    
+    // 根据平台设置 CLI 路径
+#ifdef Q_OS_WIN
     m_cliPath = appDir + "/easytier-cli.exe";
+#else
+    m_cliPath = appDir + "/easytier-cli";
+#endif
 
     // 初始化日志文件
     QString logNetworkName = networkName;

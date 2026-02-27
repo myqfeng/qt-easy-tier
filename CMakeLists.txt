@@ -43,7 +43,7 @@ add_subdirectory(CDIRCalculator)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Windows系统下自动生成rc文件并嵌入manifest
-if(WIN32)  # 改为判断Windows系统，而非MinGW编译器
+if(WIN32)
     # 1. 定义manifest文件的绝对路径
     set(MANIFEST_FILE "${CMAKE_SOURCE_DIR}/assets/app.manifest")
 
@@ -56,7 +56,7 @@ if(WIN32)  # 改为判断Windows系统，而非MinGW编译器
     set(GENERATED_RC_FILE "${CMAKE_BINARY_DIR}/auto_generated.rc")
     file(WRITE ${GENERATED_RC_FILE}
             "1 24 \"${MANIFEST_FILE}\""  # 直接写入rc文件的核心内容
-            "IDI_ICON1 ICON \"${CMAKE_SOURCE_DIR}/Qt_QRC/icon.ico\""  # 添加图标
+            "IDI_ICON3 ICON \"${CMAKE_SOURCE_DIR}/Qt_QRC/icon.ico\""  # 添加图标
     )
 
     # 4. 将自动生成的rc文件标记为CMAKE的源文件（避免IDE警告）
@@ -89,19 +89,22 @@ target_compile_definitions(${ProjectName} PRIVATE
 # 链接Qt库
 target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Network)
 
-# 链接Win API相关库
+# 链接平台特定库
 if(WIN32)
-target_link_libraries(${ProjectName} PRIVATE iphlpapi ws2_32)
-elseif(LINUX)
-# target_link_libraries(${ProjectName} PRIVATE iphlpapi ws2_32)
+    # Windows IP Helper API 和 Socket 库
+    target_link_libraries(${ProjectName} PRIVATE iphlpapi ws2_32)
 endif()
-# 设置目标属性，包括Bundle ID、版本号、短版本号、是否为Bundle、是否为Win32可执行文件
-set_target_properties(${ProjectName} PROPERTIES
-        ${BUNDLE_ID_OPTION}
-        WIN32_EXECUTABLE true
-)
+# Linux 平台不需要链接额外的系统库
 
-# Windows下复制相关文件
+# 设置目标属性
+if(WIN32)
+    set_target_properties(${ProjectName} PROPERTIES
+            ${BUNDLE_ID_OPTION}
+            WIN32_EXECUTABLE true
+    )
+endif()
+
+# 复制平台特定文件到构建目录
 if(WIN32)
     set(WINDEPLOYQT_EXECUTABLE "windeployqt.exe")
 
@@ -120,15 +123,31 @@ if(WIN32)
             $<TARGET_FILE_DIR:${ProjectName}>/etcore
             COMMENT "复制EasyTier 到 ${ProjectName} 目录..."
     )
-
-    # 复制公共节点列表信息
+elseif(LINUX)
+    # 复制EasyTier Linux版本到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_SOURCE_DIR}/assets/publicserver.json
-            $<TARGET_FILE_DIR:${ProjectName}>/publicserver.json
-            COMMENT "复制公共服务器列表到 ${ProjectName} 目录..."
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/linux
+            $<TARGET_FILE_DIR:${ProjectName}>/etcore
+            COMMENT "复制EasyTier Linux 到 ${ProjectName} 目录..."
+    )
+
+    # 设置可执行权限
+    add_custom_command(TARGET ${ProjectName} POST_BUILD
+            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/etcore/easytier-core
+            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/etcore/easytier-cli
+            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/etcore/easytier-web-embed
+            COMMENT "设置 EasyTier 可执行权限..."
     )
 endif()
+
+# 复制公共节点列表信息
+add_custom_command(TARGET ${ProjectName} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/assets/publicserver.json
+        $<TARGET_FILE_DIR:${ProjectName}>/publicserver.json
+        COMMENT "复制公共服务器列表到 ${ProjectName} 目录..."
+)
 
 # 复制CIDR计算器到主程序目录
 add_custom_command(TARGET ${ProjectName} POST_BUILD
@@ -193,6 +212,50 @@ if(WIN32)
                 \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore\"
         )
     ")
+elseif(LINUX)
+    # 安装EasyTier目录
+    install(CODE "
+        message(STATUS \"部署EasyTier Linux...\")
+        execute_process(
+            COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
+                \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/linux\"
+                \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore\"
+        )
+    ")
+
+    # 设置可执行权限
+    install(CODE "
+        message(STATUS \"设置EasyTier可执行权限...\")
+        execute_process(
+            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore/easytier-core\"
+        )
+        execute_process(
+            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore/easytier-cli\"
+        )
+        execute_process(
+            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore/easytier-web-embed\"
+        )
+    ")
+
+    # 可选：尝试使用 linuxdeployqt 进行部署（如果可用）
+    find_program(LINUXDEPLOYQT_EXECUTABLE linuxdeployqt)
+    if(LINUXDEPLOYQT_EXECUTABLE)
+        install(CODE "
+            message(STATUS \"使用linuxdeployqt部署Qt运行时...\")
+            execute_process(
+                COMMAND \"${LINUXDEPLOYQT_EXECUTABLE}\"
+                    \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${ProjectName}\"
+                    -bundle-non-qt-libs
+                WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
+                RESULT_VARIABLE deploy_result
+            )
+            if(NOT deploy_result EQUAL 0)
+                message(WARNING \"linuxdeployqt执行失败，返回码: \${deploy_result}\")
+            endif()
+        ")
+    else()
+        message(STATUS "未找到linuxdeployqt工具，跳过自动部署。请确保目标系统已安装Qt运行时。")
+    endif()
 endif()
 
 # 安装时复制公共服务器列表
