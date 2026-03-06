@@ -71,11 +71,8 @@ public slots:
     /// @brief 启动EasyTier进程
     /// @param networkName 网络名称，用于日志文件命名
     /// @param arguments 启动参数列表
-    /// @param appDir 应用程序目录
-    /// @param easytierPath EasyTier可执行文件路径
     /// @param rpcPort RPC端口号
-    void startEasyTier(const QString& networkName, const QStringList& arguments,
-                       const QString& appDir, const QString& easytierPath, const int &rpcPort);
+    void startEasyTier(const QString& networkName, const QStringList& arguments, const int &rpcPort);
 
     /// @brief 停止EasyTier进程
     void stopEasyTier();
@@ -167,9 +164,6 @@ private:
 
     // 应用程序目录
     QString m_appDir;
-
-    // CLI路径
-    QString m_cliPath;
 
     // 日志文件相关
     QFile* m_logFile = nullptr;

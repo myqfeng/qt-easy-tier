@@ -130,9 +130,8 @@ public:
     static WebConsoleConfig getWebConsoleConfig();
 
     /// @brief 检测软件版本
-    /// @param isFromInternal 是否来自内部调用
-    /// @warning 外部调用时，检测完成后会自动 delete 该 setting 对象，无需再次释放
-    void detectSoftwareVersion(bool isFromInternal = false);
+    /// @param parent 父窗口指针
+    static void detectSoftwareVersion(QWidget *parent = nullptr);
 
     /// @brief 获取自动回连状态
     [[nodiscard]] bool isAutoRun() const { return m_autoRun; }
@@ -197,8 +196,6 @@ private slots:
     void onWebVersionReady(const QString &version);
     void onVersionDetectionFinished();
 
-    // === 网络更新检查 ===
-    void onNetworkReplyFinished(bool isFromInternal);
 
 private:
     // === 初始化相关 ===
@@ -245,10 +242,6 @@ private:
     QThread *m_versionThread = nullptr;
     VersionDetectionWorker *m_versionWorker = nullptr;
     bool m_versionDetecting = false; // 防止重复检测
-
-    // === 网络更新检查相关 ===
-    QNetworkAccessManager *m_networkManager = nullptr;
-    QNetworkReply *m_currentReply = nullptr;
 };
 
 #endif // SETTING_H

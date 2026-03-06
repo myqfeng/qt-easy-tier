@@ -3,6 +3,7 @@
 #include "generateconf.h"
 #include "easytierworker.h"
 #include "publicserver.h"
+#include "setting.h"
 
 #include <QScrollArea>
 #include <QLabel>
@@ -1073,6 +1074,11 @@ int NetPage::getRpcPort() const
     return ok ? port : 0; // 如果转换失败，返回默认值0
 }
 
+bool NetPage::isAutoRpcEnabled() const
+{
+    return m_autoRpcCheckBox && m_autoRpcCheckBox->isChecked();
+}
+
 void NetPage::onRpcPortTextChanged(const QString &text)
 {
     // 实时验证端口号输入
@@ -1286,14 +1292,6 @@ void NetPage::onRunNetwork()
     cleanupTempConfigFile();
     m_logTextEdit->appendPlainText(tr("正在启动EasyTier网络..."));
 
-    // 准备EasyTier程序
-    QString appDir, easytierPath;
-    if (!prepareEasyTierProgram(appDir, easytierPath)) {
-        closeProcessDialog();
-        updateUIState(false);
-        return;
-    }
-
     try {
         QStringList arguments;
         QString networkName = getNetworkName();
@@ -1304,36 +1302,33 @@ void NetPage::onRunNetwork()
             m_logTextEdit->appendPlainText(tr("启动模式: Web 控制台管理"));
 
             // 获取连接地址
-            QString webArg;
-            if (ui->connectToLocalBox->isChecked()) {
-                // 连接到本地控制台
-                const Settings::WebConsoleConfig webConfig = Settings::getWebConsoleConfig();
-                QString protocol = webConfig.getConfigProtocolString();
-                webArg = QString("%1://127.0.0.1:%2/admin").arg(protocol).arg(webConfig.configPort);
-            } else if (m_webConnectAddrEdit && !m_webConnectAddrEdit->text().isEmpty()) {
-                // 使用自定义连接地址
-                webArg = m_webConnectAddrEdit->text().trimmed();
-            } else {
-                closeProcessDialog();
-                m_logTextEdit->appendPlainText(tr("错误: 未指定Web控制台连接地址"));
-                QMessageBox::warning(this, tr("警告"), tr("请输入Web控制台连接地址或勾选连接到本地控制台"));
-                updateUIState(false);
-                return;
+            QString webConnectAddr;
+            const bool &connectToLocal = ui->connectToLocalBox->isChecked();
+
+            if (!connectToLocal && m_webConnectAddrEdit) {
+                webConnectAddr = m_webConnectAddrEdit->text().trimmed();
+                if (webConnectAddr.isEmpty()) {
+                    closeProcessDialog();
+                    m_logTextEdit->appendPlainText(tr("错误: 未指定Web控制台连接地址"));
+                    QMessageBox::warning(this, tr("警告"), tr("请输入Web控制台连接地址或勾选连接到本地控制台"));
+                    updateUIState(false);
+                    return;
+                }
             }
-            arguments << "-w" << webArg;
-            // Web 控制台管理模式不需要 CLI 监测
-            realRpcPort = NO_USE_CLI;
+
+            // 获取本地控制台配置
+            const Settings::WebConsoleConfig webConfig = Settings::getWebConsoleConfig();
+            arguments = generateConfWeb(this, webConnectAddr, connectToLocal,
+                                        webConfig.configPort, webConfig.getConfigProtocolString());
             break;
         }
         case StartMode::ConfigFile: {
             // 配置文件启动模式
             m_logTextEdit->appendPlainText(tr("启动模式: 配置文件启动"));
 
-            // 准备配置文件路径
-            QString configFilePath;
             if (m_configSource == ConfigSource::SelectFile) {
                 // 选择文件模式：直接使用所选文件
-                configFilePath = m_configFilePathEdit->text().trimmed();
+                QString configFilePath = m_configFilePathEdit->text().trimmed();
                 if (configFilePath.isEmpty()) {
                     closeProcessDialog();
                     m_logTextEdit->appendPlainText(tr("错误: 未选择配置文件"));
@@ -1348,52 +1343,21 @@ void NetPage::onRunNetwork()
                     updateUIState(false);
                     return;
                 }
+                arguments = generateConfFile(this, configFilePath);
             } else {
-                // 下方输入模式：创建临时配置文件
-                if (!createTempConfigFile(networkName.isEmpty() ? "default" : networkName)) {
-                    closeProcessDialog();
-                    m_logTextEdit->appendPlainText(tr("错误: 创建临时配置文件失败"));
-                    QMessageBox::warning(this, tr("警告"), tr("创建临时配置文件失败"));
-                    updateUIState(false);
-                    return;
-                }
-                configFilePath = m_tempConfigFilePath;
-            }
-
-            arguments << "-c" << configFilePath;
-
-            // 处理 RPC 端口配置（与常规启动逻辑一致）
-            const int &rpcPort = getRpcPort();  // 从 m_rpcPortEdit 获取值
-            if (rpcPort != 0 && !m_autoRpcCheckBox->isChecked()) {
-                // 用户指定端口，检查是否被占用
-                if (isPortOccupied(rpcPort)) {
-                    closeProcessDialog();
-                    m_logTextEdit->appendPlainText(tr("错误: RPC 端口 %1 已被占用").arg(rpcPort));
-                    QMessageBox::warning(this, tr("警告"), tr("RPC 端口 %1 已被占用，请更换端口").arg(rpcPort));
-                    updateUIState(false);
-                    return;
-                }
-                realRpcPort = rpcPort;
-                arguments << "--rpc-portal" << QString::number(rpcPort);
-                m_logTextEdit->appendPlainText(tr("RPC 端口: %1 (手动配置)").arg(rpcPort));
-            } else {
-                // 自动分配端口，循环找到一个未被占用的端口
-                for (int i = 10000; i < 50000; i++) {
-                    int port = getRandomPort();
-                    if (!isPortOccupied(port)) {
-                        realRpcPort = port;
-                        arguments << "--rpc-portal" << QString::number(port);
-                        m_logTextEdit->appendPlainText(tr("RPC 端口: %1 (自动分配)").arg(port));
-                        break;
+                // 下方输入模式
+                QString configContent;
+                if (m_configTextEdit) {
+                    configContent = m_configTextEdit->toPlainText();
+                    if (configContent.trimmed().isEmpty()) {
+                        closeProcessDialog();
+                        m_logTextEdit->appendPlainText(tr("错误: 配置内容为空"));
+                        QMessageBox::warning(this, tr("警告"), tr("配置内容为空"));
+                        updateUIState(false);
+                        return;
                     }
                 }
-                if (realRpcPort == 0) {
-                    closeProcessDialog();
-                    m_logTextEdit->appendPlainText(tr("错误: 无法找到可用的 RPC 端口"));
-                    QMessageBox::warning(this, tr("警告"), tr("无法找到可用的 RPC 端口"));
-                    updateUIState(false);
-                    return;
-                }
+                arguments = generateConfFile(this, configContent, m_tempConfigFilePath);
             }
             break;
         }
@@ -1412,8 +1376,6 @@ void NetPage::onRunNetwork()
                                   Qt::QueuedConnection,
                                   Q_ARG(QString, networkName),
                                   Q_ARG(QStringList, arguments),
-                                  Q_ARG(QString, appDir),
-                                  Q_ARG(QString, easytierPath),
                                   Q_ARG(int, realRpcPort));
 
     } catch (const std::exception& e) {
@@ -1440,21 +1402,6 @@ void NetPage::onStopNetwork()
 
     // 通过信号槽调用Worker的stopEasyTier方法
     QMetaObject::invokeMethod(m_worker, "stopEasyTier", Qt::QueuedConnection);
-}
-
-// 检查并准备EasyTier程序
-bool NetPage::prepareEasyTierProgram(QString& appDir, QString& easytierPath)
-{
-    appDir = QCoreApplication::applicationDirPath() + "/etcore";
-    easytierPath = appDir + "/easytier-core.exe";
-
-    QFileInfo fileInfo(easytierPath);
-    if (!fileInfo.exists()) {
-        m_logTextEdit->appendPlainText(QString("错误: 找不到 %1").arg(easytierPath));
-        QMessageBox::critical(this, tr("错误"), tr("找不到EasyTier程序"));
-        return false;
-    }
-    return true;
 }
 
 // 检查是否正在运行
@@ -1708,34 +1655,7 @@ void NetPage::onOpenLogFileClicked()
 // 开机自启动方法 - 重构版本
 void NetPage::runNetworkOnAutoStart()
 {
-    m_logTextEdit->clear();
-    m_logTextEdit->appendPlainText(tr("正在启动EasyTier网络（自启动）..."));
-
-    // 准备EasyTier程序
-    QString appDir, easytierPath;
-    if (!prepareEasyTierProgram(appDir, easytierPath)) {
-        updateUIState(false);
-        return;
-    }
-
-    try {
-        QStringList arguments = generateConfCommand(this);
-
-        m_logTextEdit->appendPlainText(tr("启动参数: %1").arg(arguments.join(" ")));
-
-        // 通过信号槽调用Worker的startEasyTier方法
-        QMetaObject::invokeMethod(m_worker, "startEasyTier",
-                                  Qt::QueuedConnection,
-                                  Q_ARG(QString, getNetworkName()),
-                                  Q_ARG(QStringList, arguments),
-                                  Q_ARG(QString, appDir),
-                                  Q_ARG(QString, easytierPath),
-                                  Q_ARG(int, realRpcPort));
-
-    } catch (const std::exception& e) {
-        m_logTextEdit->appendPlainText(tr("启动异常: %1").arg(e.what()));
-        updateUIState(false);
-    }
+    onRunNetwork();
 }
 
 
@@ -2288,11 +2208,12 @@ void NetPage::onConfigTextChanged()
     int lineSpacing = fm.lineSpacing();
     int lineCount = m_configTextEdit->document()->lineCount();
     // 文档内容高度 + 边距
-    int docHeight = lineCount * lineSpacing + 50;
+    int docHeight = lineCount * lineSpacing + 60;
     // 设置最小高度，确保足够显示内容
     m_configTextEdit->setMinimumHeight(qMax(150, docHeight));
 }
 
+// 更新启动方式相关的 UI 状态
 void NetPage::updateStartModeState()
 {
     // 根据当前启动方式更新 UI 状态

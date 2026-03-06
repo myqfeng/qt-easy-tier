@@ -24,9 +24,9 @@
 #include <QJsonDocument>  // 添加JSON文档支持
 #include <QJsonObject>    // 添加JSON对象支持
 #include <QJsonArray>     // 添加JSON数组支持
-#include <QStandardPaths> // 添加标准路径支持
+#include <QStandardPaths> // 添加标准路径支持1
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(QWidget *parent, bool isAutoStart)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
@@ -132,6 +132,11 @@ MainWindow::MainWindow(QWidget *parent)
     int deletedCount = Settings::cleanupOldLogs();
     if (deletedCount > 0) {
         std::clog << "已清理 " << deletedCount << " 个过期日志文件" << std::endl;
+    }
+
+    if (isAutoStart)
+    {
+        hide();
     }
 }
 
@@ -551,17 +556,8 @@ void MainWindow::loadConfig() {
         donateWindow->exec();
         donateWindow->deleteLater();
     }
-
-    // 自启检查更新
-    if (tempSettings->isAutoUpdate())
-    {
-        tempSettings->detectSoftwareVersion();
-    }
-    
-    // 检测完成后删除临时 setting 对象
-    connect(tempSettings, &Settings::finishDetectUpdate, this, [tempSettings]() {
-        if (tempSettings) tempSettings->deleteLater();
-    });
+    ///if ()
+    Settings::detectSoftwareVersion(this);
 }
 
 // 保存网络配置
@@ -609,7 +605,7 @@ void MainWindow::saveNetworkConfig() {
     file.close();
 }
 
-// ============================系统托盘相关=============================
+// ============================系统托盘与主界面显示/关闭相关=============================
 
 // 重写关闭事件，使窗口隐藏到系统托盘而不是退出
 void MainWindow::closeEvent(QCloseEvent *event)

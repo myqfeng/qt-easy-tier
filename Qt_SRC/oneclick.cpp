@@ -229,7 +229,8 @@ void OneClick::stopCurrentProcess() {
 void OneClick::updateInterfaceState(UserRole role) {
     m_currentRole = role;
 
-    switch (role) {
+    switch (role)
+    {
     case UserRole::None:
         m_hostStartBtn->setText(tr("开始联机"));
         m_hostStartBtn->setStyleSheet("");
@@ -262,13 +263,10 @@ void OneClick::updateInterfaceState(UserRole role) {
         m_hostStartBtn->setEnabled(true);
         break;
 
-    case UserRole::HostStopping:
+    case UserRole::Stopping:
         m_hostStartBtn->setText(tr("停止中..."));
         m_hostStartBtn->setStyleSheet("color: orange; font-weight: bold;");
         m_hostStartBtn->setEnabled(false);
-        break;
-
-    case UserRole::GuestStopping:
         m_guestStartBtn->setText(tr("停止中..."));
         m_guestStartBtn->setStyleSheet("color: orange; font-weight: bold;");
         m_guestStartBtn->setEnabled(false);
@@ -280,8 +278,8 @@ void OneClick::updateInterfaceState(UserRole role) {
 bool OneClick::canSwitchToTab(int tabIndex) {
     // 如果当前没有运行任何角色或正在停止中，允许切换（停止中会自动切换回来）
     if (m_currentRole == UserRole::None || 
-        m_currentRole == UserRole::HostStopping ||
-        m_currentRole == UserRole::GuestStopping) {
+        m_currentRole == UserRole::Stopping ||
+        m_currentRole == UserRole::Stopping) {
         return true;
     }
 
@@ -477,13 +475,13 @@ void OneClick::onHostStartClicked() {
     }
 
     // 如果当前是房客正在运行，不允许切换
-    if (m_currentRole == UserRole::Guest || m_currentRole == UserRole::GuestStopping) {
+    if (m_currentRole == UserRole::Guest || m_currentRole == UserRole::Stopping) {
         QMessageBox::warning(this, tr("警告"), tr("当前正在以房客身份运行，无法切换到房主模式。\n请先停止房客运行。"));
         return;
     }
 
     // 如果正在停止中，不允许启动
-    if (m_currentRole == UserRole::HostStopping) {
+    if (m_currentRole == UserRole::Stopping) {
         return;
     }
 
@@ -586,13 +584,13 @@ void OneClick::onGuestStartClicked() {
     }
 
     // 如果当前是房主正在运行，不允许切换
-    if (m_currentRole == UserRole::Host || m_currentRole == UserRole::HostStopping) {
+    if (m_currentRole == UserRole::Host || m_currentRole == UserRole::Stopping) {
         QMessageBox::warning(this, tr("警告"), tr("当前正在以房主身份运行，无法切换到房客模式。\n请先停止房主运行。"));
         return;
     }
 
     // 如果正在停止中，不允许启动
-    if (m_currentRole == UserRole::GuestStopping) {
+    if (m_currentRole == UserRole::Stopping) {
         return;
     }
 

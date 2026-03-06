@@ -27,7 +27,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(QWidget *parent = nullptr, bool isAutoStart = false);
     ~MainWindow();
 
     // 网络配置管理
@@ -70,7 +70,6 @@ private:
 
     // Web控制台
     WebDashboardWorker *m_webWorker = nullptr;
-
 
     void _changeWidget(QWidget *newWidget);
     void setupContextMenu();

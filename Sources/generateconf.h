@@ -15,13 +15,53 @@
 
 // 前向声明
 class NetPage;
+class Settings;
 
 /**
- * @brief: 生成EasyTier配置参数
+ * @brief: 启动方式枚举类
+ */
+enum class StartMode {
+    Normal,         // 常规管理（默认）
+    WebConsole,     // Web 控制台管理
+    ConfigFile      // 配置文件启动
+};
+
+/**
+ * @brief: 生成EasyTier配置参数（常规启动）
  * @param netPage: 网络设置页面指针
- * @return: EasyTier配置参数字符串
+ * @return: EasyTier配置参数字符串列表
  */
 QStringList generateConfCommand(NetPage *netPage);
+
+/**
+ * @brief: 生成EasyTier配置参数（配置文件启动 - 选择文件模式）
+ * @param netPage: 网络设置页面指针
+ * @param configFilePath: 配置文件路径
+ * @return: EasyTier配置参数字符串列表
+ */
+QStringList generateConfFile(NetPage *netPage, const QString& configFilePath);
+
+/**
+ * @brief: 生成EasyTier配置参数（配置文件启动 - 下方输入模式）
+ * @param netPage: 网络设置页面指针
+ * @param configContent: 配置文件内容
+ * @param tempConfigFilePath: 输出参数，临时配置文件路径
+ * @return: EasyTier配置参数字符串列表
+ */
+QStringList generateConfFile(NetPage *netPage, const QString& configContent, QString& tempConfigFilePath);
+
+/**
+ * @brief: 生成EasyTier配置参数（Web管理启动）
+ * @param netPage: 网络设置页面指针
+ * @param webConnectAddr: Web控制台连接地址
+ * @param connectToLocal: 是否连接到本地控制台
+ * @param localConfigPort: 本地控制台配置端口（仅当 connectToLocal 为 true 时使用）
+ * @param localConfigProtocol: 本地控制台配置协议（仅当 connectToLocal 为 true 时使用）
+ * @return: EasyTier配置参数字符串列表
+ */
+QStringList generateConfWeb(NetPage *netPage, const QString& webConnectAddr,
+                            bool connectToLocal, int localConfigPort = 55668,
+                            const QString& localConfigProtocol = "udp");
 
 /// @brief: 检测端口是否被占用
 /// @param port: 端口号
