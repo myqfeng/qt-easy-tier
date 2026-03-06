@@ -2,6 +2,7 @@
 #define NETPAGE_H
 
 #include "easytierworker.h"
+#include "generateconf.h"  // 包含 StartMode 枚举定义
 
 #include <QGroupBox>
 #include <QLineEdit>
@@ -27,20 +28,6 @@ QT_END_NAMESPACE
 
 // 前向声明
 class EasyTierWorker;
-
-/**
- * @brief 启动方式枚举类
- * 
- * 三种启动方式互不兼容：
- * - Normal: 常规管理，使用命令行参数启动
- * - WebConsole: Web 控制台管理
- * - ConfigFile: 通过 TOML 配置文件启动
- */
-enum class StartMode {
-    Normal,         // 常规管理（默认）
-    WebConsole,     // Web 控制台管理
-    ConfigFile      // 配置文件启动
-};
 
 /**
  * @brief 配置文件来源枚举类
@@ -105,6 +92,10 @@ public:
     bool isRelayNetworkWhitelistEnabled() const;
     // 获取RPC端口号
     int getRpcPort() const;
+
+    // =====================其他设置相关====================
+    // 是否自动配置RPC端口（配置文件模式）
+    bool isAutoRpcEnabled() const;
 
     // ===============配置保存和加载===============
     QJsonObject getNetworkConfig() const;  // 获取当前网络配置
@@ -321,8 +312,6 @@ private:
 
 // ============== 运行状态相关===============
 
-    // 检查并准备EasyTier程序
-    bool prepareEasyTierProgram(QString& appDir, QString& easytierPath);
     // 更新UI状态
     void updateUIState(bool isRunning);
     // 显示启动过程对话框（无限进度条）

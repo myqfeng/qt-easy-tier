@@ -14,6 +14,7 @@
 #include <QJsonObject>
 #include <QStandardPaths>
 #include <QApplication>
+#include <QDir>
 
 #ifdef Q_OS_WIN
 // Windows 平台特定头文件
@@ -38,11 +39,150 @@ int getRandomPort()
     return dis(gen);
 }
 
-// @brief: 生成EasyTier配置文件
-// @param netPage: 网络配置页面指针
-// @return: 生成的EasyTier配置参数Qt字符串
-//
-// @note: 该函数生成的是配置参数字符串，须在运行core时添加到命令行参数中
+/**
+ * @brief: 生成EasyTier配置参数（配置文件启动 - 选择文件模式）
+ * @param netPage: 网络配置页面指针
+ * @param configFilePath: 配置文件路径
+ * @return: 生成的EasyTier配置参数Qt字符串列表
+ * @note: 该函数生成的是配置参数字符串，须在运行core时添加到命令行参数中
+ */
+QStringList generateConfFile(NetPage *netPage, const QString& configFilePath)
+{
+    QStringList conf;
+
+    // 选择文件模式：直接使用所选文件
+    conf << "-c" << configFilePath;
+
+    // 处理 RPC 端口配置
+    const int rpcPort = netPage->getRpcPort();
+    const bool autoRpc = netPage->isAutoRpcEnabled();
+
+    if (rpcPort != 0 && !autoRpc) {
+        // 用户指定端口，检查是否被占用
+        if (isPortOccupied(rpcPort)) {
+            throw std::runtime_error(QString("RPC 端口 %1 已被占用").arg(rpcPort).toStdString());
+        }
+        netPage->realRpcPort = rpcPort;
+        conf << "--rpc-portal" << QString::number(rpcPort);
+    } else {
+        // 自动分配端口
+        for (int i = 0; i < 100; ++i) {
+            int port = getRandomPort();
+            if (!isPortOccupied(port)) {
+                netPage->realRpcPort = port;
+                conf << "--rpc-portal" << QString::number(port);
+                break;
+            }
+        }
+        if (netPage->realRpcPort == 0) {
+            throw std::runtime_error("无法找到可用的 RPC 端口");
+        }
+    }
+
+    return conf;
+}
+
+/**
+ * @brief: 生成EasyTier配置参数（配置文件启动 - 下方输入模式）
+ * @param netPage: 网络设置页面指针
+ * @param configContent: 配置文件内容
+ * @param tempConfigFilePath: 输出参数，临时配置文件路径
+ * @return: 生成的EasyTier配置参数Qt字符串列表
+ * @note: 该函数生成的是配置参数字符串，须在运行core时添加到命令行参数中
+ */
+QStringList generateConfFile(NetPage *netPage, const QString& configContent, QString& tempConfigFilePath)
+{
+    QStringList conf;
+
+    // 下方输入模式：创建临时配置文件
+    QString networkName = netPage->getNetworkName();
+    QString base32Name = base32Encode(networkName.isEmpty() ? "default" : networkName.toUtf8());
+    QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    tempConfigFilePath = QString("%1/QtEasyTier_%2.toml").arg(tempDir, base32Name);
+
+    // 写入临时配置文件
+    QFile tempFile(tempConfigFilePath);
+    if (!tempFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        throw std::runtime_error(QString("无法创建临时配置文件: %1").arg(tempFile.errorString()).toStdString());
+    }
+    tempFile.write(configContent.toUtf8());
+    tempFile.close();
+
+    conf << "-c" << tempConfigFilePath;
+
+    // 处理 RPC 端口配置
+    const int rpcPort = netPage->getRpcPort();
+    const bool autoRpc = netPage->isAutoRpcEnabled();
+
+    if (rpcPort != 0 && !autoRpc) {
+        // 用户指定端口，检查是否被占用
+        if (isPortOccupied(rpcPort)) {
+            throw std::runtime_error(QString("RPC 端口 %1 已被占用").arg(rpcPort).toStdString());
+        }
+        netPage->realRpcPort = rpcPort;
+        conf << "--rpc-portal" << QString::number(rpcPort);
+    } else {
+        // 自动分配端口
+        for (int i = 0; i < 100; ++i) {
+            int port = getRandomPort();
+            if (!isPortOccupied(port)) {
+                netPage->realRpcPort = port;
+                conf << "--rpc-portal" << QString::number(port);
+                break;
+            }
+        }
+        if (netPage->realRpcPort == 0) {
+            throw std::runtime_error("无法找到可用的 RPC 端口");
+        }
+    }
+
+    return conf;
+}
+
+/**
+ * @brief: 生成EasyTier配置参数（Web管理启动）
+ * @param netPage: 网络配置页面指针
+ * @param webConnectAddr: Web控制台连接地址
+ * @param connectToLocal: 是否连接到本地控制台
+ * @param localConfigPort: 本地控制台配置端口（仅当 connectToLocal 为 true 时使用）
+ * @param localConfigProtocol: 本地控制台配置协议（仅当 connectToLocal 为 true 时使用）
+ * @return: 生成的EasyTier配置参数Qt字符串列表
+ * @note: 该函数生成的是配置参数字符串，须在运行core时添加到命令行参数中
+ */
+QStringList generateConfWeb(NetPage *netPage, const QString& webConnectAddr,
+                            bool connectToLocal, int localConfigPort,
+                            const QString& localConfigProtocol)
+{
+    Q_UNUSED(netPage)  // Web 模式下暂不需要 netPage 的配置
+
+    QStringList conf;
+
+    // 构建 Web 控制台连接参数
+    QString webArg;
+    if (connectToLocal) {
+        // 连接到本地控制台
+        webArg = QString("%1://127.0.0.1:%2/admin").arg(localConfigProtocol).arg(localConfigPort);
+    } else {
+        // 使用自定义连接地址
+        if (webConnectAddr.isEmpty()) {
+            throw std::runtime_error("未指定 Web 控制台连接地址");
+        }
+        webArg = webConnectAddr.trimmed();
+    }
+
+    conf << "-w" << webArg;
+
+    // Web 控制台管理模式不需要 CLI 监测，设置特殊的 RPC 端口值
+    netPage->realRpcPort = NO_USE_CLI;
+
+    return conf;
+}
+
+/** @brief: 生成EasyTier配置文件(常规启动)
+ *  @param netPage: 网络配置页面指针
+ *  @return: 生成的EasyTier配置参数Qt字符串
+ *  @note: 该函数生成的是配置参数字符串，须在运行core时添加到命令行参数中
+ */
 QStringList generateConfCommand(NetPage *netPage)
 {
     QStringList conf;

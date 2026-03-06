@@ -35,17 +35,15 @@ int main(int argc, char *argv[])
 
     MainWindow w;
 
-    bool autoStart = false;
+
     for (int i = 0; i < argc; ++i) {
         if (QString(argv[i]) == "--auto-start") {
-            autoStart = true;
+
             break;
         }
     }
 
-    if (!autoStart) {
-        w.show();
-    }
+    w.show();
 
     return app.exec();
 }

@@ -196,9 +196,6 @@ Settings::Settings(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // 初始化网络管理器（作为 Settings 的子对象，随 Settings 一起销毁）
-    m_networkManager = new QNetworkAccessManager(this);
-
     // 加载设置
     loadSettings();
 
@@ -218,13 +215,6 @@ Settings::Settings(QWidget *parent)
 
 Settings::~Settings()
 {
-    // 取消正在进行的网络请求
-    if (m_currentReply) {
-        m_currentReply->abort();
-        m_currentReply->deleteLater();
-        m_currentReply = nullptr;
-    }
-
     // 清理版本检测线程（确保线程安全退出）
     cleanupVersionThread();
 
@@ -433,7 +423,7 @@ void Settings::onOpenFolderButtonClicked()
 
 void Settings::onCheckUpdateButtonClicked()
 {
-    detectSoftwareVersion(true);
+    detectSoftwareVersion(this);
 }
 
 void Settings::onDialogAccepted()
@@ -501,76 +491,69 @@ void Settings::onDialogRejected()
 // 软件版本检测（网络请求）
 // =============================================================================
 
-void Settings::detectSoftwareVersion(bool isFromInternal)
+void Settings::detectSoftwareVersion(QWidget *parent)
 {
     const QUrl url("https://gitee.com/api/v5/repos/viagrahuang/qt-easy-tier/releases/latest");
 
-    // 取消之前的请求
-    if (m_currentReply) {
-        m_currentReply->abort();
-        m_currentReply->deleteLater();
-        m_currentReply = nullptr;
-    }
+    // 创建网络管理器，设置父对象以确保生命周期管理
+    QNetworkAccessManager *networkManager = new QNetworkAccessManager(parent);
+    QNetworkReply *reply = networkManager->get(QNetworkRequest(url));
+    reply->setParent(networkManager);
 
-    // 发送 GET 请求
-    m_currentReply = m_networkManager->get(QNetworkRequest(url));
+    // 设置超时定时器（5 秒）
+    QTimer *timeoutTimer = new QTimer(networkManager);
+    timeoutTimer->setSingleShot(true);
+    timeoutTimer->start(5000);
 
-    // 设置超时（5 秒）
-    QTimer::singleShot(5000, this, [this]() {
-        if (m_currentReply && m_currentReply->isRunning()) {
-            m_currentReply->abort();
+    // 超时处理：中止请求
+    QObject::connect(timeoutTimer, &QTimer::timeout, reply, &QNetworkReply::abort);
+
+    // 请求完成处理
+    QObject::connect(reply, &QNetworkReply::finished, parent, [networkManager, reply, timeoutTimer, parent]() {
+        // 停止并删除超时定时器
+        if (timeoutTimer) {
+            timeoutTimer->stop();
+            timeoutTimer->deleteLater();
         }
-    });
 
-    // 连接请求完成信号，传递 isFromInternal 参数
-    connect(m_currentReply, &QNetworkReply::finished, this, [this, isFromInternal]() {
-        onNetworkReplyFinished(isFromInternal);
-    });
-}
+        // 使用智能指针确保 reply 被正确释放
+        QScopedPointer<QNetworkReply, QScopedPointerDeleteLater> replyGuard(reply);
 
-void Settings::onNetworkReplyFinished(bool isFromInternal)
-{
-    if (!m_currentReply) {
-        return;
-    }
+        // 检查请求结果
+        if (reply->error() == QNetworkReply::NoError) {
+            // 解析 JSON 响应
+            QByteArray response = reply->readAll();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(response);
+            QJsonObject jsonObj = jsonDoc.object();
 
-    QNetworkReply *reply = m_currentReply;
-    m_currentReply = nullptr; // 清空指针，防止重复处理
+            QString latestVersion = jsonObj["tag_name"].toString();
 
-    // 使用智能指针确保资源清理
-    QScopedPointer<QNetworkReply, QScopedPointerDeleteLater> replyGuard(reply);
+            // 对比版本号（使用 PROJECT_VERSION 宏）
+            if (!latestVersion.isEmpty() && latestVersion != PROJECT_VERSION) {
+                QString msg = QString("发现新版本：%1\n当前版本：%2\n是否前往下载？")
+                              .arg(latestVersion).arg(PROJECT_VERSION);
 
-    if (reply->error() == QNetworkReply::NoError) {
-        // 解析 JSON 响应
-        QByteArray response = reply->readAll();
-        QJsonDocument jsonDoc = QJsonDocument::fromJson(response);
-        QJsonObject jsonObj = jsonDoc.object();
+                QMessageBox::StandardButton ret = QMessageBox::question(
+                    parent, "检查更新", msg, QMessageBox::Yes | QMessageBox::No);
 
-        QString latestVersion = jsonObj["tag_name"].toString();
-
-        // 对比版本号
-        if (!latestVersion.isEmpty() && latestVersion != m_softwareVer) {
-            QString msg = QString("发现新版本：%1\n当前版本：%2\n是否前往下载？")
-                          .arg(latestVersion).arg(m_softwareVer);
-
-            QMessageBox::StandardButton ret = QMessageBox::question(
-                this, "检查更新", msg, QMessageBox::Yes | QMessageBox::No);
-
-            if (ret == QMessageBox::Yes) {
-                QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
+                if (ret == QMessageBox::Yes) {
+                    QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
+                }
+            } else {
+                QMessageBox::information(parent, "检查更新", "当前已是最新版本！");
             }
-        } else if (isFromInternal) {
-            // 只有内部调用时才显示"已是最新"提示
-            QMessageBox::information(this, "检查更新", "当前已经是最新版本！");
+        } else if (reply->error() != QNetworkReply::OperationCanceledError) {
+            // 非超时错误才显示提示
+            QMessageBox::warning(parent, "检查更新", 
+                QString("网络请求失败：%1").arg(reply->errorString()));
+        } else {
+            // 超时提示
+            QMessageBox::warning(parent, "检查更新", "网络请求超时，请稍后重试！");
         }
-    } else if (reply->error() != QNetworkReply::OperationCanceledError) {
-        // 非取消操作才显示错误（且只在内部调用时显示）
-        if (isFromInternal) {
-            QMessageBox::warning(this, "检查更新", "检查更新失败：" + reply->errorString());
-        }
-    }
 
-    emit finishDetectUpdate();
+        // 删除网络管理器（会同时删除 reply，因为 reply 的父对象是 networkManager）
+        networkManager->deleteLater();
+    });
 }
 
 // =============================================================================
@@ -660,7 +643,7 @@ void Settings::saveSettings()
 void Settings::incrementLaunchCount()
 {
     // 启动次数计数（达到阈值后停止计数）
-    if (m_launchCount < DONATE_THRESHOLD) {
+    if (m_launchCount <= DONATE_THRESHOLD) {
         m_launchCount++;
         saveSettings();
     }
@@ -845,7 +828,8 @@ int Settings::cleanupOldLogs()
     // 日志文件名格式：yyyyMMdd_HHmmss_Base32编码的网络名.log
     QStringList logFiles = logDir.entryList(QStringList() << "*.log", QDir::Files);
     
-    for (const QString &fileName : logFiles) {
+    for (const QString &fileName : logFiles)
+    {
         // 提取文件名中的时间戳部分（前15个字符：yyyyMMdd_HHmmss）
         if (fileName.length() < 15) {
             continue;
@@ -862,7 +846,6 @@ int Settings::cleanupOldLogs()
             }
         }
     }
-    
     return deletedCount;
 }
 

@@ -36,8 +36,7 @@ bool EasyTierWorker::isRunning() const
            m_easytierProcess->state() == QProcess::Running;
 }
 
-void EasyTierWorker::startEasyTier(const QString& networkName, const QStringList& arguments,
-                                   const QString& appDir, const QString& easytierPath, const int &rpcPort)
+void EasyTierWorker::startEasyTier(const QString& networkName, const QStringList& arguments, const int &rpcPort)
 {
     // 如果进程已经在运行，先停止
     if (isRunning()) {
@@ -47,16 +46,24 @@ void EasyTierWorker::startEasyTier(const QString& networkName, const QStringList
 
     setProcessState(ProcessState::Starting);
 
-    // 保存配置
-    m_appDir = appDir;
-    m_rpcPort = rpcPort;
-    
-    // 根据平台设置 CLI 路径
+    // 内部检测并准备 EasyTier 程序路径
+    m_appDir = QCoreApplication::applicationDirPath() + "/etcore";
 #ifdef Q_OS_WIN
-    m_cliPath = appDir + "/easytier-cli.exe";
+    const QString &easytierPath = m_appDir + "/easytier-core.exe";
 #else
-    m_cliPath = appDir + "/easytier-cli";
+    const QString &easytierPath = m_appDir + "/easytier-core";
 #endif
+
+    // 检查程序是否存在
+    QFileInfo fileInfo(easytierPath);
+    if (!fileInfo.exists()) {
+        QString errorMsg = tr("错误: 找不到 %1").arg(easytierPath);
+        emit logOutput(errorMsg, true);
+        setProcessState(ProcessState::Stopped);
+        emit processStarted(false, errorMsg);
+        return;
+    }
+    m_rpcPort = rpcPort;
 
     // 初始化日志文件
     QString logNetworkName = networkName;
@@ -72,7 +79,7 @@ void EasyTierWorker::startEasyTier(const QString& networkName, const QStringList
 
     // 创建EasyTier进程
     m_easytierProcess = new QProcess(this);
-    m_easytierProcess->setWorkingDirectory(appDir);
+    m_easytierProcess->setWorkingDirectory(m_appDir);
 
     // 连接信号槽
     connect(m_easytierProcess, &QProcess::readyReadStandardOutput,
@@ -83,7 +90,12 @@ void EasyTierWorker::startEasyTier(const QString& networkName, const QStringList
             this, &EasyTierWorker::onEasyTierFinished);
 
     // 启动进程
+#ifdef Q_OS_WIN
     m_easytierProcess->start(easytierPath, arguments);
+#elif defined(Q_OS_LINUX)
+    const QStringList &tureArgs = QStringList(easytierPath) + arguments;
+    m_easytierProcess->start("pkexec", tureArgs);
+#endif
 
     // 等待进程启动
     if (!m_easytierProcess->waitForStarted(PROCESS_START_WAIT_MS)) {
@@ -271,9 +283,15 @@ void EasyTierWorker::onUpdatePeerInfo()
     }
 
     // 检查CLI程序是否存在
-    QFileInfo cliFileInfo(m_cliPath);
+#ifdef Q_OS_WIN
+    const QString &cliPath = m_appDir + "/easytier-cli.exe";
+#elif defined(Q_OS_LINUX)
+    const QString &cliPath = m_appDir + "/easytier-cli";
+#endif
+
+    QFileInfo cliFileInfo(cliPath);
     if (!cliFileInfo.exists()) {
-        emit logOutput(tr("错误: 找不到CLI程序: %1").arg(m_cliPath), true);
+        emit logOutput(tr("错误: 找不到CLI程序: %1").arg(cliPath), true);
         return;
     }
 
@@ -291,7 +309,7 @@ void EasyTierWorker::onUpdatePeerInfo()
     cliArgs << "-p" << QString("127.0.0.1:%1").arg(m_rpcPort)
             << "-o" << "json" << "peer";
 
-    m_cliProcess->start(m_cliPath, cliArgs);
+    m_cliProcess->start(cliPath, cliArgs);
 }
 
 bool EasyTierWorker::initLogFile(const QString& networkName)

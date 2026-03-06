@@ -98,8 +98,7 @@ private:
         None,       // 未运行任何角色
         Host,       // 当前是房主运行中
         Guest,      // 当前是房客运行中
-        HostStopping,   // 房主停止中
-        GuestStopping   // 房客停止中
+        Stopping,   // 停止中
     };
     UserRole m_currentRole = UserRole::None;
 
