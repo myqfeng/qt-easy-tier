@@ -178,11 +178,11 @@ void OneClick::initHostComponents() {
 
     // 默认添加EasyTier公共服务器
     m_serverListWidget->addItem("txt://qtet-public.070219.xyz");
-    m_serverListWidget->addItem("tcp://public.easytier.top:11010");
-    m_serverListWidget->addItem("tcp://public2.easytier.cn:54321");
+    m_serverListWidget->addItem("txt://qtet-public2.070219.xyz");
     m_serverListWidget->addItem("https://et-public.lctn.site");
     m_serverListWidget->addItem("tcp://et.sbgov.cn:11010");
-    m_serverListWidget->addItem("tcp://turn.js.629957.xyz:11012");
+    m_serverListWidget->addItem("tcp://et2.sbgov.cn:11010");
+    m_serverListWidget->addItem("tcp://et3.sbgov.cn:11010");
 }
 
 void OneClick::initGuestComponents() {
@@ -605,12 +605,6 @@ void OneClick::onGuestStartClicked() {
     std::clog << "输入的联机码: " << inputCode.toStdString() << std::endl;
     std::clog << "解码后的网络号(原始): " << networkId.toStdString() << std::endl;
     std::clog << "解码后的密码(原始): " << password.toStdString() << std::endl;
-
-    // 检测端口占用
-    if (isPortOccupied(m_currentRpcPort)) {
-        QMessageBox::warning(this, tr("错误"), tr("端口55666被占用，请检查是否其他程序正在使用。"));
-        return;
-    }
 
     // 显示启动过程对话框
     showProcessDialog(tr("启动EasyTier中..."));
