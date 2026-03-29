@@ -703,14 +703,7 @@ bool Settings::setAutoStart(bool enable, QWidget *parent)
 
     QStringList args;
     if (enable) {
-#if SAVE_CONF_IN_APP_DIR == true
-        int ret = QMessageBox::information(parent, tr("提示"), tr("开机自启会写入计划任务，若是便携使用可能污染系统环境，是否继续？"),
-                                           QMessageBox::Yes | QMessageBox::No);
-        if (ret != QMessageBox::Yes) {
-            m_autoStart = false;
-            return false;
-        }
-#endif
+
         // 创建开机自启任务
         args << "/create"
              << "/tn" << appName
