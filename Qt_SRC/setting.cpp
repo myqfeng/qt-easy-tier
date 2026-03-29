@@ -5,7 +5,7 @@
 #include <QDesktopServices>
 #include <QUrl>
 #include <QMessageBox>
-#include <QCoreApplication>
+#include <QApplication>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QFile>
@@ -687,30 +687,29 @@ bool Settings::shouldShowDonate()
     return false;
 }
 
-void Settings::setAutoStart(bool enable)
+bool Settings::setAutoStart(bool enable, QWidget *parent)
 {
 #ifdef Q_OS_WIN
     // Windows 平台：使用任务计划程序实现开机自启
     const QString appName = "QtEasyTier";
-    const QString appPath = QCoreApplication::applicationFilePath().replace("/", "\\");
+    const QString appPath = QApplication::applicationFilePath().replace("/", "\\");
     QProcess process;
 
     QStringList args;
     if (enable) {
 #if SAVE_CONF_IN_APP_DIR == true
-        int ret = QMessageBox::information(this, tr("提示"), tr("开机自启会写入计划任务，若是便携使用可能污染系统环境，是否继续？"),
+        int ret = QMessageBox::information(parent, tr("提示"), tr("开机自启会写入计划任务，若是便携使用可能污染系统环境，是否继续？"),
                                            QMessageBox::Yes | QMessageBox::No);
         if (ret != QMessageBox::Yes) {
             m_autoStart = false;
-            return;
+            return false;
         }
 #endif
         // 创建开机自启任务
         args << "/create"
              << "/tn" << appName
              << "/tr" << QString("\"%1\" --auto-start").arg(appPath)
-             << "/sc" << "onstart"
-             << "/delay" << "0000:20"
+             << "/sc" << "onlogon"
              << "/rl" << "highest"
              << "/f";
     } else {
@@ -723,15 +722,15 @@ void Settings::setAutoStart(bool enable)
     process.start("schtasks.exe", args);
 
     if (!process.waitForFinished(5000)) {
-        QMessageBox::warning(this, "错误",
+        QMessageBox::warning(parent, "错误",
             QString("%1自启任务失败：命令执行超时").arg(enable ? "创建" : "删除"));
         std::clog <<QString("%1自启任务失败：命令执行超时").arg(enable ? "创建" : "删除").toStdString()<< std::endl;
-        return;
+        return false;
     }
 
     if (process.exitCode() != 0) {
         QString error = QString::fromLocal8Bit(process.readAllStandardError());
-        QMessageBox::warning(this, "错误",
+        QMessageBox::warning(parent, "错误",
             QString("%1自启任务失败：%2").arg(enable ? "创建" : "删除", error));
         std::clog <<QString("%1自启任务失败：%2").arg(enable ? "创建" : "删除", error).toStdString()<< std::endl;
     } else
@@ -774,7 +773,7 @@ void Settings::setAutoStart(bool enable)
             desktopFile.close();
             std::clog << "[AutoStart] Created autostart entry: " << desktopFilePath.toStdString() << std::endl;
         } else {
-            QMessageBox::warning(this, "错误", tr("无法创建自启动文件：%1").arg(desktopFilePath));
+            QMessageBox::warning(parent, "错误", tr("无法创建自启动文件：%1").arg(desktopFilePath));
         }
     } else {
         // 删除 .desktop 文件
@@ -782,7 +781,7 @@ void Settings::setAutoStart(bool enable)
             if (QFile::remove(desktopFilePath)) {
                 std::clog << "[AutoStart] Removed autostart entry: " << desktopFilePath.toStdString() << std::endl;
             } else {
-                QMessageBox::warning(this, "错误", tr("无法删除自启动文件：%1").arg(desktopFilePath));
+                QMessageBox::warning(parent, "错误", tr("无法删除自启动文件：%1").arg(desktopFilePath));
             }
         }
     }
@@ -790,8 +789,11 @@ void Settings::setAutoStart(bool enable)
 #else
     // 其他平台：暂不支持
     Q_UNUSED(enable)
-    QMessageBox::information(this, tr("提示"), tr("当前平台暂不支持开机自启功能"));
+    QMessageBox::information(parent, tr("提示"), tr("当前平台暂不支持开机自启功能"));
+    return false;
 #endif
+
+    return true;
 }
 
 // =============================================================================

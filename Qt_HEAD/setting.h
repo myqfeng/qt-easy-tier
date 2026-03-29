@@ -212,7 +212,7 @@ private:
     static bool saveSettingsToFile(const QJsonObject &settings);
 
     // === 设置开机自启 ===
-    void setAutoStart(bool enable);
+    static bool setAutoStart(bool enable, QWidget *parent = nullptr);
     
     // === 输入验证 ===
     void setupPortValidation();

@@ -164,7 +164,7 @@ MainWindow::~MainWindow()
         delete m_webWorker;
         m_webWorker = nullptr;
     }
-
+ 
 #ifdef Q_OS_WIN
     QProcess::startDetached("taskkill /F /IM easytier-core.exe");
     QProcess::startDetached("taskkill /F /IM easytier-cli.exe");
@@ -218,7 +218,7 @@ void MainWindow::onRenameNetwork()
     }
 
     bool ok;
-    QString newName = QInputDialog::getText(this, "更改网络名称",
+    const QString newName = QInputDialog::getText(this, "更改网络名称",
                                            "请输入新的网络名称:",
                                            QLineEdit::Normal,
                                            currentItem->text(),
