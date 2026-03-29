@@ -24,6 +24,8 @@
 #include <QFileDialog>
 #include <QDesktopServices>
 #include <QProgressBar>
+#include <QTcpSocket>
+#include <QTimer>
 #include <QStandardPaths>
 #include <QDateTime>
 #include <QCoreApplication>
@@ -1677,9 +1679,47 @@ void NetPage::onOpenLogFileClicked()
 
 // ===================== 开机自动运行相关 =====================
 // 开机自启动方法 - 重构版本
+// 在网络就绪后启动网络连接
 void NetPage::runNetworkOnAutoStart()
 {
-    onRunNetwork();
+    onHandleLogs(tr("开机自启：等待网络就绪..."));
+
+    // 使用定时器检测网络状态
+    QTimer *networkCheckTimer = new QTimer(this);
+    networkCheckTimer->setInterval(1000);  // 每秒检测一次
+
+    int *retryCount = new int(0);
+    const int maxRetries = 60;  // 最多等待60秒
+
+    connect(networkCheckTimer, &QTimer::timeout, this, [=, this]() {
+        (*retryCount)++;
+
+        // 检测网络是否就绪 - 尝试连接公共DNS
+        QTcpSocket socket;
+        socket.connectToHost("8.8.8.8", 53);
+        bool networkReady = socket.waitForConnected(1000);
+        socket.abort();
+
+        if (networkReady) {
+            networkCheckTimer->stop();
+            networkCheckTimer->deleteLater();
+            delete retryCount;
+
+            onHandleLogs(tr("网络已就绪，启动网络连接..."));
+            onRunNetwork();
+        } else if (*retryCount >= maxRetries) {
+            networkCheckTimer->stop();
+            networkCheckTimer->deleteLater();
+            delete retryCount;
+
+            onHandleLogs(tr("网络等待超时，尝试启动网络连接..."), true);
+            onRunNetwork();  // 即使网络未就绪也尝试启动
+        } else {
+            onHandleLogs(tr("等待网络就绪... (%1/%2)").arg(*retryCount).arg(maxRetries));
+        }
+    });
+
+    networkCheckTimer->start();
 }
 
 

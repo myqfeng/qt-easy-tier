@@ -5,7 +5,9 @@ set(ProjectName QtEasyTier)
 
 # 设置项目名称
 project(${ProjectName} VERSION 1.4.1 LANGUAGES CXX)
-set(SAVE_CONF_IN_APP_DIR false)
+
+# 缓存变量：是否将配置保存到程序目录（便携模式）
+set(SAVE_CONF_IN_APP_DIR false CACHE BOOL "Save configuration in application directory (portable mode)")
 
 # 启用Qt的自动MOC和RCC
 set(CMAKE_AUTOUIC ON)
@@ -91,8 +93,8 @@ target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${
 
 # 链接平台特定库
 if(WIN32)
-    # Windows IP Helper API 和 Socket 库
-    target_link_libraries(${ProjectName} PRIVATE iphlpapi ws2_32)
+    # Windows IP Helper API 库
+    target_link_libraries(${ProjectName} PRIVATE iphlpapi)
 endif()
 # Linux 平台不需要链接额外的系统库
 
@@ -179,6 +181,7 @@ if(WIN32)
             message(STATUS \"使用windeployqt部署Qt运行时...\")
             execute_process(
                 COMMAND \"${WINDEPLOYQT_EXECUTABLE}\"
+                    --quick
                     --no-system-d3d-compiler
                     --no-translations
                     \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${ProjectName}.exe\"
