@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "setting.h"
+#include "qtetmain.h"
 #include <iostream>
 #include <QApplication>
 #include <QStyleFactory>
@@ -39,9 +40,13 @@ int main(int argc, char *argv[])
         std::clog << "Breeze 样式不可用，使用默认样式" << std::endl;
     }
 #endif
+
     MainWindow w(nullptr, isAutoStart);
 
     if (!isAutoStart) w.show();
+
+    QtETMain qtetmain(nullptr);
+    qtetmain.show();
 
     return app.exec();
 }
