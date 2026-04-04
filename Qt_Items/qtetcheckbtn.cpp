@@ -6,6 +6,7 @@
 #include <QStyleHints>
 #include <QMouseEvent>
 #include <QFontMetrics>
+#include <QEvent>
 
 QtETCheckBtn::QtETCheckBtn(QWidget *parent)
     : QCheckBox(parent)
@@ -157,8 +158,8 @@ QSize QtETCheckBtn::sizeHint() const
     int width = textWidth + TEXT_SWITCH_SPACING + SWITCH_WIDTH;
     int height = qMax(textHeight, SWITCH_HEIGHT);
 
-    // 如果有提示文字，增加高度
-    if (!m_tipText.isEmpty()) {
+    // 如果有tooltip，在下方高亮显示，增加高度
+    if (!toolTip().isEmpty()) {
         QFont tipFont = font();
         tipFont.setPointSize(m_tipFontSize);
         QFontMetrics tipFm(tipFont);
@@ -180,8 +181,8 @@ QRect QtETCheckBtn::calculateSwitchRect() const
     int switchX = width() - SWITCH_WIDTH - 4;
     int switchY = (height() - SWITCH_HEIGHT) / 2;
 
-    // 如果有提示文字，开关需要在上方区域
-    if (!m_tipText.isEmpty()) {
+    // 如果有tooltip，开关需要在上方区域
+    if (!toolTip().isEmpty()) {
         QFontMetrics fm(font());
         int textHeight = fm.height();
         switchY = (qMax(textHeight, SWITCH_HEIGHT) - SWITCH_HEIGHT) / 2;
@@ -218,7 +219,7 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
     int textHeight = fm.height();
     int textY;
     
-    if (!m_tipText.isEmpty()) {
+    if (!toolTip().isEmpty()) {
         textY = (qMax(textHeight, SWITCH_HEIGHT) - textHeight) / 2 + fm.ascent();
     } else {
         textY = (height() - textHeight) / 2 + fm.ascent();
@@ -253,8 +254,8 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
     sliderPath.addEllipse(sliderRect);
     painter.fillPath(sliderPath, m_sliderColor);
 
-    // 绘制提示文字
-    if (!m_tipText.isEmpty()) {
+    // 绘制tooltip文字（高亮显示在下方）
+    if (!toolTip().isEmpty()) {
         QFont tipFont = font();
         tipFont.setPointSize(m_tipFontSize);
         QFontMetrics tipFm(tipFont);
@@ -263,7 +264,7 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
         painter.setPen(m_tipHighlightColor);
 
         int tipY = qMax(textHeight, SWITCH_HEIGHT) + TIP_TEXT_SPACING + tipFm.ascent();
-        painter.drawText(4, tipY, m_tipText);
+        painter.drawText(4, tipY, toolTip());
     }
 }
 
@@ -302,4 +303,22 @@ void QtETCheckBtn::mouseReleaseEvent(QMouseEvent *event)
     }
     
     m_pressedOnSwitch = false;
+}
+
+bool QtETCheckBtn::event(QEvent *event)
+{
+    // 拦截 ToolTip 事件，不在鼠标悬停时显示系统tooltip
+    // 因为我们已经在下方绘制了tooltip文字
+    if (event->type() == QEvent::ToolTip) {
+        event->ignore();
+        return true;
+    }
+    
+    // 监听 tooltip 变化，更新布局
+    if (event->type() == QEvent::ToolTipChange) {
+        updateGeometry();
+        update();
+    }
+    
+    return QCheckBox::event(event);
 }
