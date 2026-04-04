@@ -155,7 +155,8 @@ QSize QtETCheckBtn::sizeHint() const
     int textWidth = fm.horizontalAdvance(text());
     int textHeight = fm.height();
 
-    int width = textWidth + TEXT_SWITCH_SPACING + SWITCH_WIDTH;
+    // 内容区域宽度：左边距 5 + 文字 + 间距 + 开关 + 右边距 5
+    int width = textWidth + TEXT_SWITCH_SPACING + SWITCH_WIDTH + 10;
     int height = qMax(textHeight, SWITCH_HEIGHT);
 
     // 如果有tooltip，在下方高亮显示，增加高度
@@ -166,8 +167,8 @@ QSize QtETCheckBtn::sizeHint() const
         height += TIP_TEXT_SPACING + tipFm.height();
     }
 
-    // 添加边距
-    return QSize(width + 8, height + 4);
+    // 添加上下边距（各 5px）
+    return QSize(width, height + 10);
 }
 
 QSize QtETCheckBtn::minimumSizeHint() const
@@ -177,15 +178,14 @@ QSize QtETCheckBtn::minimumSizeHint() const
 
 QRect QtETCheckBtn::calculateSwitchRect() const
 {
-    // 开关在右侧，垂直居中
-    int switchX = width() - SWITCH_WIDTH - 4;
-    int switchY = (height() - SWITCH_HEIGHT) / 2;
+    // 开关在右侧，与边框保持 4px 间距（边框 1px + 间距 4px = 5px）
+    int switchX = width() - SWITCH_WIDTH - 5;
+    int switchY = 5;  // 与上边框保持 4px 间距
 
     // 如果有tooltip，开关需要在上方区域
-    if (!toolTip().isEmpty()) {
-        QFontMetrics fm(font());
-        int textHeight = fm.height();
-        switchY = (qMax(textHeight, SWITCH_HEIGHT) - SWITCH_HEIGHT) / 2;
+    if (toolTip().isEmpty()) {
+        // 无 tooltip 时垂直居中
+        switchY = (height() - SWITCH_HEIGHT) / 2;
     }
 
     return QRect(switchX, switchY, SWITCH_WIDTH, SWITCH_HEIGHT);
@@ -211,23 +211,49 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
+    // 绘制控件边框（类似 QPushButton 样式）
+    QRect borderRect = rect().adjusted(1, 1, -1, -1);
+    constexpr int borderRadius = 5;
+    
+    // 获取边框颜色
+    QColor borderColor = palette().color(QPalette::Mid);
+    QColor backgroundColor = palette().color(QPalette::Button);
+    
+    // 只有鼠标悬停时高亮边框
+    if (underMouse()) {
+        borderColor = palette().color(QPalette::Highlight);
+    }
+    
+    // 绘制背景
+    QPainterPath bgPath;
+    bgPath.addRoundedRect(borderRect, borderRadius, borderRadius);
+    painter.fillPath(bgPath, backgroundColor);
+    
+    // 绘制边框
+    painter.setPen(QPen(borderColor, 1));
+    painter.drawPath(bgPath);
+
     QRect switchRect = calculateSwitchRect();
     QRectF sliderRect = calculateSliderRect();
 
-    // 绘制文字（左对齐，垂直居中）
+    // 绘制文字（左对齐，与边框保持 4px 间距）
     QFontMetrics fm(font());
     int textHeight = fm.height();
     int textY;
     
+    // 文字左边距：边框 1px + 间距 4px = 5px
+    constexpr int contentMargin = 5;
+    
     if (!toolTip().isEmpty()) {
-        textY = (qMax(textHeight, SWITCH_HEIGHT) - textHeight) / 2 + fm.ascent();
+        // 有 tooltip 时，文字与上边框保持 4px 间距
+        textY = contentMargin + fm.ascent();
     } else {
         textY = (height() - textHeight) / 2 + fm.ascent();
     }
 
     painter.setFont(font());
     painter.setPen(palette().color(QPalette::Text));
-    painter.drawText(4, textY, text());
+    painter.drawText(contentMargin, textY, text());
 
     // 绘制开关背景（带圆角）
     QPainterPath switchPath;
@@ -263,8 +289,9 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
         painter.setFont(tipFont);
         painter.setPen(m_tipHighlightColor);
 
-        int tipY = qMax(textHeight, SWITCH_HEIGHT) + TIP_TEXT_SPACING + tipFm.ascent();
-        painter.drawText(4, tipY, toolTip());
+        // tooltip 与上方内容保持间距
+        int tipY = textY - fm.ascent() + textHeight + TIP_TEXT_SPACING + tipFm.ascent();
+        painter.drawText(contentMargin, tipY, toolTip());
     }
 }
 
