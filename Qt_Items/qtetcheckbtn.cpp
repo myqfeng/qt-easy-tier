@@ -230,12 +230,30 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
     constexpr int borderRadius = 5;
     
     // 获取边框颜色
-    QColor borderColor = palette().color(QPalette::Mid);
+    QColor borderColor;
     QColor backgroundColor = palette().color(QPalette::Button);
     
-    // 只有鼠标悬停时高亮边框
+    // 判断是否为暗色模式
+    const bool isDark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
+    
+    // 根据鼠标状态和主题选择边框颜色
     if (underMouse()) {
         borderColor = palette().color(QPalette::Highlight);
+    } else {
+        // 暗色模式使用淡色边框，浅色模式使用深色边框
+        if (isDark) {
+            borderColor = palette().color(QPalette::Light);
+            // 如果颜色太深，使用更浅的颜色
+            if (borderColor.lightnessF() < 0.3) {
+                borderColor = QColor(100, 100, 100);
+            }
+        } else {
+            borderColor = palette().color(QPalette::Mid);
+            // 如果颜色太浅，使用更深的颜色
+            if (borderColor.lightnessF() > 0.9) {
+                borderColor = palette().color(QPalette::Dark);
+            }
+        }
     }
     
     // 绘制背景
