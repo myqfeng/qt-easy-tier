@@ -96,6 +96,20 @@ void QtETCheckBtn::setTipText(const QString &text)
     }
 }
 
+QString QtETCheckBtn::briefTip() const
+{
+    return m_briefTip;
+}
+
+void QtETCheckBtn::setBriefTip(const QString &text)
+{
+    if (m_briefTip != text) {
+        m_briefTip = text;
+        updateGeometry();
+        update();
+    }
+}
+
 int QtETCheckBtn::tipFontSize() const
 {
     return m_tipFontSize;
@@ -155,20 +169,20 @@ QSize QtETCheckBtn::sizeHint() const
     int textWidth = fm.horizontalAdvance(text());
     int textHeight = fm.height();
 
-    // 内容区域宽度：左边距 5 + 文字 + 间距 + 开关 + 右边距 5
-    int width = textWidth + TEXT_SWITCH_SPACING + SWITCH_WIDTH + 10;
+    // 内容区域宽度：左边距 10 + 文字 + 间距 + 开关 + 右边距 10
+    int width = textWidth + TEXT_SWITCH_SPACING + SWITCH_WIDTH + 20;
     int height = qMax(textHeight, SWITCH_HEIGHT);
 
-    // 如果有tooltip，在下方高亮显示，增加高度
-    if (!toolTip().isEmpty()) {
+    // 如果有 briefTip，在下方高亮显示，增加高度
+    if (!m_briefTip.isEmpty()) {
         QFont tipFont = font();
         tipFont.setPointSize(m_tipFontSize);
         QFontMetrics tipFm(tipFont);
         height += TIP_TEXT_SPACING + tipFm.height();
     }
 
-    // 添加上下边距（各 5px）
-    return QSize(width, height + 10);
+    // 添加上下边距（各 10px）
+    return QSize(width, height + 20);
 }
 
 QSize QtETCheckBtn::minimumSizeHint() const
@@ -178,13 +192,13 @@ QSize QtETCheckBtn::minimumSizeHint() const
 
 QRect QtETCheckBtn::calculateSwitchRect() const
 {
-    // 开关在右侧，与边框保持 4px 间距（边框 1px + 间距 4px = 5px）
-    int switchX = width() - SWITCH_WIDTH - 5;
-    int switchY = 5;  // 与上边框保持 4px 间距
+    // 开关在右侧，与边框保持 9px 间距（边框 1px + 间距 9px = 10px）
+    int switchX = width() - SWITCH_WIDTH - 10;
+    int switchY = 10;  // 与上边框保持 9px 间距
 
-    // 如果有tooltip，开关需要在上方区域
-    if (toolTip().isEmpty()) {
-        // 无 tooltip 时垂直居中
+    // 如果有 briefTip，开关需要在上方区域
+    if (m_briefTip.isEmpty()) {
+        // 无 briefTip 时垂直居中
         switchY = (height() - SWITCH_HEIGHT) / 2;
     }
 
@@ -236,16 +250,16 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
     QRect switchRect = calculateSwitchRect();
     QRectF sliderRect = calculateSliderRect();
 
-    // 绘制文字（左对齐，与边框保持 4px 间距）
+    // 绘制文字（左对齐，与边框保持 9px 间距）
     QFontMetrics fm(font());
     int textHeight = fm.height();
     int textY;
     
-    // 文字左边距：边框 1px + 间距 4px = 5px
-    constexpr int contentMargin = 5;
+    // 文字左边距：边框 1px + 间距 9px = 10px
+    constexpr int contentMargin = 10;
     
-    if (!toolTip().isEmpty()) {
-        // 有 tooltip 时，文字与上边框保持 4px 间距
+    if (!m_briefTip.isEmpty()) {
+        // 有 briefTip 时，文字与上边框保持 10px 间距
         textY = contentMargin + fm.ascent();
     } else {
         textY = (height() - textHeight) / 2 + fm.ascent();
@@ -280,8 +294,8 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
     sliderPath.addEllipse(sliderRect);
     painter.fillPath(sliderPath, m_sliderColor);
 
-    // 绘制tooltip文字（高亮显示在下方）
-    if (!toolTip().isEmpty()) {
+    // 绘制 briefTip 文字（高亮显示在下方，单行显示）
+    if (!m_briefTip.isEmpty()) {
         QFont tipFont = font();
         tipFont.setPointSize(m_tipFontSize);
         QFontMetrics tipFm(tipFont);
@@ -289,9 +303,9 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
         painter.setFont(tipFont);
         painter.setPen(m_tipHighlightColor);
 
-        // tooltip 与上方内容保持间距
+        // briefTip 与上方内容保持间距
         int tipY = textY - fm.ascent() + textHeight + TIP_TEXT_SPACING + tipFm.ascent();
-        painter.drawText(contentMargin, tipY, toolTip());
+        painter.drawText(contentMargin, tipY, m_briefTip);
     }
 }
 
@@ -334,15 +348,8 @@ void QtETCheckBtn::mouseReleaseEvent(QMouseEvent *event)
 
 bool QtETCheckBtn::event(QEvent *event)
 {
-    // 拦截 ToolTip 事件，不在鼠标悬停时显示系统tooltip
-    // 因为我们已经在下方绘制了tooltip文字
-    if (event->type() == QEvent::ToolTip) {
-        event->ignore();
-        return true;
-    }
-    
-    // 监听 tooltip 变化，更新布局
-    if (event->type() == QEvent::ToolTipChange) {
+    // 监听 briefTip 变化，更新布局
+    if (event->type() == QEvent::DynamicPropertyChange) {
         updateGeometry();
         update();
     }
