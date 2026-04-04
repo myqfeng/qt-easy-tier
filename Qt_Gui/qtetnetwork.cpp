@@ -31,6 +31,8 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_removeServerBtn(nullptr)
     , m_publicServerBtn(nullptr)
     // 高级设置控件 - 功能开关
+    , m_functionWidget(nullptr)
+    , m_functionGridLayout(nullptr)
     , m_kcpProxyCheckBox(nullptr)
     , m_kcpInputDisableCheckBox(nullptr)
     , m_noTunModeCheckBox(nullptr)
@@ -105,6 +107,10 @@ void QtETNetwork::initLeftPanel()
     m_networksList = new QtETListWidget(m_leftFrame);
     m_networksList->setMinimumSize(140, 0);
     m_networksList->setMaximumSize(140, QWIDGETSIZE_MAX);
+
+    m_networksList->addItem("家里的NAS");
+    m_networksList->addItem("我的服务器");
+    m_networksList->addItem("远程运维");
 
     m_leftLayout->addWidget(m_networksList);
 
@@ -448,41 +454,32 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_magicDnsCheckBox->setToolTip(tr("启用后可通过\"用户名.et.net\"访问本节点\n注意：Linux用户需要手动配置 DNS 服务器为100.100.100.101"));
     m_magicDnsCheckBox->setBriefTip(tr("通过\"用户名.et.net\"访问本节点"));
 
-    // 添加功能开关到网格布局（每行两个）
-    int row = 0;
-    functionGridLayout->addWidget(m_kcpProxyCheckBox, row, 0);
-    functionGridLayout->addWidget(m_kcpInputDisableCheckBox, row, 1);
-    ++row;
+    // 将所有功能开关添加到列表中
+    m_functionCheckBoxes.clear();
+    m_functionCheckBoxes.append(m_kcpProxyCheckBox);
+    m_functionCheckBoxes.append(m_kcpInputDisableCheckBox);
+    m_functionCheckBoxes.append(m_quicProxyCheckBox);
+    m_functionCheckBoxes.append(m_quicInputDisableCheckBox);
+    m_functionCheckBoxes.append(m_noTunModeCheckBox);
+    m_functionCheckBoxes.append(m_udpHolePunchingDisableCheckBox);
+    m_functionCheckBoxes.append(m_multithreadCheckBox);
+    m_functionCheckBoxes.append(m_userModeStackCheckBox);
+    m_functionCheckBoxes.append(m_p2pDisableCheckBox);
+    m_functionCheckBoxes.append(m_onlyPhysicalNicCheckBox);
+    m_functionCheckBoxes.append(m_exitNodeCheckBox);
+    m_functionCheckBoxes.append(m_systemForwardingCheckBox);
+    m_functionCheckBoxes.append(m_symmetricNatHolePunchingDisableCheckBox);
+    m_functionCheckBoxes.append(m_ipv6DisableCheckBox);
+    m_functionCheckBoxes.append(m_rpcPacketForwardingCheckBox);
+    m_functionCheckBoxes.append(m_encryptionDisableCheckBox);
+    m_functionCheckBoxes.append(m_magicDnsCheckBox);
 
-    functionGridLayout->addWidget(m_quicProxyCheckBox, row, 0);
-    functionGridLayout->addWidget(m_quicInputDisableCheckBox, row, 1);
-    ++row;
+    // 存储容器和布局
+    m_functionWidget = functionWidget;
+    m_functionGridLayout = functionGridLayout;
 
-    functionGridLayout->addWidget(m_noTunModeCheckBox, row, 0);
-    functionGridLayout->addWidget(m_udpHolePunchingDisableCheckBox, row, 1);
-    ++row;
-
-    functionGridLayout->addWidget(m_multithreadCheckBox, row, 0);
-    functionGridLayout->addWidget(m_userModeStackCheckBox, row, 1);
-    ++row;
-
-    functionGridLayout->addWidget(m_p2pDisableCheckBox, row, 0);
-    functionGridLayout->addWidget(m_onlyPhysicalNicCheckBox, row, 1);
-    ++row;
-
-    functionGridLayout->addWidget(m_exitNodeCheckBox, row, 0);
-    functionGridLayout->addWidget(m_systemForwardingCheckBox, row, 1);
-    ++row;
-
-    functionGridLayout->addWidget(m_symmetricNatHolePunchingDisableCheckBox, row, 0);
-    functionGridLayout->addWidget(m_ipv6DisableCheckBox, row, 1);
-    ++row;
-
-    functionGridLayout->addWidget(m_rpcPacketForwardingCheckBox, row, 0);
-    functionGridLayout->addWidget(m_encryptionDisableCheckBox, row, 1);
-    ++row;
-
-    functionGridLayout->addWidget(m_magicDnsCheckBox, row, 0);
+    // 初始化网格布局
+    updateFunctionGridLayout();
 
     scrollLayout->addWidget(functionWidget);
 
@@ -663,4 +660,48 @@ void QtETNetwork::initRunningLogPage()
     m_logLabel = new QLabel(tr("运行日志页面（待实现）"), m_runningLogTab);
     m_logLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(m_logLabel);
+}
+
+void QtETNetwork::updateFunctionGridLayout()
+{
+    if (!m_functionGridLayout || m_functionCheckBoxes.isEmpty()) {
+        return;
+    }
+
+    // 根据宽度计算列数
+    int width = m_functionWidget ? m_functionWidget->width() : 0;
+    int columns = 2;  // 默认每行 2 个
+
+    if (width > 1020) {
+        columns = 5;
+    } else if (width > 820) {
+        columns = 4;
+    } else if (width > 620) {
+        columns = 3;
+    }
+
+    // 移除所有控件从布局中
+    for (QtETCheckBtn *checkBox : m_functionCheckBoxes) {
+        m_functionGridLayout->removeWidget(checkBox);
+    }
+
+    // 重新添加控件
+    int row = 0;
+    int col = 0;
+    for (QtETCheckBtn *checkBox : m_functionCheckBoxes) {
+        m_functionGridLayout->addWidget(checkBox, row, col);
+        ++col;
+        if (col >= columns) {
+            col = 0;
+            ++row;
+        }
+    }
+}
+
+void QtETNetwork::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+
+    // 更新功能开关网格布局
+    updateFunctionGridLayout();
 }

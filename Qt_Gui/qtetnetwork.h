@@ -43,6 +43,10 @@ private:
     void initRunningStatusPage();
     /// @brief 初始化运行日志页面
     void initRunningLogPage();
+    /// @brief 更新高级设置功能开关的网格布局
+    void updateFunctionGridLayout();
+    /// @brief 重写 resizeEvent 监听宽度变化
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     // 左侧面板
@@ -77,6 +81,9 @@ private:
     QPushButton *m_publicServerBtn;     ///< 公共服务器列表按钮
 
     // 高级设置控件 - 功能开关
+    QWidget *m_functionWidget;                          ///< 功能开关容器
+    QGridLayout *m_functionGridLayout;                  ///< 功能开关网格布局
+    QList<QtETCheckBtn*> m_functionCheckBoxes;          ///< 功能开关列表
     QtETCheckBtn *m_kcpProxyCheckBox;           ///< 启用 KCP 代理
     QtETCheckBtn *m_kcpInputDisableCheckBox;    ///< 禁用 KCP 输入
     QtETCheckBtn *m_noTunModeCheckBox;          ///< 无 TUN 模式

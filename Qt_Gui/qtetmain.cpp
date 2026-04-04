@@ -113,12 +113,6 @@ void QtETMain::initHelloPage()
     // 纵向弹簧
     mainLayout->addStretch();
 
-    // 测试QtETCheckBtn按钮功能
-    QtETCheckBtn *testBtn = new QtETCheckBtn("测试按钮", this);
-    testBtn->setToolTip("原神是由米哈游自主研发的一款全新开放世界冒险游戏。");
-    testBtn->setBriefTip("原神Genshin");
-    mainLayout->addWidget(testBtn);
-
     // 功能按钮区域 (2x2 网格布局)
     QGridLayout *buttonGrid = new QGridLayout();
     buttonGrid->setSpacing(6);
