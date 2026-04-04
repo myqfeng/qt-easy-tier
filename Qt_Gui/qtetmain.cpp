@@ -106,7 +106,8 @@ void QtETMain::initHelloPage()
 
     // 测试QtETCheckBtn按钮功能
     QtETCheckBtn *testBtn = new QtETCheckBtn("测试按钮", this);
-    //testBtn->setToolTip("Genshin");
+    testBtn->setToolTip("原神是由米哈游自主研发的一款全新开放世界冒险游戏。");
+    testBtn->setBriefTip("原神Genshin");
     mainLayout->addWidget(testBtn);
 
     // 功能按钮区域 (2x2 网格布局)

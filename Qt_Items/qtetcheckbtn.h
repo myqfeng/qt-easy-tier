@@ -12,6 +12,7 @@ class QtETCheckBtn : public QCheckBox
     Q_OBJECT
     Q_PROPERTY(qreal sliderPosition READ sliderPosition WRITE setSliderPosition)
     Q_PROPERTY(QString tipText READ tipText WRITE setTipText)
+    Q_PROPERTY(QString briefTip READ briefTip WRITE setBriefTip)
     Q_PROPERTY(int tipFontSize READ tipFontSize WRITE setTipFontSize)
     Q_PROPERTY(QColor activeColor READ activeColor WRITE setActiveColor)
     Q_PROPERTY(QColor inactiveColor READ inactiveColor WRITE setInactiveColor)
@@ -25,6 +26,11 @@ public:
     [[nodiscard]] QString tipText() const;
     /// @brief 设置提示文字
     void setTipText(const QString &text);
+
+    /// @brief 获取简要提示文字（显示在控件下方）
+    [[nodiscard]] QString briefTip() const;
+    /// @brief 设置简要提示文字（显示在控件下方）
+    void setBriefTip(const QString &text);
 
     /// @brief 获取提示文字大小
     [[nodiscard]] int tipFontSize() const;
@@ -70,6 +76,7 @@ private:
 
 private:
     QString m_tipText;              ///< 提示文字
+    QString m_briefTip;             ///< 简要提示文字（显示在控件下方）
     int m_tipFontSize;              ///< 提示文字大小
     QColor m_activeColor;           ///< 激活状态颜色
     QColor m_inactiveColor;         ///< 非激活状态颜色
