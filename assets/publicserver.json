@@ -1,14 +1,18 @@
 [
   {
     "url": "tcp://public.easytier.top:11010",
-    "contributor": "EasyTier官方（暂停使用）"
+    "contributor": "EasyTier官方"
   },
   {
     "url": "tcp://public2.easytier.cn:54321",
-    "contributor": "EasyTier官方（暂停使用）"
+    "contributor": "EasyTier官方"
   },
   {
     "url": "txt://qtet-public.070219.xyz",
+    "contributor": "QtEasyTier"
+  },
+  {
+    "url": "txt://qtet-public2.070219.xyz",
     "contributor": "QtEasyTier"
   },
   {
@@ -20,19 +24,11 @@
     "contributor": "凉城听暖"
   },
   {
-    "url": "txt://et.foxs.de5.net",
+    "url": "wss://et.foxs.de5.net:44444",
     "contributor": "凉城听暖"
   },
   {
     "url": "tcp://et.sbgov.cn:11010",
-    "contributor": "折翼喵"
-  },  
-  {
-    "url": "tcp://et3.sbgov.cn:11010",
-    "contributor": "折翼喵"
-  },
-  {
-    "url": "tcp://et4.sbgov.cn:11010",
     "contributor": "折翼喵"
   },
   {
@@ -48,11 +44,23 @@
     "contributor": "海波"
   },
   {
+    "url": "tcp://turn.js.629957.xyz:11012",
+    "contributor": "网络收集"
+  },
+  {
+    "url": "tcp://c.oee.icu:60006",
+    "contributor": "网络收集"
+  },
+  {
     "url": "tcp://boi.de5.net:11010",
     "contributor": "网络收集"
   },
   {
     "url": "tcp://47.108.52.1:11012",
+    "contributor": "网络收集"
+  },
+  {
+    "url": "tcp://sh.vomiku.com:7910",
     "contributor": "网络收集"
   },
   {
@@ -72,6 +80,10 @@
     "contributor": "网络收集"
   },
   {
+    "url": "tcp://et.jx.moe:11010",
+    "contributor": "网络收集"
+  },
+  {
     "url": "tcp://et.lidonglong.top:11010",
     "contributor": "网络收集"
   },
@@ -80,16 +92,20 @@
     "contributor": "网络收集"
   },
   {
-    "url": "txt://qtet-public2.070219.xyz",
-    "contributor": "[海外] QtEasyTier"
+    "url": "tcp://103.217.186.78:11011",
+    "contributor": "网络收集"
   },
   {
     "url": "tcp://us.maple367.eu.org:11010",
-    "contributor": "[海外] Maple"
+    "contributor": "[海外]Maple"
   },
   {
     "url": "tcp://et.hongchenduzhe.cc.cd:25484",
     "contributor": "[海外]红尘渡者"
+  },
+  {
+    "url": "tcp://tcp.us-west-1.clawcloudrun.com:45238",
+    "contributor": "[海外]凉城听暖"
   },
   {
     "url": "tcp://et2.sbgov.cn:11010",
@@ -97,11 +113,7 @@
   },
   {
     "url": "tcp://et.ziyii.top:11010",
-    "contributor": "[海外] ziyii"
-  },
-    {
-    "url": "tcp://c.oee.icu:60006",
-    "contributor": "[海外]网络收集"
+    "contributor": "[海外]ziyii"
   },
   {
     "url": "tcp://23.95.37.209:11010",
