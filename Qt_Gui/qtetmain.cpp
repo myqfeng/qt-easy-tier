@@ -106,7 +106,7 @@ void QtETMain::initHelloPage()
 
     // 测试QtETCheckBtn按钮功能
     QtETCheckBtn *testBtn = new QtETCheckBtn("测试按钮", this);
-    testBtn->setToolTip("Genshin");
+    //testBtn->setToolTip("Genshin");
     mainLayout->addWidget(testBtn);
 
     // 功能按钮区域 (2x2 网格布局)
