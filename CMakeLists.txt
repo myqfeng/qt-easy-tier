@@ -15,7 +15,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 # 设置UI、QRC文件的包含路径，用于UIC、RCC查找.ui、.qrc文件
-set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_SOURCE_DIR}/Qt_UI ${CMAKE_SOURCE_DIR}/Qt_Items ${CMAKE_SOURCE_DIR}/Qt_Gui)
+set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_SOURCE_DIR}/Qt_Items ${CMAKE_SOURCE_DIR}/Qt_Gui)
 set(CMAKE_AUTORCC_SEARCH_PATHS ${CMAKE_SOURCE_DIR}/Qt_QRC)
 
 # 查找Qt的组件
@@ -28,19 +28,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 添加头文件搜索路径
 include_directories(${CMAKE_SOURCE_DIR}/Qt_HEAD)
-include_directories(${CMAKE_SOURCE_DIR}/Sources)
 include_directories(${CMAKE_SOURCE_DIR}/Qt_Items)
 include_directories(${CMAKE_SOURCE_DIR}/Qt_Gui)
+include_directories(${CMAKE_SOURCE_DIR}/SRC)
+include_directories(${CMAKE_SOURCE_DIR}/ThirdParty/toml++)
 
 # 收集源文件
-file(GLOB_RECURSE SOURCES "Sources/*.cpp" )
-file(GLOB_RECURSE QT_SOURCES "Qt_SRC/*.cpp" "Qt_Items/*.cpp" "Qt_Gui/*.cpp")
-file(GLOB_RECURSE QT_HEAD "Qt_HEAD/*.h" "Qt_HEAD/*.hpp" "Sources/*.h" "Sources/*.hpp"
-        "Qt_Items/*.h" "Qt_Gui/*.h"
-)
-file(GLOB_RECURSE QT_UI "Qt_UI/*.ui" "Qt_Items/*.ui" "Qt_Gui/*.ui")
+file(GLOB_RECURSE HEAD "SRC/*.h" "SRC/*.hpp" "Qt_Items/*.h" "Qt_Gui/*.h")
+file(GLOB_RECURSE SOURCES "SRC/*.cpp" )
+file(GLOB_RECURSE QT_SOURCES "Qt_Items/*.cpp" "Qt_Gui/*.cpp")
+file(GLOB_RECURSE QT_UI "Qt_Items/*.ui" "Qt_Gui/*.ui")
 file(GLOB_RECURSE QT_RESOURCES "Qt_QRC/*.qrc")
-set(ALL_SOURCES ${SOURCES} ${QT_SOURCES} ${QT_HEAD} ${QT_UI} ${QT_RESOURCES})
+
+set(ALL_SOURCES ${SOURCES} ${QT_SOURCES} ${HEAD} ${QT_UI} ${QT_RESOURCES})
 
 # 添加子目录（CIDR计算器）
 add_subdirectory(CDIRCalculator)
@@ -125,24 +125,24 @@ if(WIN32)
     # 复制EasyTier文件夹到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/win
-            $<TARGET_FILE_DIR:${ProjectName}>/etcore
+            ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/windows
+            $<TARGET_FILE_DIR:${ProjectName}>
             COMMENT "复制EasyTier 到 ${ProjectName} 目录..."
     )
 elseif(LINUX)
     # 复制EasyTier Linux版本到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/linux
-            $<TARGET_FILE_DIR:${ProjectName}>/etcore
+            ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/linux
+            $<TARGET_FILE_DIR:${ProjectName}>
             COMMENT "复制EasyTier Linux 到 ${ProjectName} 目录..."
     )
 
     # 设置可执行权限
     add_custom_command(TARGET ${ProjectName} POST_BUILD
-            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/etcore/easytier-core
-            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/etcore/easytier-cli
-            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/etcore/easytier-web-embed
+            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/easytier-core
+            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/easytier-cli
+            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/easytier-web-embed
             COMMENT "设置 EasyTier 可执行权限..."
     )
 endif()
@@ -215,8 +215,8 @@ if(WIN32)
         message(STATUS \"部署EasyTier...\")
         execute_process(
             COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/win\"
-                \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore\"
+                \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/windows\"
+                \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
         )
     ")
 elseif(LINUX)
@@ -225,8 +225,8 @@ elseif(LINUX)
         message(STATUS \"部署EasyTier Linux...\")
         execute_process(
             COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/linux\"
-                \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore\"
+                \"${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/linux\"
+                \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
         )
     ")
 
@@ -234,13 +234,13 @@ elseif(LINUX)
     install(CODE "
         message(STATUS \"设置EasyTier可执行权限...\")
         execute_process(
-            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore/easytier-core\"
+            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-core\"
         )
         execute_process(
-            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore/easytier-cli\"
+            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-cli\"
         )
         execute_process(
-            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/etcore/easytier-web-embed\"
+            COMMAND chmod +x \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/easytier-web-embed\"
         )
     ")
 

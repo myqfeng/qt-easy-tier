@@ -11,13 +11,14 @@
 #include <QPalette>
 #include <QStyle>
 #include <QStyleHints>
+#include <QDesktopServices>
 
 QtETMain::QtETMain(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::QtETMain)
 {
     ui->setupUi(this);
-    setMinimumSize(680, 400);
+    setMinimumSize(680, 480);
 
 // =============== 初始化调色板 ===============
     // 设置一次调色板
@@ -32,10 +33,30 @@ QtETMain::QtETMain(QWidget *parent)
     initNetworkPage();
 
 
-
+// =============== 连接信号槽 ===============
     connect(ui->homeBtn, &QPushButton::clicked, this, [=, this]()
     {
         m_mainStackedWidget->setCurrentWidget(m_helloPage);
+    });
+    connect(ui->gitBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier"));
+    });
+    connect(ui->helpBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        QDesktopServices::openUrl(QUrl("https://qtet.myqfeng.top/docs-home"));
+    });
+    connect(m_aboutUsBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        QDesktopServices::openUrl(QUrl("https://qtet.myqfeng.top"));
+    });
+    connect(m_aboutETBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        QDesktopServices::openUrl(QUrl("https://easytier.cn"));
+    });
+    connect(m_donateBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        QDesktopServices::openUrl(QUrl("https://qtet.myqfeng.top/other/donate/"));
     });
 }
 
