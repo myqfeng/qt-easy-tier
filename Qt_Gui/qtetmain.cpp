@@ -12,6 +12,9 @@
 #include <QStyle>
 #include <QStyleHints>
 #include <QDesktopServices>
+#include <QMenu>
+#include <QApplication>
+#include <QMessageBox>
 
 QtETMain::QtETMain(QWidget *parent)
     : QWidget(parent)
@@ -31,7 +34,9 @@ QtETMain::QtETMain(QWidget *parent)
 // =============== 初始化界面 ===============
     initHelloPage();
     initNetworkPage();
-
+    
+// =============== 初始化系统托盘 ===============
+    initTrayIcon();
 
 // =============== 连接信号槽 ===============
     connect(ui->homeBtn, &QPushButton::clicked, this, [=, this]()
@@ -58,6 +63,12 @@ QtETMain::QtETMain(QWidget *parent)
     {
         QDesktopServices::openUrl(QUrl("https://qtet.myqfeng.top/other/donate/"));
     });
+    
+    // 连接网络状态信号到托盘消息
+    if (m_networkPage) {
+        connect(m_networkPage, &QtETNetwork::networkStarted, this, &QtETMain::onNetworkStartedNotify);
+        connect(m_networkPage, &QtETNetwork::networkStopped, this, &QtETMain::onNetworkStoppedNotify);
+    }
 }
 
 QtETMain::~QtETMain()
@@ -67,6 +78,210 @@ QtETMain::~QtETMain()
         m_networkPage->saveAllNetworkConfs();
     }
     delete ui;
+}
+
+/// @brief 重写关闭事件，实现隐藏到托盘
+void QtETMain::closeEvent(QCloseEvent *event)
+{
+    // 隐藏到托盘而不是关闭
+    hide();
+    m_isHiddenToTray = true;
+    
+    // 首次隐藏到托盘时弹出提示
+    static bool firstHide = true;
+    if (firstHide && m_trayIcon) {
+        m_trayIcon->showMessage(
+            tr("QtEasyTier"),
+            tr("程序已最小化到系统托盘，双击图标可恢复窗口"),
+            QSystemTrayIcon::Information,
+            3000
+        );
+        firstHide = false;
+    }
+    
+    event->ignore();
+}
+
+/// @brief 重写窗口状态变化事件
+void QtETMain::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::WindowStateChange) {
+        // 如果窗口被最小化，隐藏到托盘
+        if (isMinimized()) {
+            hide();
+            m_isHiddenToTray = true;
+            
+            // 首次隐藏到托盘时弹出提示
+            static bool firstHide = true;
+            if (firstHide && m_trayIcon) {
+                m_trayIcon->showMessage(
+                    tr("QtEasyTier"),
+                    tr("程序已最小化到系统托盘，双击图标可恢复窗口"),
+                    QSystemTrayIcon::Information,
+                    3000
+                );
+                firstHide = false;
+            }
+            event->ignore();
+            return;
+        }
+    }
+    QWidget::changeEvent(event);
+}
+
+/// @brief 初始化系统托盘
+void QtETMain::initTrayIcon()
+{
+    // 创建托盘图标
+    m_trayIcon = new QSystemTrayIcon(this);
+    m_trayIcon->setIcon(QIcon(":/icons/icon.ico"));
+    m_trayIcon->setToolTip(tr("QtEasyTier"));
+    
+    // 创建托盘菜单
+    m_trayMenu = new QMenu(this);
+    
+    // 显示窗口动作
+    m_showAction = new QAction(tr("显示窗口"), this);
+    m_showAction->setIcon(QIcon(":/icons/home.svg"));
+    connect(m_showAction, &QAction::triggered, this, &QtETMain::onShowWindow);
+    m_trayMenu->addAction(m_showAction);
+    
+    // 隐藏窗口动作
+    m_hideAction = new QAction(tr("隐藏窗口"), this);
+    m_hideAction->setIcon(QIcon(":/icons/eye-slash.svg"));
+    connect(m_hideAction, &QAction::triggered, this, &QtETMain::onHideWindow);
+    m_trayMenu->addAction(m_hideAction);
+    
+    // 分隔线
+    m_trayMenu->addSeparator();
+    
+    // 退出程序动作
+    m_quitAction = new QAction(tr("退出程序"), this);
+    m_quitAction->setIcon(QIcon(":/icons/about.svg"));
+    connect(m_quitAction, &QAction::triggered, this, &QtETMain::onQuitApp);
+    m_trayMenu->addAction(m_quitAction);
+    
+    // 设置托盘菜单
+    m_trayIcon->setContextMenu(m_trayMenu);
+    
+    // 连接托盘图标激活信号
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this, &QtETMain::onTrayIconActivated);
+    
+    // 显示托盘图标
+    m_trayIcon->show();
+}
+
+/// @brief 托盘图标激活处理
+void QtETMain::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason)
+{
+    switch (reason) {
+        case QSystemTrayIcon::DoubleClick:
+            // 双击显示/隐藏窗口
+            if (m_isHiddenToTray) {
+                onShowWindow();
+            } else {
+                onHideWindow();
+            }
+            break;
+        case QSystemTrayIcon::Trigger:
+            // 单击显示窗口
+            onShowWindow();
+            break;
+        default:
+            break;
+    }
+}
+
+/// @brief 显示窗口
+void QtETMain::onShowWindow()
+{
+    show();
+    setWindowState(Qt::WindowActive);
+    activateWindow();
+    raise();
+    m_isHiddenToTray = false;
+}
+
+/// @brief 隐藏窗口到托盘
+void QtETMain::onHideWindow()
+{
+    hide();
+    m_isHiddenToTray = true;
+    
+    // 弹出提示消息
+    if (m_trayIcon) {
+        m_trayIcon->showMessage(
+            tr("QtEasyTier"),
+            tr("程序已最小化到系统托盘"),
+            QSystemTrayIcon::Information,
+            2000
+        );
+    }
+}
+
+/// @brief 退出程序
+void QtETMain::onQuitApp()
+{
+    // 保存网络配置
+    if (m_networkPage) {
+        m_networkPage->saveAllNetworkConfs();
+    }
+    
+    // 隐藏托盘图标
+    if (m_trayIcon) {
+        m_trayIcon->hide();
+    }
+    
+    // 退出应用
+    qApp->quit();
+}
+
+/// @brief 网络启动通知
+void QtETMain::onNetworkStartedNotify(const QString &networkName, bool success, const QString &errorMsg)
+{
+    if (!m_trayIcon) {
+        return;
+    }
+    
+    if (success) {
+        m_trayIcon->showMessage(
+            tr("网络启动成功"),
+            tr("网络 \"%1\" 已成功启动").arg(networkName),
+            QSystemTrayIcon::Information,
+            3000
+        );
+    } else {
+        m_trayIcon->showMessage(
+            tr("网络启动失败"),
+            tr("网络 \"%1\" 启动失败:\n%2").arg(networkName).arg(errorMsg),
+            QSystemTrayIcon::Warning,
+            5000
+        );
+    }
+}
+
+/// @brief 网络停止通知
+void QtETMain::onNetworkStoppedNotify(const QString &networkName, bool success, const QString &errorMsg)
+{
+    if (!m_trayIcon) {
+        return;
+    }
+    
+    if (success) {
+        m_trayIcon->showMessage(
+            tr("网络停止成功"),
+            tr("网络 \"%1\" 已成功停止").arg(networkName),
+            QSystemTrayIcon::Information,
+            3000
+        );
+    } else {
+        m_trayIcon->showMessage(
+            tr("网络停止失败"),
+            tr("网络 \"%1\" 停止失败:\n%2").arg(networkName).arg(errorMsg),
+            QSystemTrayIcon::Warning,
+            5000
+        );
+    }
 }
 
 /// @brief 处理系统调色板变化
@@ -186,4 +401,3 @@ void QtETMain::initNetworkPage()
         m_mainStackedWidget->setCurrentWidget(m_networkPage);
     });
 }
-
