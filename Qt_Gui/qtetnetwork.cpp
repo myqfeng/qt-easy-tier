@@ -1,6 +1,8 @@
 #include "qtetnetwork.h"
 
 #include <QRegularExpressionValidator>
+#include <QFormLayout>
+#include <QFontDatabase>
 
 QtETNetwork::QtETNetwork(QWidget *parent)
     : QWidget(parent)
@@ -17,13 +19,12 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_runningStatusTab(nullptr)
     , m_runningLogTab(nullptr)
     // 基础设置控件
-    , m_usernameEdit(nullptr)
+    , m_hostnameEdit(nullptr)
     , m_networkNameEdit(nullptr)
-    , m_passwordEdit(nullptr)
-    , m_togglePasswordBtn(nullptr)
+    , m_networkSecretEdit(nullptr)
     , m_dhcpCheckBox(nullptr)
-    , m_ipEdit(nullptr)
-    , m_lowLatencyCheckBox(nullptr)
+    , m_ipv4Edit(nullptr)
+    , m_latencyFirstCheckBox(nullptr)
     , m_privateModeCheckBox(nullptr)
     , m_serverEdit(nullptr)
     , m_addServerBtn(nullptr)
@@ -33,28 +34,28 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     // 高级设置控件 - 功能开关
     , m_functionWidget(nullptr)
     , m_functionGridLayout(nullptr)
-    , m_kcpProxyCheckBox(nullptr)
-    , m_kcpInputDisableCheckBox(nullptr)
-    , m_noTunModeCheckBox(nullptr)
-    , m_quicProxyCheckBox(nullptr)
-    , m_quicInputDisableCheckBox(nullptr)
-    , m_udpHolePunchingDisableCheckBox(nullptr)
-    , m_multithreadCheckBox(nullptr)
-    , m_userModeStackCheckBox(nullptr)
-    , m_onlyPhysicalNicCheckBox(nullptr)
-    , m_p2pDisableCheckBox(nullptr)
-    , m_exitNodeCheckBox(nullptr)
+    , m_enableKcpProxyCheckBox(nullptr)
+    , m_disableKcpInputCheckBox(nullptr)
+    , m_noTunCheckBox(nullptr)
+    , m_enableQuicProxyCheckBox(nullptr)
+    , m_disableQuicInputCheckBox(nullptr)
+    , m_disableUdpHolePunchingCheckBox(nullptr)
+    , m_multiThreadCheckBox(nullptr)
+    , m_useSmoltcpCheckBox(nullptr)
+    , m_bindDeviceCheckBox(nullptr)
+    , m_disableP2pCheckBox(nullptr)
+    , m_enableExitNodeCheckBox(nullptr)
     , m_systemForwardingCheckBox(nullptr)
-    , m_symmetricNatHolePunchingDisableCheckBox(nullptr)
-    , m_ipv6DisableCheckBox(nullptr)
-    , m_rpcPacketForwardingCheckBox(nullptr)
-    , m_encryptionDisableCheckBox(nullptr)
-    , m_magicDnsCheckBox(nullptr)
+    , m_disableSymHolePunchingCheckBox(nullptr)
+    , m_disableIpv6CheckBox(nullptr)
+    , m_relayAllPeerRpcCheckBox(nullptr)
+    , m_enableEncryptionCheckBox(nullptr)
+    , m_acceptDnsCheckBox(nullptr)
     // 高级设置控件 - RPC 端口
     , m_rpcPortEdit(nullptr)
     // 高级设置控件 - 网络白名单
-    , m_relayNetworkWhitelistCheckBox(nullptr)
-    , m_relayNetworkWhitelistEdit(nullptr)
+    , m_foreignNetworkWhitelistCheckBox(nullptr)
+    , m_foreignNetworkWhitelistEdit(nullptr)
     , m_addWhitelistBtn(nullptr)
     , m_whitelistListWidget(nullptr)
     , m_removeWhitelistBtn(nullptr)
@@ -64,10 +65,10 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_listenAddrListWidget(nullptr)
     , m_removeListenAddrBtn(nullptr)
     // 高级设置控件 - 子网代理 CIDR
-    , m_cidrEdit(nullptr)
-    , m_addCidrBtn(nullptr)
-    , m_cidrListWidget(nullptr)
-    , m_removeCidrBtn(nullptr)
+    , m_proxyNetworkEdit(nullptr)
+    , m_addProxyNetworkBtn(nullptr)
+    , m_proxyNetworkListWidget(nullptr)
+    , m_removeProxyNetworkBtn(nullptr)
     , m_calculateCidrBtn(nullptr)
     // 运行状态控件
     , m_statusLabel(nullptr)
@@ -103,14 +104,23 @@ void QtETNetwork::initLeftPanel()
     m_leftLayout->setSpacing(5);
     m_leftLayout->setContentsMargins(1, 0, 0, 0);
 
+    // 创建网络列表标题
+    QLabel *networksLabel = new QLabel(tr("我创建的:"), m_leftFrame);
+    QFont font = networksLabel->font();
+    font.setPointSize(12);
+    font.setWeight(QFont::Bold);
+    networksLabel->setFont(font);
+    networksLabel->setMinimumHeight(32);
+    m_leftLayout->addWidget(networksLabel);
+
     // 创建网络列表
     m_networksList = new QtETListWidget(m_leftFrame);
     m_networksList->setMinimumSize(140, 0);
     m_networksList->setMaximumSize(140, QWIDGETSIZE_MAX);
 
-    m_networksList->addItem("家里的NAS");
+    /*m_networksList->addItem("家里的NAS");
     m_networksList->addItem("我的服务器");
-    m_networksList->addItem("远程运维");
+    m_networksList->addItem("远程运维");*/
 
     m_leftLayout->addWidget(m_networksList);
 
@@ -187,36 +197,34 @@ void QtETNetwork::initBasicSettingsPage()
     networkFormLayout->setVerticalSpacing(15);
 
     // 用户名输入框
-    m_usernameEdit = new QLineEdit(networkFormWidget);
-    m_usernameEdit->setPlaceholderText(tr("请输入用户名（默认为本机名称）"));
-    networkFormLayout->addRow(tr("用户名:"), m_usernameEdit);
+    m_hostnameEdit = new QLineEdit(networkFormWidget);
+    m_hostnameEdit->setPlaceholderText(tr("请输入用户名（默认为本机名称）"));
+    networkFormLayout->addRow(tr("用户名:"), m_hostnameEdit);
 
     // 网络号输入框
     m_networkNameEdit = new QLineEdit(networkFormWidget);
     m_networkNameEdit->setPlaceholderText(tr("请输入网络名称"));
     networkFormLayout->addRow(tr("网络号:"), m_networkNameEdit);
 
-    // 密码输入框 + 显示/隐藏按钮
-    QWidget *passwordWidget = new QWidget(networkFormWidget);
-    QHBoxLayout *passwordLayout = new QHBoxLayout();
-    passwordLayout->setContentsMargins(0, 0, 0, 0);
-    passwordLayout->setSpacing(5);
-    passwordWidget->setLayout(passwordLayout);
+    // 密码输入框（行内小眼睛图标）
+    m_networkSecretEdit = new QLineEdit(networkFormWidget);
+    m_networkSecretEdit->setPlaceholderText(tr("请输入密码"));
+    m_networkSecretEdit->setEchoMode(QLineEdit::Password);
 
-    m_passwordEdit = new QLineEdit(passwordWidget);
-    m_passwordEdit->setPlaceholderText(tr("请输入密码"));
-    m_passwordEdit->setEchoMode(QLineEdit::Password);
+    // 添加行内显示/隐藏密码按钮
+    QAction *togglePasswordAction = m_networkSecretEdit->addAction(QIcon(QStringLiteral(":/icons/eye-slash.svg")), QLineEdit::TrailingPosition);
+    togglePasswordAction->setCheckable(true);
+    connect(togglePasswordAction, &QAction::toggled, this, [this, togglePasswordAction](bool checked) {
+        if (checked) {
+            m_networkSecretEdit->setEchoMode(QLineEdit::Normal);
+            togglePasswordAction->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
+        } else {
+            m_networkSecretEdit->setEchoMode(QLineEdit::Password);
+            togglePasswordAction->setIcon(QIcon(QStringLiteral(":/icons/eye-slash.svg")));
+        }
+    });
 
-    m_togglePasswordBtn = new QPushButton(passwordWidget);
-    m_togglePasswordBtn->setCheckable(true);
-    m_togglePasswordBtn->setIcon(QIcon(QStringLiteral(":/icons/eye-slash.svg")));
-    m_togglePasswordBtn->setIconSize(QSize(20, 20));
-    m_togglePasswordBtn->setFixedSize(32, 26);
-    m_togglePasswordBtn->setStyleSheet(QStringLiteral("background-color: #66ccff; border: none; border-radius: 5px;"));
-
-    passwordLayout->addWidget(m_passwordEdit);
-    passwordLayout->addWidget(m_togglePasswordBtn);
-    networkFormLayout->addRow(tr("密码:"), passwordWidget);
+    networkFormLayout->addRow(tr("密码:"), m_networkSecretEdit);
 
     // DHCP 开关
     m_dhcpCheckBox = new QtETCheckBtn(networkFormWidget);
@@ -227,13 +235,13 @@ void QtETNetwork::initBasicSettingsPage()
     networkFormLayout->addRow(tr("IP 设置:"), m_dhcpCheckBox);
 
     // IPv4 地址输入框
-    m_ipEdit = new QLineEdit(networkFormWidget);
-    m_ipEdit->setPlaceholderText(tr("请输入 IPv4 地址"));
-    m_ipEdit->setEnabled(false);
+    m_ipv4Edit = new QLineEdit(networkFormWidget);
+    m_ipv4Edit->setPlaceholderText(tr("请输入 IPv4 地址"));
+    m_ipv4Edit->setEnabled(false);
     // 设置 IP 地址验证器
     static const QRegularExpression ipRegex("^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
-    m_ipEdit->setValidator(new QRegularExpressionValidator(ipRegex, m_ipEdit));
-    networkFormLayout->addRow(tr("IPv4 地址:"), m_ipEdit);
+    m_ipv4Edit->setValidator(new QRegularExpressionValidator(ipRegex, m_ipv4Edit));
+    networkFormLayout->addRow(tr("IPv4 地址:"), m_ipv4Edit);
 
     // 低延迟优先和私有模式放在同一行
     QWidget *optionsWidget = new QWidget(networkFormWidget);
@@ -241,18 +249,20 @@ void QtETNetwork::initBasicSettingsPage()
     optionsLayout->setContentsMargins(0, 0, 0, 0);
     optionsLayout->setSpacing(20);
 
-    m_lowLatencyCheckBox = new QtETCheckBtn(optionsWidget);
-    m_lowLatencyCheckBox->setText(tr("低延迟优先"));
-    m_lowLatencyCheckBox->setBorderless(true);
-    m_lowLatencyCheckBox->setToolTip(tr("开启后,会根据算法自动选择低延时的线路进行连接"));
+    m_latencyFirstCheckBox = new QtETCheckBtn(optionsWidget);
+    m_latencyFirstCheckBox->setText(tr("低延迟优先"));
+    m_latencyFirstCheckBox->setBorderless(true);
+    m_latencyFirstCheckBox->setMaximumWidth(200);
+    m_latencyFirstCheckBox->setToolTip(tr("开启后,会根据算法自动选择低延时的线路进行连接"));
 
     m_privateModeCheckBox = new QtETCheckBtn(optionsWidget);
     m_privateModeCheckBox->setText(tr("私有模式"));
     m_privateModeCheckBox->setChecked(true);
     m_privateModeCheckBox->setBorderless(true);
+    m_privateModeCheckBox->setMaximumWidth(200);
     m_privateModeCheckBox->setToolTip(tr("开启后,不允许网络号和密码不相同的节点使用本节点进行数据中转"));
 
-    optionsLayout->addWidget(m_lowLatencyCheckBox, 1);
+    optionsLayout->addWidget(m_latencyFirstCheckBox, 1);
     optionsLayout->addWidget(m_privateModeCheckBox, 1);
     networkFormLayout->addRow(QString(), optionsWidget);
 
@@ -291,7 +301,7 @@ void QtETNetwork::initBasicSettingsPage()
     serverLayout->addLayout(serverListLayout);
 
     // 公共服务器按钮
-    m_publicServerBtn = new QPushButton(tr("公共服务器列表"), serverWidget);
+    m_publicServerBtn = new QPushButton(tr("服务器收藏列表"), serverWidget);
     serverLayout->addWidget(m_publicServerBtn);
 
     scrollLayout->addWidget(serverWidget);
@@ -307,18 +317,20 @@ void QtETNetwork::initBasicSettingsPage()
     pageLayout->setContentsMargins(0, 0, 0, 0);
     pageLayout->addWidget(scrollArea);
 
+    // 设置服务器列表的字体为 UbuntuMono
+    int fontId = QFontDatabase::addApplicationFont(QStringLiteral(":/icons/UbuntuMono-B.ttf"));
+    if (fontId != -1) {
+        QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
+        if (!fontFamilies.isEmpty()) {
+            QFont monoFont(fontFamilies.first());
+            monoFont.setPointSize(10);
+            m_serverListWidget->setFont(monoFont);
+        }
+    }
+
     // 连接信号槽
     connect(m_dhcpCheckBox, &QtETCheckBtn::toggled, this, [this](bool checked) {
-        m_ipEdit->setEnabled(!checked);
-    });
-    connect(m_togglePasswordBtn, &QPushButton::toggled, this, [this](bool checked) {
-        if (checked) {
-            m_passwordEdit->setEchoMode(QLineEdit::Normal);
-            m_togglePasswordBtn->setIcon(QIcon(QStringLiteral(":/icons/eye.svg")));
-        } else {
-            m_passwordEdit->setEchoMode(QLineEdit::Password);
-            m_togglePasswordBtn->setIcon(QIcon(QStringLiteral(":/icons/eye-slash.svg")));
-        }
+        m_ipv4Edit->setEnabled(!checked);
     });
     connect(m_serverListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
         m_removeServerBtn->setEnabled(m_serverListWidget->selectedItems().count() > 0);
@@ -331,6 +343,10 @@ void QtETNetwork::initAdvancedSettingsPage()
     QScrollArea *scrollArea = new QScrollArea(m_advancedSettingsTab);
     scrollArea->setWidgetResizable(true);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    // 安装平滑滚动事件过滤器到 viewport（滚轮事件由 viewport 接收）
+    SmoothScrollFilter *smoothFilter = new SmoothScrollFilter(scrollArea, scrollArea);
+    scrollArea->viewport()->installEventFilter(smoothFilter);
 
     // 创建滚动区内容部件
     QWidget *scrollContent = new QWidget(scrollArea);
@@ -353,71 +369,71 @@ void QtETNetwork::initAdvancedSettingsPage()
     functionGridLayout->setVerticalSpacing(6);
 
     // 初始化功能开关控件
-    m_kcpProxyCheckBox = new QtETCheckBtn(functionWidget);
-    m_kcpProxyCheckBox->setText(tr("启用 KCP 代理"));
-    m_kcpProxyCheckBox->setChecked(true);
-    m_kcpProxyCheckBox->setToolTip(tr("使用UDP协议代理TCP流量,启用以获得更好的UDP P2P效果"));
-    m_kcpProxyCheckBox->setBriefTip(tr("允许使用 KCP 协议发包"));
+    m_enableKcpProxyCheckBox = new QtETCheckBtn(functionWidget);
+    m_enableKcpProxyCheckBox->setText(tr("启用 KCP 代理"));
+    m_enableKcpProxyCheckBox->setChecked(true);
+    m_enableKcpProxyCheckBox->setToolTip(tr("使用UDP协议代理TCP流量,启用以获得更好的UDP P2P效果"));
+    m_enableKcpProxyCheckBox->setBriefTip(tr("允许使用 KCP 协议发包"));
 
-    m_kcpInputDisableCheckBox = new QtETCheckBtn(functionWidget);
-    m_kcpInputDisableCheckBox->setText(tr("禁用 KCP 输入"));
-    m_kcpInputDisableCheckBox->setChecked(false);
-    m_kcpInputDisableCheckBox->setToolTip(tr("不接受通过KCP协议传输的流量"));
-    m_kcpInputDisableCheckBox->setBriefTip(tr("不接收 KCP 协议的流量"));
+    m_disableKcpInputCheckBox = new QtETCheckBtn(functionWidget);
+    m_disableKcpInputCheckBox->setText(tr("禁用 KCP 输入"));
+    m_disableKcpInputCheckBox->setChecked(false);
+    m_disableKcpInputCheckBox->setToolTip(tr("不接受通过KCP协议传输的流量"));
+    m_disableKcpInputCheckBox->setBriefTip(tr("不接收 KCP 协议的流量"));
 
-    m_noTunModeCheckBox = new QtETCheckBtn(functionWidget);
-    m_noTunModeCheckBox->setText(tr("无 TUN 模式"));
-    m_noTunModeCheckBox->setChecked(false);
-    m_noTunModeCheckBox->setToolTip(tr("不创建TUN网卡,开启时本节点无法主动访问其他节点,只能被动访问"));
-    m_noTunModeCheckBox->setBriefTip(tr("不创建 TUN 虚拟网卡"));
+    m_noTunCheckBox = new QtETCheckBtn(functionWidget);
+    m_noTunCheckBox->setText(tr("无 TUN 模式"));
+    m_noTunCheckBox->setChecked(false);
+    m_noTunCheckBox->setToolTip(tr("不创建TUN网卡,开启时本节点无法主动访问其他节点,只能被动访问"));
+    m_noTunCheckBox->setBriefTip(tr("不创建 TUN 虚拟网卡"));
 
-    m_quicProxyCheckBox = new QtETCheckBtn(functionWidget);
-    m_quicProxyCheckBox->setText(tr("启用 QUIC 代理"));
-    m_quicProxyCheckBox->setChecked(false);
-    m_quicProxyCheckBox->setToolTip(tr("QUIC是一个由Google设计,基于UDP的新一代可靠传输层协议,启用以获得更好的UDP P2P效果"));
-    m_quicProxyCheckBox->setBriefTip(tr("允许使用 QUIC 协议发包"));
+    m_enableQuicProxyCheckBox = new QtETCheckBtn(functionWidget);
+    m_enableQuicProxyCheckBox->setText(tr("启用 QUIC 代理"));
+    m_enableQuicProxyCheckBox->setChecked(false);
+    m_enableQuicProxyCheckBox->setToolTip(tr("QUIC是一个由Google设计,基于UDP的新一代可靠传输层协议,启用以获得更好的UDP P2P效果"));
+    m_enableQuicProxyCheckBox->setBriefTip(tr("允许使用 QUIC 协议发包"));
 
-    m_quicInputDisableCheckBox = new QtETCheckBtn(functionWidget);
-    m_quicInputDisableCheckBox->setText(tr("禁用 QUIC 输入"));
-    m_quicInputDisableCheckBox->setChecked(false);
-    m_quicInputDisableCheckBox->setToolTip(tr("不接受通过 QUIC 协议传输的流量"));
-    m_quicInputDisableCheckBox->setBriefTip(tr("不接收 QUIC 协议的流量"));
+    m_disableQuicInputCheckBox = new QtETCheckBtn(functionWidget);
+    m_disableQuicInputCheckBox->setText(tr("禁用 QUIC 输入"));
+    m_disableQuicInputCheckBox->setChecked(false);
+    m_disableQuicInputCheckBox->setToolTip(tr("不接受通过 QUIC 协议传输的流量"));
+    m_disableQuicInputCheckBox->setBriefTip(tr("不接收 QUIC 协议的流量"));
 
-    m_udpHolePunchingDisableCheckBox = new QtETCheckBtn(functionWidget);
-    m_udpHolePunchingDisableCheckBox->setText(tr("禁用 UDP 打洞"));
-    m_udpHolePunchingDisableCheckBox->setChecked(false);
-    m_udpHolePunchingDisableCheckBox->setToolTip(tr("禁用UDP打洞,仅允许通过TCP进行P2P访问"));
-    m_udpHolePunchingDisableCheckBox->setBriefTip(tr("不使用 UDP 协议打洞"));
+    m_disableUdpHolePunchingCheckBox = new QtETCheckBtn(functionWidget);
+    m_disableUdpHolePunchingCheckBox->setText(tr("禁用 UDP 打洞"));
+    m_disableUdpHolePunchingCheckBox->setChecked(false);
+    m_disableUdpHolePunchingCheckBox->setToolTip(tr("禁用UDP打洞,仅允许通过TCP进行P2P访问"));
+    m_disableUdpHolePunchingCheckBox->setBriefTip(tr("不使用 UDP 协议打洞"));
 
-    m_multithreadCheckBox = new QtETCheckBtn(functionWidget);
-    m_multithreadCheckBox->setText(tr("启用多线程"));
-    m_multithreadCheckBox->setChecked(true);
-    m_multithreadCheckBox->setToolTip(tr("后端启用多线程,可提升组网性能,但可能会增加占用"));
-    m_multithreadCheckBox->setBriefTip(tr("使用多线程优化提升组网性能"));
+    m_multiThreadCheckBox = new QtETCheckBtn(functionWidget);
+    m_multiThreadCheckBox->setText(tr("启用多线程"));
+    m_multiThreadCheckBox->setChecked(true);
+    m_multiThreadCheckBox->setToolTip(tr("后端启用多线程,可提升组网性能,但可能会增加占用"));
+    m_multiThreadCheckBox->setBriefTip(tr("使用多线程优化提升组网性能"));
 
-    m_userModeStackCheckBox = new QtETCheckBtn(functionWidget);
-    m_userModeStackCheckBox->setText(tr("使用用户态协议栈"));
-    m_userModeStackCheckBox->setChecked(false);
-    m_userModeStackCheckBox->setToolTip(tr("使用用户态协议栈,默认使用系统协议栈"));
-    m_userModeStackCheckBox->setBriefTip(tr("默认使用系统协议栈"));
+    m_useSmoltcpCheckBox = new QtETCheckBtn(functionWidget);
+    m_useSmoltcpCheckBox->setText(tr("使用用户态协议栈"));
+    m_useSmoltcpCheckBox->setChecked(false);
+    m_useSmoltcpCheckBox->setToolTip(tr("使用用户态协议栈,默认使用系统协议栈"));
+    m_useSmoltcpCheckBox->setBriefTip(tr("默认使用系统协议栈"));
 
-    m_onlyPhysicalNicCheckBox = new QtETCheckBtn(functionWidget);
-    m_onlyPhysicalNicCheckBox->setText(tr("仅使用物理网卡"));
-    m_onlyPhysicalNicCheckBox->setChecked(true);
-    m_onlyPhysicalNicCheckBox->setToolTip(tr("仅使用物理网卡与其他节点建立P2P连接"));
-    m_onlyPhysicalNicCheckBox->setBriefTip(tr("不通过其他虚拟网卡进行连接"));
+    m_bindDeviceCheckBox = new QtETCheckBtn(functionWidget);
+    m_bindDeviceCheckBox->setText(tr("仅使用物理网卡"));
+    m_bindDeviceCheckBox->setChecked(true);
+    m_bindDeviceCheckBox->setToolTip(tr("仅使用物理网卡与其他节点建立P2P连接"));
+    m_bindDeviceCheckBox->setBriefTip(tr("不通过其他虚拟网卡进行连接"));
 
-    m_p2pDisableCheckBox = new QtETCheckBtn(functionWidget);
-    m_p2pDisableCheckBox->setText(tr("禁用 P2P"));
-    m_p2pDisableCheckBox->setChecked(false);
-    m_p2pDisableCheckBox->setToolTip(tr("流量需要经过你添加的中转服务器,不直接与其他节点建立P2P连接"));
-    m_p2pDisableCheckBox->setBriefTip(tr("流量只从添加的节点中转"));
+    m_disableP2pCheckBox = new QtETCheckBtn(functionWidget);
+    m_disableP2pCheckBox->setText(tr("禁用 P2P"));
+    m_disableP2pCheckBox->setChecked(false);
+    m_disableP2pCheckBox->setToolTip(tr("流量需要经过你添加的中转服务器,不直接与其他节点建立P2P连接"));
+    m_disableP2pCheckBox->setBriefTip(tr("流量只从添加的节点中转"));
 
-    m_exitNodeCheckBox = new QtETCheckBtn(functionWidget);
-    m_exitNodeCheckBox->setText(tr("启用出口节点"));
-    m_exitNodeCheckBox->setChecked(false);
-    m_exitNodeCheckBox->setToolTip(tr("本节点可作为VPN的出口节点, 可被用于端口转发"));
-    m_exitNodeCheckBox->setBriefTip(tr("请慎用该功能"));
+    m_enableExitNodeCheckBox = new QtETCheckBtn(functionWidget);
+    m_enableExitNodeCheckBox->setText(tr("启用出口节点"));
+    m_enableExitNodeCheckBox->setChecked(false);
+    m_enableExitNodeCheckBox->setToolTip(tr("本节点可作为VPN的出口节点, 可被用于端口转发"));
+    m_enableExitNodeCheckBox->setBriefTip(tr("请慎用该功能"));
 
     m_systemForwardingCheckBox = new QtETCheckBtn(functionWidget);
     m_systemForwardingCheckBox->setText(tr("系统转发"));
@@ -425,54 +441,54 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_systemForwardingCheckBox->setToolTip(tr("通过系统内核转发子网代理数据包，禁用内置NAT"));
     m_systemForwardingCheckBox->setBriefTip(tr("通过系统内核转发子网数据包"));
 
-    m_symmetricNatHolePunchingDisableCheckBox = new QtETCheckBtn(functionWidget);
-    m_symmetricNatHolePunchingDisableCheckBox->setText(tr("禁用对称 NAT 打洞"));
-    m_symmetricNatHolePunchingDisableCheckBox->setChecked(false);
-    m_symmetricNatHolePunchingDisableCheckBox->setBriefTip(tr("在对称 NAT 环境下打洞可能失败"));
+    m_disableSymHolePunchingCheckBox = new QtETCheckBtn(functionWidget);
+    m_disableSymHolePunchingCheckBox->setText(tr("禁用对称 NAT 打洞"));
+    m_disableSymHolePunchingCheckBox->setChecked(false);
+    m_disableSymHolePunchingCheckBox->setBriefTip(tr("在对称 NAT 环境下打洞可能失败"));
 
-    m_ipv6DisableCheckBox = new QtETCheckBtn(functionWidget);
-    m_ipv6DisableCheckBox->setText(tr("禁用 IPv6"));
-    m_ipv6DisableCheckBox->setChecked(false);
-    m_ipv6DisableCheckBox->setToolTip(tr("禁用IPv6连接, 仅使用IPv4"));
-    m_ipv6DisableCheckBox->setBriefTip(tr("虚拟网络内禁用 IPv6 通信。"));
+    m_disableIpv6CheckBox = new QtETCheckBtn(functionWidget);
+    m_disableIpv6CheckBox->setText(tr("禁用 IPv6"));
+    m_disableIpv6CheckBox->setChecked(false);
+    m_disableIpv6CheckBox->setToolTip(tr("禁用IPv6连接, 仅使用IPv4"));
+    m_disableIpv6CheckBox->setBriefTip(tr("虚拟网络内禁用 IPv6 通信。"));
 
-    m_rpcPacketForwardingCheckBox = new QtETCheckBtn(functionWidget);
-    m_rpcPacketForwardingCheckBox->setText(tr("转发 RPC 包"));
-    m_rpcPacketForwardingCheckBox->setChecked(false);
-    m_rpcPacketForwardingCheckBox->setToolTip(tr("转发其他节点的网络配置,不论该节点是否在网络白名单中, 帮助其他节点建立P2P连接"));
-    m_rpcPacketForwardingCheckBox->setBriefTip(tr("帮助其他节点建立P2P连接"));
+    m_relayAllPeerRpcCheckBox = new QtETCheckBtn(functionWidget);
+    m_relayAllPeerRpcCheckBox->setText(tr("转发 RPC 包"));
+    m_relayAllPeerRpcCheckBox->setChecked(false);
+    m_relayAllPeerRpcCheckBox->setToolTip(tr("转发其他节点的网络配置,不论该节点是否在网络白名单中, 帮助其他节点建立P2P连接"));
+    m_relayAllPeerRpcCheckBox->setBriefTip(tr("帮助其他节点建立P2P连接"));
 
-    m_encryptionDisableCheckBox = new QtETCheckBtn(functionWidget);
-    m_encryptionDisableCheckBox->setText(tr("禁用加密"));
-    m_encryptionDisableCheckBox->setChecked(false);
-    m_encryptionDisableCheckBox->setToolTip(tr("禁用本节点通信的加密，必须与对等节点相同,正常情况下请保持加密"));
-    m_encryptionDisableCheckBox->setBriefTip(tr("正常情况下请勿开启"));
+    m_enableEncryptionCheckBox = new QtETCheckBtn(functionWidget);
+    m_enableEncryptionCheckBox->setText(tr("启用加密"));
+    m_enableEncryptionCheckBox->setChecked(true);
+    m_enableEncryptionCheckBox->setToolTip(tr("启用本节点通信的加密，必须与对等节点相同,正常情况下请保持加密"));
+    m_enableEncryptionCheckBox->setBriefTip(tr("正常情况下请保持加密"));
 
-    m_magicDnsCheckBox = new QtETCheckBtn(functionWidget);
-    m_magicDnsCheckBox->setText(tr("启用魔法 DNS"));
-    m_magicDnsCheckBox->setChecked(false);
-    m_magicDnsCheckBox->setToolTip(tr("启用后可通过\"用户名.et.net\"访问本节点\n注意：Linux用户需要手动配置 DNS 服务器为100.100.100.101"));
-    m_magicDnsCheckBox->setBriefTip(tr("通过\"用户名.et.net\"访问本节点"));
+    m_acceptDnsCheckBox = new QtETCheckBtn(functionWidget);
+    m_acceptDnsCheckBox->setText(tr("启用魔法 DNS"));
+    m_acceptDnsCheckBox->setChecked(false);
+    m_acceptDnsCheckBox->setToolTip(tr("启用后可通过\"用户名.et.net\"访问本节点\n注意：Linux用户需要手动配置 DNS 服务器为100.100.100.101"));
+    m_acceptDnsCheckBox->setBriefTip(tr("通过\"用户名.et.net\"访问本节点"));
 
     // 将所有功能开关添加到列表中
     m_functionCheckBoxes.clear();
-    m_functionCheckBoxes.append(m_kcpProxyCheckBox);
-    m_functionCheckBoxes.append(m_kcpInputDisableCheckBox);
-    m_functionCheckBoxes.append(m_quicProxyCheckBox);
-    m_functionCheckBoxes.append(m_quicInputDisableCheckBox);
-    m_functionCheckBoxes.append(m_noTunModeCheckBox);
-    m_functionCheckBoxes.append(m_udpHolePunchingDisableCheckBox);
-    m_functionCheckBoxes.append(m_multithreadCheckBox);
-    m_functionCheckBoxes.append(m_userModeStackCheckBox);
-    m_functionCheckBoxes.append(m_p2pDisableCheckBox);
-    m_functionCheckBoxes.append(m_onlyPhysicalNicCheckBox);
-    m_functionCheckBoxes.append(m_exitNodeCheckBox);
+    m_functionCheckBoxes.append(m_enableKcpProxyCheckBox);
+    m_functionCheckBoxes.append(m_disableKcpInputCheckBox);
+    m_functionCheckBoxes.append(m_enableQuicProxyCheckBox);
+    m_functionCheckBoxes.append(m_disableQuicInputCheckBox);
+    m_functionCheckBoxes.append(m_noTunCheckBox);
+    m_functionCheckBoxes.append(m_disableUdpHolePunchingCheckBox);
+    m_functionCheckBoxes.append(m_multiThreadCheckBox);
+    m_functionCheckBoxes.append(m_useSmoltcpCheckBox);
+    m_functionCheckBoxes.append(m_disableP2pCheckBox);
+    m_functionCheckBoxes.append(m_bindDeviceCheckBox);
+    m_functionCheckBoxes.append(m_enableExitNodeCheckBox);
     m_functionCheckBoxes.append(m_systemForwardingCheckBox);
-    m_functionCheckBoxes.append(m_symmetricNatHolePunchingDisableCheckBox);
-    m_functionCheckBoxes.append(m_ipv6DisableCheckBox);
-    m_functionCheckBoxes.append(m_rpcPacketForwardingCheckBox);
-    m_functionCheckBoxes.append(m_encryptionDisableCheckBox);
-    m_functionCheckBoxes.append(m_magicDnsCheckBox);
+    m_functionCheckBoxes.append(m_disableSymHolePunchingCheckBox);
+    m_functionCheckBoxes.append(m_disableIpv6CheckBox);
+    m_functionCheckBoxes.append(m_relayAllPeerRpcCheckBox);
+    m_functionCheckBoxes.append(m_enableEncryptionCheckBox);
+    m_functionCheckBoxes.append(m_acceptDnsCheckBox);
 
     // 存储容器和布局
     m_functionWidget = functionWidget;
@@ -511,11 +527,13 @@ void QtETNetwork::initAdvancedSettingsPage()
     QVBoxLayout *whitelistLayout = new QVBoxLayout(whitelistWidget);
     whitelistLayout->setContentsMargins(15, 5, 15, 10);
 
-    m_relayNetworkWhitelistCheckBox = new QtETCheckBtn(whitelistWidget);
-    m_relayNetworkWhitelistCheckBox->setText(tr("启用网络白名单"));
-    m_relayNetworkWhitelistCheckBox->setToolTip(tr("仅转发网络白名单中VPN的流量, 留空则为不转发任何网络的流量"));
-    m_relayNetworkWhitelistCheckBox->setChecked(false);
-    whitelistLayout->addWidget(m_relayNetworkWhitelistCheckBox);
+    m_foreignNetworkWhitelistCheckBox = new QtETCheckBtn(whitelistWidget);
+    m_foreignNetworkWhitelistCheckBox->setText(tr("启用网络白名单"));
+    m_foreignNetworkWhitelistCheckBox->setToolTip(tr("仅转发网络白名单中VPN的流量, 留空则为不转发任何网络的流量"));
+    m_foreignNetworkWhitelistCheckBox->setChecked(false);
+    m_foreignNetworkWhitelistCheckBox->setBorderless(true);
+    m_foreignNetworkWhitelistCheckBox->setMaximumWidth(160);
+    whitelistLayout->addWidget(m_foreignNetworkWhitelistCheckBox);
 
     // 白名单控件容器
     QWidget *whitelistControlsWidget = new QWidget(whitelistWidget);
@@ -523,11 +541,11 @@ void QtETNetwork::initAdvancedSettingsPage()
     whitelistControlsLayout->setContentsMargins(0, 0, 0, 0);
 
     QHBoxLayout *addWhitelistLayout = new QHBoxLayout();
-    m_relayNetworkWhitelistEdit = new QLineEdit(whitelistControlsWidget);
-    m_relayNetworkWhitelistEdit->setPlaceholderText(tr("请输入网络名称"));
+    m_foreignNetworkWhitelistEdit = new QLineEdit(whitelistControlsWidget);
+    m_foreignNetworkWhitelistEdit->setPlaceholderText(tr("请输入网络名称"));
     m_addWhitelistBtn = new QPushButton(tr("添加"), whitelistControlsWidget);
     m_addWhitelistBtn->setMinimumWidth(80);
-    addWhitelistLayout->addWidget(m_relayNetworkWhitelistEdit, 1);
+    addWhitelistLayout->addWidget(m_foreignNetworkWhitelistEdit, 1);
     addWhitelistLayout->addWidget(m_addWhitelistBtn);
     whitelistControlsLayout->addLayout(addWhitelistLayout);
 
@@ -588,22 +606,22 @@ void QtETNetwork::initAdvancedSettingsPage()
     cidrLayout->addWidget(cidrTitle);
 
     QHBoxLayout *addCidrLayout = new QHBoxLayout();
-    m_cidrEdit = new QLineEdit(cidrWidget);
-    m_cidrEdit->setPlaceholderText(tr("请输入子网代理 CIDR"));
-    m_addCidrBtn = new QPushButton(tr("添加"), cidrWidget);
-    m_addCidrBtn->setMinimumWidth(80);
-    addCidrLayout->addWidget(m_cidrEdit, 1);
-    addCidrLayout->addWidget(m_addCidrBtn);
+    m_proxyNetworkEdit = new QLineEdit(cidrWidget);
+    m_proxyNetworkEdit->setPlaceholderText(tr("请输入子网代理 CIDR"));
+    m_addProxyNetworkBtn = new QPushButton(tr("添加"), cidrWidget);
+    m_addProxyNetworkBtn->setMinimumWidth(80);
+    addCidrLayout->addWidget(m_proxyNetworkEdit, 1);
+    addCidrLayout->addWidget(m_addProxyNetworkBtn);
     cidrLayout->addLayout(addCidrLayout);
 
     QHBoxLayout *cidrListLayout = new QHBoxLayout();
-    m_cidrListWidget = new QListWidget(cidrWidget);
-    m_cidrListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    m_removeCidrBtn = new QPushButton(tr("删除"), cidrWidget);
-    m_removeCidrBtn->setMinimumWidth(80);
-    m_removeCidrBtn->setEnabled(false);
-    cidrListLayout->addWidget(m_cidrListWidget, 1);
-    cidrListLayout->addWidget(m_removeCidrBtn);
+    m_proxyNetworkListWidget = new QListWidget(cidrWidget);
+    m_proxyNetworkListWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_removeProxyNetworkBtn = new QPushButton(tr("删除"), cidrWidget);
+    m_removeProxyNetworkBtn->setMinimumWidth(80);
+    m_removeProxyNetworkBtn->setEnabled(false);
+    cidrListLayout->addWidget(m_proxyNetworkListWidget, 1);
+    cidrListLayout->addWidget(m_removeProxyNetworkBtn);
     cidrLayout->addLayout(cidrListLayout);
 
     m_calculateCidrBtn = new QPushButton(tr("打开 CIDR 计算器"), cidrWidget);
@@ -622,10 +640,23 @@ void QtETNetwork::initAdvancedSettingsPage()
     pageLayout->setContentsMargins(0, 0, 0, 0);
     pageLayout->addWidget(scrollArea);
 
+    // 设置列表控件的字体为 UbuntuMono
+    int fontId = QFontDatabase::addApplicationFont(QStringLiteral(":/icons/UbuntuMono-B.ttf"));
+    if (fontId != -1) {
+        QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
+        if (!fontFamilies.isEmpty()) {
+            QFont monoFont(fontFamilies.first());
+            monoFont.setPointSize(10);
+            m_listenAddrListWidget->setFont(monoFont);
+            m_whitelistListWidget->setFont(monoFont);
+            m_proxyNetworkListWidget->setFont(monoFont);
+        }
+    }
+
     // 连接信号槽
-    connect(m_relayNetworkWhitelistCheckBox, &QtETCheckBtn::toggled, this, [this, whitelistControlsWidget](bool checked) {
+    connect(m_foreignNetworkWhitelistCheckBox, &QtETCheckBtn::toggled, this, [this, whitelistControlsWidget](bool checked) {
         whitelistControlsWidget->setVisible(checked);
-        m_relayNetworkWhitelistEdit->setEnabled(checked);
+        m_foreignNetworkWhitelistEdit->setEnabled(checked);
         m_addWhitelistBtn->setEnabled(checked);
         m_whitelistListWidget->setEnabled(checked);
     });
@@ -633,12 +664,12 @@ void QtETNetwork::initAdvancedSettingsPage()
         m_removeListenAddrBtn->setEnabled(m_listenAddrListWidget->selectedItems().count() > 0);
     });
     connect(m_whitelistListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
-        if (m_relayNetworkWhitelistCheckBox->isChecked()) {
+        if (m_foreignNetworkWhitelistCheckBox->isChecked()) {
             m_removeWhitelistBtn->setEnabled(m_whitelistListWidget->selectedItems().count() > 0);
         }
     });
-    connect(m_cidrListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
-        m_removeCidrBtn->setEnabled(m_cidrListWidget->selectedItems().count() > 0);
+    connect(m_proxyNetworkListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
+        m_removeProxyNetworkBtn->setEnabled(m_proxyNetworkListWidget->selectedItems().count() > 0);
     });
 }
 

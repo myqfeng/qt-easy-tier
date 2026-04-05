@@ -2,27 +2,87 @@
 #define QTETNETWORK_H
 
 #include <QWidget>
-#include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QFrame>
-#include <QTabWidget>
 #include <QPushButton>
 #include <QLineEdit>
 #include <QLabel>
 #include <QScrollArea>
-#include <QFormLayout>
 #include <QGridLayout>
-#include <QListWidget>
 #include <QComboBox>
+#include <QAction>
+#include <QScrollBar>
+#include <QWheelEvent>
 
 #include "qtetlistwidget.h"
 #include "qtetcheckbtn.h"
+#include "networkconf.h"
+
+/// @brief 平滑滚动事件过滤器
+/// 实现滚轮平滑滚动动画效果
+class SmoothScrollFilter : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit SmoothScrollFilter(QScrollArea *scrollArea, QObject *parent = nullptr)
+        : QObject(parent)
+        , m_scrollArea(scrollArea)
+        , m_animation(nullptr)
+        , m_targetValue(0)
+    {}
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (event->type() == QEvent::Wheel && m_scrollArea) {
+            // 滚轮事件由 viewport 接收，而非 QScrollArea 本身
+            QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
+            QScrollBar *scrollBar = m_scrollArea->verticalScrollBar();
+            if (!scrollBar || !scrollBar->isVisible()) {
+                return QObject::eventFilter(watched, event);
+            }
+
+            // 计算滚动距离
+            int delta = -wheelEvent->angleDelta().y();
+            int scrollStep = 80; // 平滑滚动步长
+
+            // 目标位置
+            int currentValue = scrollBar->value();
+            m_targetValue = currentValue + (delta > 0 ? scrollStep : -scrollStep);
+            m_targetValue = qBound(scrollBar->minimum(), m_targetValue, scrollBar->maximum());
+
+            // 创建或更新动画
+            if (!m_animation) {
+                m_animation = new QPropertyAnimation(scrollBar, "value", this);
+                m_animation->setDuration(150); // 动画持续时间(毫秒)
+                m_animation->setEasingCurve(QEasingCurve::OutQuad); // 缓出效果
+            }
+
+            m_animation->stop();
+            m_animation->setStartValue(currentValue);
+            m_animation->setEndValue(m_targetValue);
+            m_animation->start();
+
+            return true; // 事件已处理
+        }
+
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    QScrollArea *m_scrollArea;        ///< 关联的滚动区域
+    QPropertyAnimation *m_animation;  ///< 滚动动画
+    int m_targetValue;                ///< 目标滚动位置
+};
 
 /// @brief 网络配置页面
 /// 提供网络列表和配置选项卡的界面
 class QtETNetwork : public QWidget
 {
     Q_OBJECT
+
+    // 声明 NetworkConf 为友元，允许其访问私有成员
+    friend class NetworkConf;
 
 public:
     explicit QtETNetwork(QWidget *parent = nullptr);
@@ -50,89 +110,88 @@ private:
 
 private:
     // 左侧面板
-    QFrame *m_leftFrame;                ///< 左侧面板容器
-    QVBoxLayout *m_leftLayout;          ///< 左侧布局
-    QtETListWidget *m_networksList;     ///< 网络列表
-    QPushButton *m_newNetworkBtn;       ///< 新建网络按钮
-    QPushButton *m_runNetworkBtn;       ///< 运行网络按钮
-    QPushButton *m_importConfBtn;       ///< 导入配置按钮
-    QPushButton *m_exportConfBtn;       ///< 导出配置按钮
+    QFrame *m_leftFrame;                /// @brief 左侧面板容器
+    QVBoxLayout *m_leftLayout;          /// @brief 左侧布局
+    QtETListWidget *m_networksList;     /// @brief 网络列表
+    QPushButton *m_newNetworkBtn;       /// @brief 新建网络按钮
+    QPushButton *m_runNetworkBtn;       /// @brief 运行网络按钮
+    QPushButton *m_importConfBtn;       /// @brief 导入配置按钮
+    QPushButton *m_exportConfBtn;       /// @brief 导出配置按钮
 
     // 右侧面板
-    QTabWidget *m_tabWidget;            ///< 选项卡容器
-    QWidget *m_basicSettingsTab;        ///< 基础设置选项卡
-    QWidget *m_advancedSettingsTab;     ///< 高级设置选项卡
-    QWidget *m_runningStatusTab;        ///< 运行状态选项卡
-    QWidget *m_runningLogTab;           ///< 运行日志选项卡
+    QTabWidget *m_tabWidget;            /// @brief 选项卡容器
+    QWidget *m_basicSettingsTab;        /// @brief 基础设置选项卡
+    QWidget *m_advancedSettingsTab;     /// @brief 高级设置选项卡
+    QWidget *m_runningStatusTab;        /// @brief 运行状态选项卡
+    QWidget *m_runningLogTab;           /// @brief 运行日志选项卡
 
     // 基础设置控件
-    QLineEdit *m_usernameEdit;          ///< 用户名输入框
-    QLineEdit *m_networkNameEdit;       ///< 网络号输入框
-    QLineEdit *m_passwordEdit;          ///< 密码输入框
-    QPushButton *m_togglePasswordBtn;   ///< 密码显示/隐藏按钮
-    QtETCheckBtn *m_dhcpCheckBox;       ///< DHCP 开关
-    QLineEdit *m_ipEdit;                ///< IPv4 地址输入框
-    QtETCheckBtn *m_lowLatencyCheckBox; ///< 低延迟优先开关
-    QtETCheckBtn *m_privateModeCheckBox;///< 私有模式开关
-    QLineEdit *m_serverEdit;            ///< 服务器地址输入框
-    QPushButton *m_addServerBtn;        ///< 添加服务器按钮
-    QListWidget *m_serverListWidget;    ///< 服务器列表
-    QPushButton *m_removeServerBtn;     ///< 删除服务器按钮
-    QPushButton *m_publicServerBtn;     ///< 公共服务器列表按钮
+    QLineEdit *m_hostnameEdit;              /// @brief 用户名输入框 (hostname)
+    QLineEdit *m_networkNameEdit;           /// @brief 网络号输入框 (network_name)
+    QLineEdit *m_networkSecretEdit;         /// @brief 网络密钥输入框 (network_secret)
+    QtETCheckBtn *m_dhcpCheckBox;           /// @brief DHCP 开关 (dhcp)
+    QLineEdit *m_ipv4Edit;                  /// @brief IPv4 地址输入框 (ipv4)
+    QtETCheckBtn *m_latencyFirstCheckBox;   /// @brief 低延迟优先开关 (latency_first)
+    QtETCheckBtn *m_privateModeCheckBox;    /// @brief 私有模式开关 (private_mode)
+    QLineEdit *m_serverEdit;            /// @brief 服务器地址输入框
+    QPushButton *m_addServerBtn;        /// @brief 添加服务器按钮
+    QListWidget *m_serverListWidget;    /// @brief 服务器列表
+    QPushButton *m_removeServerBtn;     /// @brief 删除服务器按钮
+    QPushButton *m_publicServerBtn;     /// @brief 公共服务器列表按钮
 
     // 高级设置控件 - 功能开关
-    QWidget *m_functionWidget;                          ///< 功能开关容器
-    QGridLayout *m_functionGridLayout;                  ///< 功能开关网格布局
-    QList<QtETCheckBtn*> m_functionCheckBoxes;          ///< 功能开关列表
-    QtETCheckBtn *m_kcpProxyCheckBox;           ///< 启用 KCP 代理
-    QtETCheckBtn *m_kcpInputDisableCheckBox;    ///< 禁用 KCP 输入
-    QtETCheckBtn *m_noTunModeCheckBox;          ///< 无 TUN 模式
-    QtETCheckBtn *m_quicProxyCheckBox;          ///< 启用 QUIC 代理
-    QtETCheckBtn *m_quicInputDisableCheckBox;   ///< 禁用 QUIC 输入
-    QtETCheckBtn *m_udpHolePunchingDisableCheckBox; ///< 禁用 UDP 打洞
-    QtETCheckBtn *m_multithreadCheckBox;        ///< 启用多线程
-    QtETCheckBtn *m_userModeStackCheckBox;      ///< 使用用户态协议栈
-    QtETCheckBtn *m_onlyPhysicalNicCheckBox;    ///< 仅使用物理网卡
-    QtETCheckBtn *m_p2pDisableCheckBox;         ///< 禁用 P2P
-    QtETCheckBtn *m_exitNodeCheckBox;           ///< 启用出口节点
-    QtETCheckBtn *m_systemForwardingCheckBox;   ///< 系统转发
-    QtETCheckBtn *m_symmetricNatHolePunchingDisableCheckBox; ///< 禁用对称 NAT 打洞
-    QtETCheckBtn *m_ipv6DisableCheckBox;        ///< 禁用 IPv6
-    QtETCheckBtn *m_rpcPacketForwardingCheckBox;///< 转发 RPC 包
-    QtETCheckBtn *m_encryptionDisableCheckBox;  ///< 禁用加密
-    QtETCheckBtn *m_magicDnsCheckBox;           ///< 启用魔法 DNS
+    QWidget *m_functionWidget;                          /// @brief 功能开关容器
+    QGridLayout *m_functionGridLayout;                  /// @brief 功能开关网格布局
+    QList<QtETCheckBtn*> m_functionCheckBoxes;          /// @brief 功能开关列表
+    QtETCheckBtn *m_enableKcpProxyCheckBox;             /// @brief 启用 KCP 代理 (enable_kcp_proxy)
+    QtETCheckBtn *m_disableKcpInputCheckBox;            /// @brief 禁用 KCP 输入 (disable_kcp_input)
+    QtETCheckBtn *m_noTunCheckBox;                      /// @brief 无 TUN 模式 (no_tun)
+    QtETCheckBtn *m_enableQuicProxyCheckBox;            /// @brief 启用 QUIC 代理 (enable_quic_proxy)
+    QtETCheckBtn *m_disableQuicInputCheckBox;           /// @brief 禁用 QUIC 输入 (disable_quic_input)
+    QtETCheckBtn *m_disableUdpHolePunchingCheckBox;     /// @brief 禁用 UDP 打洞 (disable_udp_hole_punching)
+    QtETCheckBtn *m_multiThreadCheckBox;                /// @brief 启用多线程 (multi_thread)
+    QtETCheckBtn *m_useSmoltcpCheckBox;                 /// @brief 使用用户态协议栈 (use_smoltcp)
+    QtETCheckBtn *m_bindDeviceCheckBox;                 /// @brief 仅使用物理网卡 (bind_device)
+    QtETCheckBtn *m_disableP2pCheckBox;                 /// @brief 禁用 P2P (disable_p2p)
+    QtETCheckBtn *m_enableExitNodeCheckBox;             /// @brief 启用出口节点 (enable_exit_node)
+    QtETCheckBtn *m_systemForwardingCheckBox;           /// @brief 系统转发 (system_forwarding)
+    QtETCheckBtn *m_disableSymHolePunchingCheckBox;     /// @brief 禁用对称 NAT 打洞 (disable_sym_hole_punching)
+    QtETCheckBtn *m_disableIpv6CheckBox;                /// @brief 禁用 IPv6
+    QtETCheckBtn *m_relayAllPeerRpcCheckBox;            /// @brief 转发 RPC 包 (relay_all_peer_rpc)
+    QtETCheckBtn *m_enableEncryptionCheckBox;           /// @brief 启用加密 (enable_encryption)
+    QtETCheckBtn *m_acceptDnsCheckBox;                  /// @brief 启用魔法 DNS (accept_dns)
 
     // 高级设置控件 - RPC 端口
-    QLineEdit *m_rpcPortEdit;           ///< RPC 端口输入框
+    QLineEdit *m_rpcPortEdit;           /// @brief RPC 端口输入框
 
     // 高级设置控件 - 网络白名单
-    QtETCheckBtn *m_relayNetworkWhitelistCheckBox;  ///< 启用网络白名单
-    QLineEdit *m_relayNetworkWhitelistEdit;         ///< 网络白名单输入框
-    QPushButton *m_addWhitelistBtn;                  ///< 添加白名单按钮
-    QListWidget *m_whitelistListWidget;              ///< 白名单列表
-    QPushButton *m_removeWhitelistBtn;               ///< 删除白名单按钮
+    QtETCheckBtn *m_foreignNetworkWhitelistCheckBox;    /// @brief 启用网络白名单 (foreign_network_whitelist)
+    QLineEdit *m_foreignNetworkWhitelistEdit;           /// @brief 网络白名单输入框
+    QPushButton *m_addWhitelistBtn;                     /// @brief 添加白名单按钮
+    QListWidget *m_whitelistListWidget;                 /// @brief 白名单列表
+    QPushButton *m_removeWhitelistBtn;                  /// @brief 删除白名单按钮
 
     // 高级设置控件 - 监听地址
-    QLineEdit *m_listenAddrEdit;        ///< 监听地址输入框
-    QPushButton *m_addListenAddrBtn;    ///< 添加监听地址按钮
-    QListWidget *m_listenAddrListWidget;///< 监听地址列表
-    QPushButton *m_removeListenAddrBtn; ///< 删除监听地址按钮
+    QLineEdit *m_listenAddrEdit;        /// @brief 监听地址输入框
+    QPushButton *m_addListenAddrBtn;    /// @brief 添加监听地址按钮
+    QListWidget *m_listenAddrListWidget;/// @brief 监听地址列表
+    QPushButton *m_removeListenAddrBtn; /// @brief 删除监听地址按钮
 
     // 高级设置控件 - 子网代理 CIDR
-    QLineEdit *m_cidrEdit;              ///< 子网代理 CIDR 输入框
-    QPushButton *m_addCidrBtn;          ///< 添加 CIDR 按钮
-    QListWidget *m_cidrListWidget;      ///< CIDR 列表
-    QPushButton *m_removeCidrBtn;       ///< 删除 CIDR 按钮
-    QPushButton *m_calculateCidrBtn;    ///< 打开 CIDR 计算器按钮
+    QLineEdit *m_proxyNetworkEdit;           /// @brief 子网代理 CIDR 输入框 (proxy_network)
+    QPushButton *m_addProxyNetworkBtn;       /// @brief 添加 CIDR 按钮
+    QListWidget *m_proxyNetworkListWidget;   /// @brief CIDR 列表
+    QPushButton *m_removeProxyNetworkBtn;    /// @brief 删除 CIDR 按钮
+    QPushButton *m_calculateCidrBtn;         /// @brief 打开 CIDR 计算器按钮
 
     // 运行状态控件
-    QLabel *m_statusLabel;              ///< 状态标签
+    QLabel *m_statusLabel;              /// @brief 状态标签
 
     // 运行日志控件
-    QLabel *m_logLabel;                 ///< 日志标签
+    QLabel *m_logLabel;                 /// @brief 日志标签
 
     // 主布局
-    QHBoxLayout *m_mainLayout;          ///< 主布局
+    QHBoxLayout *m_mainLayout;          /// @brief 主布局
 };
 
 #endif // QTETNETWORK_H

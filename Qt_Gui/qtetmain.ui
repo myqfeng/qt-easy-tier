@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>640</width>
-    <height>480</height>
+    <width>720</width>
+    <height>540</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -99,6 +99,9 @@ QPushButton:disabled {
       </property>
       <item>
        <widget class="QPushButton" name="homeBtn">
+        <property name="toolTip">
+         <string>首页</string>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -119,6 +122,9 @@ QPushButton:disabled {
       </item>
       <item>
        <widget class="QPushButton" name="networkBtn">
+        <property name="toolTip">
+         <string>组网设置</string>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -139,6 +145,9 @@ QPushButton:disabled {
       </item>
       <item>
        <widget class="QPushButton" name="oneClickBtn">
+        <property name="toolTip">
+         <string>一键联机</string>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -159,6 +168,9 @@ QPushButton:disabled {
       </item>
       <item>
        <widget class="QPushButton" name="webBtn">
+        <property name="toolTip">
+         <string>Web 控制台</string>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -178,6 +190,23 @@ QPushButton:disabled {
        </widget>
       </item>
       <item>
+       <widget class="QPushButton" name="serversBtn">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset resource="../Qt_QRC/icons.qrc">
+          <normaloff>:/icons/server.svg</normaloff>:/icons/server.svg</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>32</width>
+          <height>32</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item>
        <spacer name="verticalSpacer">
         <property name="orientation">
          <enum>Qt::Orientation::Vertical</enum>
@@ -192,6 +221,9 @@ QPushButton:disabled {
       </item>
       <item>
        <widget class="QPushButton" name="gitBtn">
+        <property name="toolTip">
+         <string>前往软件仓库</string>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -212,6 +244,9 @@ QPushButton:disabled {
       </item>
       <item>
        <widget class="QPushButton" name="helpBtn">
+        <property name="toolTip">
+         <string>获取帮助</string>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -232,6 +267,9 @@ QPushButton:disabled {
       </item>
       <item>
        <widget class="QPushButton" name="settingsBtn">
+        <property name="toolTip">
+         <string>设置</string>
+        </property>
         <property name="text">
          <string/>
         </property>

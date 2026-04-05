@@ -286,19 +286,22 @@ void QtETCheckBtn::paintEvent(QPaintEvent *event)
 
         // 获取边框颜色
         QColor borderColor;
-        QColor backgroundColor = palette().color(QPalette::Button);
 
         // 判断是否为暗色模式
         const bool isDark = (qApp->styleHints()->colorScheme() == Qt::ColorScheme::Dark);
 
+        // 根据暗色模式设置背景颜色（不依赖 QPalette，因为 Windows 上可能不准确）
+        QColor backgroundColor;
+        if (isDark) {
+            backgroundColor = QColor(45, 45, 45);  // 暗色背景
+        } else {
+            backgroundColor = palette().color(QPalette::Button);
+        }
+
         // 基础边框颜色（非悬停状态）
         QColor normalBorderColor;
         if (isDark) {
-            normalBorderColor = palette().color(QPalette::Light);
-            // 如果颜色太深，使用更浅的颜色
-            if (normalBorderColor.lightnessF() < 0.3) {
-                normalBorderColor = QColor(100, 100, 100);
-            }
+            normalBorderColor = QColor(70, 70, 70);  // 暗色模式下的边框颜色
         } else {
             normalBorderColor = palette().color(QPalette::Mid);
             // 如果颜色太浅，使用更深的颜色

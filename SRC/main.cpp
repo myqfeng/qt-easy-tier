@@ -1,15 +1,13 @@
-#include "mainwindow.h"
-#include "setting.h"
-#include "../Qt_Gui/qtetmain.h"
+#include "qtetmain.h"
 #include <iostream>
 #include <QApplication>
 #include <QStyleFactory>
-#include <QFile>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QPalette>
+#include <QColor>
 
 void isAlreadyRunning(const QString& serverName, const bool &isAutoStart);
 
@@ -40,6 +38,12 @@ int main(int argc, char *argv[])
         std::clog << "Breeze 样式不可用，使用默认样式" << std::endl;
     }
 #endif
+
+    // 设置调色板高亮主题色为 #66ccff
+    QPalette palette = app.palette();
+    palette.setColor(QPalette::Highlight, QColor("#66ccff"));
+    palette.setColor(QPalette::HighlightedText, QColor("#000000"));
+    app.setPalette(palette);
 
     //MainWindow w(nullptr, isAutoStart);
 
