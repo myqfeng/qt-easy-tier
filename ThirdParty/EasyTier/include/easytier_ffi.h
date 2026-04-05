@@ -28,25 +28,18 @@ extern "C" {
  * value 为JSON格式的实例信息字符串指针。
  */
 typedef struct KeyValuePair {
-    const char* key;   /**< 实例名称（C字符串，需调用 free_string 释放） */
-    const char* value; /**< 实例信息JSON字符串（需调用 free_string 释放） */
+    const char* key;   /** 实例名称（C字符串，需调用 free_string 释放） */
+    const char* value; /** 实例信息JSON字符串（需调用 free_string 释放） */
 } KeyValuePair;
 
 /**
  * @brief 解析配置字符串
- * 
+ *
  * 验证TOML格式的配置字符串是否有效。此函数仅进行语法检查，
  * 不会创建或启动网络实例。
- * 
+ *
  * @param[in] cfg_str TOML格式的配置字符串，UTF-8编码，不能为NULL
  * @return 成功返回 0，失败返回 -1
- * 
- * @note 配置字符串格式示例：
- * @code
- * inst_name = "my_instance"
- * network = "my_network"
- * network_secret = "secret123"
- * @endcode
  * 
  * @see run_network_instance() 启动网络实例
  * @see get_error_msg() 获取错误信息
