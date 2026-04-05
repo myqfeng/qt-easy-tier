@@ -1446,6 +1446,8 @@ void QtETNetwork::onNetworkStarted(const std::string &instName, bool success, co
     // 查找对应的网络配置（使用 instanceName 匹配）
     for (size_t i = 0; i < m_networkConfs.size(); ++i) {
         if (m_networkConfs[i].getInstanceName() == instName) {
+            QString networkName = QString::fromStdString(m_networkConfs[i].m_networkName);
+            
             if (success) {
                 // 更新运行状态
                 m_networkConfs[i].setRunning(true);
@@ -1462,13 +1464,10 @@ void QtETNetwork::onNetworkStarted(const std::string &instName, bool success, co
                 
                 // 保存配置
                 saveAllNetworkConfs();
-                
-                QMessageBox::information(this, tr("启动成功"), 
-                    tr("网络 \"%1\" 已成功启动").arg(QString::fromStdString(m_networkConfs[i].m_networkName)));
-            } else {
-                QMessageBox::warning(this, tr("启动失败"), 
-                    tr("网络 \"%1\" 启动失败:\n%2").arg(QString::fromStdString(m_networkConfs[i].m_networkName)).arg(QString::fromStdString(errorMsg)));
             }
+            
+            // 发出网络启动完成信号（由主窗口处理托盘通知）
+            emit networkStarted(networkName, success, QString::fromStdString(errorMsg));
             return;
         }
     }
@@ -1484,6 +1483,8 @@ void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, co
     // 查找对应的网络配置（使用 instanceName 匹配）
     for (size_t i = 0; i < m_networkConfs.size(); ++i) {
         if (m_networkConfs[i].getInstanceName() == instName) {
+            QString networkName = QString::fromStdString(m_networkConfs[i].m_networkName);
+            
             if (success) {
                 // 更新运行状态
                 m_networkConfs[i].setRunning(false);
@@ -1503,13 +1504,10 @@ void QtETNetwork::onNetworkStopped(const std::string &instName, bool success, co
                 
                 // 保存配置
                 saveAllNetworkConfs();
-                
-                QMessageBox::information(this, tr("停止成功"), 
-                    tr("网络 \"%1\" 已成功停止").arg(QString::fromStdString(m_networkConfs[i].m_networkName)));
-            } else {
-                QMessageBox::warning(this, tr("停止失败"), 
-                    tr("网络 \"%1\" 停止失败:\n%2").arg(QString::fromStdString(m_networkConfs[i].m_networkName)).arg(QString::fromStdString(errorMsg)));
             }
+            
+            // 发出网络停止完成信号（由主窗口处理托盘通知）
+            emit networkStopped(networkName, success, QString::fromStdString(errorMsg));
             return;
         }
     }

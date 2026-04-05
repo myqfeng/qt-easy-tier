@@ -156,6 +156,19 @@ private:
     /// @brief 停止节点监测定时器
     void stopNodeMonitor();
 
+signals:
+    /// @brief 网络启动完成信号
+    /// @param networkName 网络名称
+    /// @param success 是否成功
+    /// @param errorMsg 错误信息（成功时为空）
+    void networkStarted(const QString &networkName, bool success, const QString &errorMsg);
+    
+    /// @brief 网络停止完成信号
+    /// @param networkName 网络名称
+    /// @param success 是否成功
+    /// @param errorMsg 错误信息（成功时为空）
+    void networkStopped(const QString &networkName, bool success, const QString &errorMsg);
+
 private slots:
     /// @brief 新建网络按钮点击
     void onNewNetwork();
