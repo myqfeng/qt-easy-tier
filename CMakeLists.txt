@@ -35,7 +35,14 @@ include_directories(${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/include)
 
 # 添加EasyTier Ffi 库文件搜索路径
 if(WIN32)
-    link_directories(${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/library ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/windows)
+    link_directories(
+                ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/library
+                ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/windows
+    )
+else()
+    link_directories(
+                ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/linux
+    )
 endif()
 
 # 收集源文件
@@ -139,22 +146,7 @@ elseif(LINUX)
             COMMENT "复制EasyTier Linux 到 ${ProjectName} 目录..."
     )
 
-    # 设置可执行权限
-    add_custom_command(TARGET ${ProjectName} POST_BUILD
-            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/easytier-core
-            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/easytier-cli
-            COMMAND chmod +x $<TARGET_FILE_DIR:${ProjectName}>/easytier-web-embed
-            COMMENT "设置 EasyTier 可执行权限..."
-    )
 endif()
-
-# 复制公共节点列表信息
-add_custom_command(TARGET ${ProjectName} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_SOURCE_DIR}/assets/publicserver.json
-        $<TARGET_FILE_DIR:${ProjectName}>/publicserver.json
-        COMMENT "复制公共服务器列表到 ${ProjectName} 目录..."
-)
 
 # 复制CIDR计算器到主程序目录
 add_custom_command(TARGET ${ProjectName} POST_BUILD
@@ -265,16 +257,6 @@ elseif(LINUX)
         message(STATUS "未找到linuxdeployqt工具，跳过自动部署。请确保目标系统已安装Qt运行时。")
     endif()
 endif()
-
-# 安装时复制公共服务器列表
-install(CODE "
-    message(STATUS \"复制公共服务器列表\")
-    execute_process(
-        COMMAND \"${CMAKE_COMMAND}\" -E copy
-            \"${CMAKE_SOURCE_DIR}/assets/publicserver.json\"
-            \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/publicserver.json\"
-    )
-")
 
 # 自动处理 Qt 插件的依赖关系
 if(QT_VERSION_MAJOR EQUAL 6)

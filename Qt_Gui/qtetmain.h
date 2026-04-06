@@ -6,7 +6,8 @@
 #include <QCloseEvent>
 #include <ui_qtetmain.h>
 
-#include <qtetnetwork.h>
+#include "qtetnetwork.h"
+#include "qtetoneclick.h"
 
 namespace Ui {
 class QtETMain;
@@ -32,12 +33,14 @@ private:
     // ======== 初始化相关 ========
     void initHelloPage();
     void initNetworkPage();
+    void initOneClickPage();
     void initTrayIcon();        // 初始化系统托盘
 
     // ======== 子窗口 ========
     QStackedWidget* &m_mainStackedWidget = ui->mainStackedWidget;
     QWidget* &m_helloPage = ui->helloStackedPage;
     QtETNetwork* m_networkPage = nullptr;
+    QtETOneClick* m_oneClickPage = nullptr;
 
     // ======== 欢迎界面控件 ========
     QPushButton *m_aboutUsBtn = nullptr;     // 关于项目

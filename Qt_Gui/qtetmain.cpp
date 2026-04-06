@@ -34,6 +34,7 @@ QtETMain::QtETMain(QWidget *parent)
 // =============== 初始化界面 ===============
     initHelloPage();
     initNetworkPage();
+    initOneClickPage();
     
 // =============== 初始化系统托盘 ===============
     initTrayIcon();
@@ -399,5 +400,18 @@ void QtETMain::initNetworkPage()
     connect(ui->networkBtn, &QPushButton::clicked, m_networkPage, [=, this]()
     {
         m_mainStackedWidget->setCurrentWidget(m_networkPage);
+    });
+}
+
+void QtETMain::initOneClickPage()
+{
+    // 初始化一键组网界面
+    m_oneClickPage = new QtETOneClick(this);
+    m_mainStackedWidget->addWidget(m_oneClickPage);
+
+    // 连接切换信号槽
+    connect(ui->oneClickBtn, &QPushButton::clicked, m_oneClickPage, [=, this]()
+    {
+        m_mainStackedWidget->setCurrentWidget(m_oneClickPage);
     });
 }
