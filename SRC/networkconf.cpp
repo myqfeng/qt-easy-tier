@@ -17,7 +17,7 @@ NetworkConf::NetworkConf()
     m_instanceName = generateInstanceName();
 
     // 初始化默认服务器列表
-    m_servers.push_back("tcp://public.easytier.top:11010");
+    m_servers.push_back("wss://qtet-public.070219.xyz");
 
     // 初始化默认监听地址
     m_listenAddresses.push_back("tcp://0.0.0.0:11010");

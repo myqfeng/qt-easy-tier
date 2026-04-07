@@ -7,6 +7,16 @@
 #include <QStandardPaths>
 #include <set>
 
+// 节点列表状态提示字符串
+namespace NodeStatusText {
+    // 有节点时显示
+    const QString &WITH_NODES = QStringLiteral("节点列表:");
+    // 无节点，网络未运行
+    const QString &NO_NODES_NOT_RUNNING = QStringLiteral("节点列表: 暂无节点，请先运行网络");
+    // 无节点（网络运行中或通用情况）
+    const QString &NO_NODES = QStringLiteral("节点列表: 暂无节点");
+}
+
 QtETNetwork::QtETNetwork(QWidget *parent)
     : QWidget(parent)
     , m_leftFrame(nullptr)
@@ -894,8 +904,15 @@ void QtETNetwork::onNetworkSelected()
             if (!m_networkConfs[currentRow].m_runningStatus.isEmpty()) {
                 updateCurrentNetworkUI();
             } else {
-                m_statusLabel->setText(tr("节点列表: 加载中..."));
-                m_emptyLabel->hide();
+                // 没有节点信息时显示"空空如也"
+                m_statusLabel->setText(NodeStatusText::NO_NODES);
+                m_emptyLabel->show();
+                // 清空现有节点控件
+                for (QtETNodeInfo *widget : m_nodeInfoWidgets) {
+                    m_nodeInfoLayout->removeWidget(widget);
+                    widget->deleteLater();
+                }
+                m_nodeInfoWidgets.clear();
             }
             // 更新日志显示
             updateCurrentNetworkLogUI();
@@ -904,8 +921,15 @@ void QtETNetwork::onNetworkSelected()
                 QMetaObject::invokeMethod(m_runWorker, "collectInfos", Qt::QueuedConnection);
             }
         } else {
-            m_statusLabel->setText(tr("请先点击运行网络"));
-            m_emptyLabel->hide();
+            // 网络未运行时，没有节点信息也显示"空空如也"
+            m_statusLabel->setText(NodeStatusText::NO_NODES_NOT_RUNNING);
+            m_emptyLabel->show();
+            // 清空现有节点控件
+            for (QtETNodeInfo *widget : m_nodeInfoWidgets) {
+                m_nodeInfoLayout->removeWidget(widget);
+                widget->deleteLater();
+            }
+            m_nodeInfoWidgets.clear();
             // 网络未运行时清空日志显示
             m_logTextEdit->clear();
         }
@@ -1227,6 +1251,20 @@ void QtETNetwork::setupUIConnections()
             onUIChanged();
         }
     });
+    connect(m_calculateCidrBtn, &QPushButton::clicked, this, []() {
+        // 获取应用程序目录
+        QString appDir = QCoreApplication::applicationDirPath();
+        
+        // 根据平台确定可执行文件名
+#ifdef Q_OS_WIN
+        QString cidrCalcPath = appDir + "/CIDRCalculator.exe";
+#else
+        QString cidrCalcPath = appDir + "/CIDRCalculator";
+#endif
+        
+        // 以非监测方式启动程序
+        QProcess::startDetached(cidrCalcPath, QStringList(), appDir);
+    });
 }
 
 void QtETNetwork::loadAllNetworkConfs()
@@ -1471,9 +1509,13 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
         if (networkConf.getInstanceName() == conf.getInstanceName()) {
             networkConf.m_runningStatus.clear();
             networkConf.m_runningLog.clear();
+            networkConf.m_lastLogTimestamp.clear();
             break;
         }
     }
+
+    // 切换到运行状态页面
+    m_tabWidget->setCurrentIndex(2);  // 索引2是运行状态页面
     
     // 生成 TOML 配置
     const std::string &tomlConfig = conf.toToml();
@@ -1504,10 +1546,11 @@ void QtETNetwork::onRunNetworkBtnClicked_Stop(const NetworkConf &conf)
         if (networkConf.getInstanceName() == conf.getInstanceName()) {
             networkConf.m_runningStatus.clear();
             networkConf.m_runningLog.clear();
+            networkConf.m_lastLogTimestamp.clear();
             break;
         }
     }
-    
+
     // 创建进度对话框
     if (!m_progressDialog) {
         m_progressDialog = new QProgressDialog(this);
@@ -1874,86 +1917,81 @@ void QtETNetwork::updateCurrentNetworkUI()
     m_emptyLabel->setVisible(m_nodeInfoWidgets.isEmpty());
     
     // 更新顶部标签
-    m_statusLabel->setText(m_nodeInfoWidgets.isEmpty() ? tr("节点列表: 暂无节点") : tr("节点列表:"));
+    if (m_nodeInfoWidgets.isEmpty()) {
+        m_statusLabel->setText(currentConf.m_isRunning ? NodeStatusText::NO_NODES : NodeStatusText::NO_NODES_NOT_RUNNING);
+    } else {
+        m_statusLabel->setText(NodeStatusText::WITH_NODES);
+    }
 }
 
 void QtETNetwork::parseAndUpdateRunningLogs(NetworkConf &conf, const QString &jsonStr)
 {
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &parseError);
-    
+
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
         return;
     }
-    
+
     QJsonObject rootObj = doc.object();
-    
-    // 获取 events 数组
+
+    // 获取 events 数组（倒序排列，最新的在前）
     QJsonArray events = rootObj["events"].toArray();
     if (events.isEmpty()) {
         return;
     }
-    
-    // 收集所有新日志的时间戳（原始格式）
-    QSet<QString> existingTimestamps;
-    for (const QString &cachedLog : conf.m_runningLog) {
-        // 从缓存的日志中提取时间戳
-        // 格式：<span style='color:#66ccff'>[04-05 08:52:59]</span>
-        int startIdx = cachedLog.indexOf(QStringLiteral(">["));
-        int endIdx = cachedLog.indexOf(QStringLiteral("]</span>"));
-        if (startIdx >= 0 && endIdx > startIdx) {
-            QString formattedTime = cachedLog.mid(startIdx + 2, endIdx - startIdx - 2);
-            existingTimestamps.insert(formattedTime);
-        }
-    }
-    
-    // 遍历事件数组，增量添加新日志
+
+    // 收集本次新读取的日志（临时列表，稍后需要反转）
+    QStringList newLogs;
+    QString newestTimestamp; // 本次读取的最新时间戳
+
+    // 遍历事件数组（倒序，最新的在前）
     for (const QJsonValue &eventVal : events) {
         QString eventStr = eventVal.toString();
         if (eventStr.isEmpty()) {
             continue;
         }
-        
+
         // 解析事件 JSON
         QJsonParseError eventParseError;
         QJsonDocument eventDoc = QJsonDocument::fromJson(eventStr.toUtf8(), &eventParseError);
         if (eventParseError.error != QJsonParseError::NoError || !eventDoc.isObject()) {
             continue;
         }
-        
+
         QJsonObject eventObj = eventDoc.object();
         QString time = eventObj["time"].toString();
         QJsonObject event = eventObj["event"].toObject();
-        
-        // 将原始时间转换为格式化时间，用于检查是否已存在
-        // 原始格式：2026-04-05T08:52:59.046875300+08:00
-        // 格式化后：04-05 08:52:59
-        QString formattedTime;
-        int tIndex = time.indexOf('T');
-        if (tIndex >= 0) {
-            QString fullDate = time.left(tIndex);
-            QStringList dateParts = fullDate.split('-');
-            if (dateParts.size() >= 3) {
-                formattedTime = dateParts[1] + "-" + dateParts[2] + " ";
-            }
-            if (time.length() > tIndex + 9) {
-                formattedTime += time.mid(tIndex + 1, 8);
-            }
+
+        // 如果已有上次读取的时间戳，且当前时间戳早于或等于上次，则跳出循环
+        // 时间格式：2026-04-05T08:52:59.046875300+08:00，可以直接字符串比较
+        if (!conf.m_lastLogTimestamp.isEmpty() && time <= conf.m_lastLogTimestamp) {
+            break;
         }
-        
-        // 检查是否已存在
-        if (existingTimestamps.contains(formattedTime)) {
-            continue;
+
+        // 记录本次读取的最新时间戳（第一个遇到的就是最新的）
+        if (newestTimestamp.isEmpty()) {
+            newestTimestamp = time;
         }
-        
-        // 格式化并添加日志
+
+        // 格式化并添加到临时列表
         QString formattedLog = formatLogEntry(time, event);
         if (!formattedLog.isEmpty()) {
-            conf.m_runningLog.append(formattedLog);
-            existingTimestamps.insert(formattedTime);
+            newLogs.append(formattedLog);
         }
     }
-    
+
+    // 更新上次读取的最新时间戳
+    if (!newestTimestamp.isEmpty()) {
+        conf.m_lastLogTimestamp = newestTimestamp;
+    }
+
+    // 将新日志反转顺序后添加到 m_runningLog（因为原始数据是倒序的）
+    // 反转后变成正序（最旧的在前），直接追加到末尾即可
+    for (int i = newLogs.size() - 1; i >= 0; --i) {
+        conf.m_runningLog.append(newLogs[i]);
+    }
+
     // 检查日志数量限制
     while (conf.m_runningLog.size() > MAX_LOG_COUNT) {
         conf.m_runningLog.removeFirst();
@@ -2115,7 +2153,7 @@ void QtETNetwork::startNodeMonitor() const
     }
     
     // 更新顶部标签
-    m_statusLabel->setText(tr("节点列表: 加载中..."));
+    m_statusLabel->setText(NodeStatusText::NO_NODES);
 }
 
 void QtETNetwork::stopNodeMonitor()
@@ -2130,10 +2168,10 @@ void QtETNetwork::stopNodeMonitor()
         widget->deleteLater();
     }
     m_nodeInfoWidgets.clear();
-    
-    // 隐藏空状态标签，恢复默认提示
-    m_emptyLabel->hide();
-    m_statusLabel->setText(tr("请先点击运行网络"));
+
+    // 显示空状态标签
+    m_emptyLabel->show();
+    m_statusLabel->setText(NodeStatusText::NO_NODES_NOT_RUNNING);
 }
 
 void QtETNetwork::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &infos)

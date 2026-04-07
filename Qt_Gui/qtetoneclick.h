@@ -82,6 +82,7 @@ private:
 
     // 主布局
     QVBoxLayout *m_mainLayout = nullptr;
+    QVBoxLayout *m_contentLayout = nullptr;  ///< 滚动区域内容布局
 
     // 标题区域
     QWidget *m_titleWidget = nullptr;

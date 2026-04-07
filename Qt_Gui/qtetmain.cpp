@@ -21,7 +21,7 @@ QtETMain::QtETMain(QWidget *parent)
     , ui(new Ui::QtETMain)
 {
     ui->setupUi(this);
-    setMinimumSize(680, 480);
+    setMinimumSize(680, 460);
 
 // =============== 初始化调色板 ===============
     // 设置一次调色板
@@ -35,6 +35,7 @@ QtETMain::QtETMain(QWidget *parent)
     initHelloPage();
     initNetworkPage();
     initOneClickPage();
+    initSettingsPage();
     
 // =============== 初始化系统托盘 ===============
     initTrayIcon();
@@ -64,6 +65,10 @@ QtETMain::QtETMain(QWidget *parent)
     {
         QDesktopServices::openUrl(QUrl("https://qtet.myqfeng.top/other/donate/"));
     });
+    connect(m_notClickBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        QDesktopServices::openUrl(QUrl("https://www.bilibili.com/festival/2026BH?bvid=BV1gAcNzSEf4"));
+    });
     
     // 连接网络状态信号到托盘消息
     if (m_networkPage) {
@@ -78,56 +83,37 @@ QtETMain::~QtETMain()
     if (m_networkPage) {
         m_networkPage->saveAllNetworkConfs();
     }
+    // 注意：设置页面的配置由用户手动保存，不自动保存
     delete ui;
 }
 
 /// @brief 重写关闭事件，实现隐藏到托盘
 void QtETMain::closeEvent(QCloseEvent *event)
 {
-    // 隐藏到托盘而不是关闭
-    hide();
-    m_isHiddenToTray = true;
-    
-    // 首次隐藏到托盘时弹出提示
-    static bool firstHide = true;
-    if (firstHide && m_trayIcon) {
-        m_trayIcon->showMessage(
-            tr("QtEasyTier"),
-            tr("程序已最小化到系统托盘，双击图标可恢复窗口"),
-            QSystemTrayIcon::Information,
-            3000
-        );
-        firstHide = false;
-    }
-    
-    event->ignore();
-}
+    // 根据缓存设置决定是否隐藏到托盘
+    if (m_hideOnTray) {
+        // 隐藏到托盘而不是关闭
+        hide();
+        m_isHiddenToTray = true;
 
-/// @brief 重写窗口状态变化事件
-void QtETMain::changeEvent(QEvent *event)
-{
-    if (event->type() == QEvent::WindowStateChange) {
-        // 如果窗口被最小化，隐藏到托盘
-        if (isMinimized()) {
-            hide();
-            m_isHiddenToTray = true;
-            
-            // 首次隐藏到托盘时弹出提示
-            static bool firstHide = true;
-            if (firstHide && m_trayIcon) {
-                m_trayIcon->showMessage(
-                    tr("QtEasyTier"),
-                    tr("程序已最小化到系统托盘，双击图标可恢复窗口"),
-                    QSystemTrayIcon::Information,
-                    3000
-                );
-                firstHide = false;
-            }
-            event->ignore();
-            return;
+        // 首次隐藏到托盘时弹出提示
+        static bool firstHide = true;
+        if (firstHide && m_trayIcon) {
+            m_trayIcon->showMessage(
+                tr("QtEasyTier"),
+                tr("程序已最小化到系统托盘"),
+                QSystemTrayIcon::Information,
+                2000
+            );
+            firstHide = false;
         }
+
+        event->ignore();
+    } else {
+        // 直接退出程序
+        onQuitApp();
+        event->accept();
     }
-    QWidget::changeEvent(event);
 }
 
 /// @brief 初始化系统托盘
@@ -351,8 +337,31 @@ void QtETMain::initHelloPage()
     subTitleLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(subTitleLabel);
 
-    // 纵向弹簧
     mainLayout->addStretch();
+
+    // 设置口号Label
+    QLabel *sloganLabel = new QLabel(SLOGAN, this);
+    fontId = QFontDatabase::addApplicationFont(":/icons/YeGenyou.ttf");
+    QFont sloganFont;
+    if (fontId != -1) {
+        QStringList families = QFontDatabase::applicationFontFamilies(fontId);
+        if (!families.isEmpty()) {
+            sloganFont = QFont(families.first(), 14);
+        }
+    } else {
+        sloganFont.setPointSize(14);
+    }
+    sloganLabel->setFont(sloganFont);
+    sloganLabel->setAlignment(Qt::AlignCenter);
+    sloganLabel->setStyleSheet("color: #66ccff;");
+    mainLayout->addWidget(sloganLabel);
+
+
+    mainLayout->addStretch();
+
+    QLabel *tipLabel = new QLabel(tr("点击右侧问号获取使用帮助"), this);
+    tipLabel->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(tipLabel);
 
     // 功能按钮区域 (2x2 网格布局)
     QGridLayout *buttonGrid = new QGridLayout();
@@ -414,4 +423,29 @@ void QtETMain::initOneClickPage()
     {
         m_mainStackedWidget->setCurrentWidget(m_oneClickPage);
     });
+}
+
+void QtETMain::initSettingsPage()
+{
+    // 初始化设置界面
+    m_settingsPage = new QtETSettings(this);
+    m_mainStackedWidget->addWidget(m_settingsPage);
+
+    // 连接切换信号槽
+    connect(ui->settingsBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        m_mainStackedWidget->setCurrentWidget(m_settingsPage);
+    });
+
+    // 连接隐藏到托盘设置变更信号
+    connect(m_settingsPage, &QtETSettings::hideOnTrayChanged, this, &QtETMain::onHideOnTrayChanged);
+
+    // 初始化缓存的设置值
+    m_hideOnTray = QtETSettings::isHideOnTray();
+}
+
+void QtETMain::onHideOnTrayChanged(bool hideOnTray)
+{
+    // 更新缓存的设置值
+    m_hideOnTray = hideOnTray;
 }

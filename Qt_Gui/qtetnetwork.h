@@ -23,6 +23,8 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QTextEdit>
+#include <QProcess>
+#include <QCoreApplication>
 #include <vector>
 
 #include "qtetlistwidget.h"
