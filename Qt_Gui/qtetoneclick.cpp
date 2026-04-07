@@ -1,4 +1,5 @@
 #include "qtetoneclick.h"
+#include "qtetpublicserverdialog.h"
 #include <QFont>
 #include <QMessageBox>
 #include <QJsonObject>
@@ -247,6 +248,37 @@ void QtETOneClick::setupConnections()
     
     // 房主模式开关
     connect(m_hostModeCheckBox, &QtETCheckBtn::toggled, this, &QtETOneClick::onHostModeChanged);
+    
+    // 公共服务器列表按钮
+    connect(m_publicServerBtn, &QPushButton::clicked, this, [this]() {
+        QtETPublicServerDialog dialog(this);
+        
+        // 获取当前服务器列表
+        QStringList currentServers;
+        for (int i = 0; i < m_serverListWidget->count(); ++i) {
+            currentServers.append(m_serverListWidget->item(i)->text());
+        }
+        dialog.setSelectedServers(currentServers);
+        
+        if (dialog.exec() == QDialog::Accepted) {
+            // 获取用户选择的服务器
+            QStringList selectedUrls = dialog.selectedServers();
+            
+            // 添加到服务器列表（避免重复）
+            for (const QString &url : selectedUrls) {
+                bool exists = false;
+                for (int i = 0; i < m_serverListWidget->count(); ++i) {
+                    if (m_serverListWidget->item(i)->text() == url) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    m_serverListWidget->addItem(url);
+                }
+            }
+        }
+    });
 }
 
 // ==================== Worker 线程管理 ====================

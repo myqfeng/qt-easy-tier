@@ -1,4 +1,5 @@
 #include "qtetnetwork.h"
+#include "qtetpublicserverdialog.h"
 
 #include <QRegularExpressionValidator>
 #include <QFormLayout>
@@ -1174,6 +1175,38 @@ void QtETNetwork::setupUIConnections()
         QListWidgetItem *item = m_serverListWidget->currentItem();
         if (item) {
             delete m_serverListWidget->takeItem(m_serverListWidget->row(item));
+            onUIChanged();
+        }
+    });
+    
+    // 公共服务器列表按钮
+    connect(m_publicServerBtn, &QPushButton::clicked, this, [this]() {
+        QtETPublicServerDialog dialog(this);
+        
+        // 获取当前服务器列表
+        QStringList currentServers;
+        for (int i = 0; i < m_serverListWidget->count(); ++i) {
+            currentServers.append(m_serverListWidget->item(i)->text());
+        }
+        dialog.setSelectedServers(currentServers);
+        
+        if (dialog.exec() == QDialog::Accepted) {
+            // 获取用户选择的服务器
+            QStringList selectedUrls = dialog.selectedServers();
+            
+            // 添加到服务器列表（避免重复）
+            for (const QString &url : selectedUrls) {
+                bool exists = false;
+                for (int i = 0; i < m_serverListWidget->count(); ++i) {
+                    if (m_serverListWidget->item(i)->text() == url) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    m_serverListWidget->addItem(url);
+                }
+            }
             onUIChanged();
         }
     });
