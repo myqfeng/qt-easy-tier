@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QScrollArea>
 #include <random>
 #include <iostream>
 
@@ -36,10 +37,32 @@ void QtETOneClick::initUI()
     m_mainLayout->setSpacing(10);
     m_mainLayout->setContentsMargins(10, 10, 10, 10);
 
+    // 创建滚动区域
+    auto *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    // 创建滚动区域内容容器
+    auto *contentWidget = new QWidget();
+    m_contentLayout = new QVBoxLayout(contentWidget);
+    m_contentLayout->setSpacing(10);
+    m_contentLayout->setContentsMargins(0, 0, 0, 0);
+
+    // 初始化所有区域（全部放入滚动区域）
     initTitleArea();
     initFormArea();
     initServerArea();
     initButtonArea();
+
+    // 添加弹簧让内容向上对齐
+    m_contentLayout->addStretch();
+
+    // 将内容容器放入滚动区域
+    scrollArea->setWidget(contentWidget);
+
+    // 将滚动区域添加到主布局
+    m_mainLayout->addWidget(scrollArea, 1);
 
     setupConnections();
 }
@@ -75,7 +98,7 @@ void QtETOneClick::initTitleArea()
     titleLayout->addWidget(m_titleLabel, 0, Qt::AlignHCenter | Qt::AlignVCenter);
     titleLayout->addWidget(m_rightIconLabel);
 
-    m_mainLayout->addWidget(m_titleWidget, 0, Qt::AlignHCenter | Qt::AlignTop);
+    m_contentLayout->addWidget(m_titleWidget, 0, Qt::AlignHCenter | Qt::AlignTop);
 }
 
 void QtETOneClick::initFormArea()
@@ -111,7 +134,7 @@ void QtETOneClick::initFormArea()
     formLayout->addRow(m_roomIdLabel, m_roomIdEdit);
     formLayout->addRow(m_hostIpLabel, m_hostIpEdit);
 
-    m_mainLayout->addWidget(m_formWidget, 0, Qt::AlignTop);
+    m_contentLayout->addWidget(m_formWidget, 0, Qt::AlignTop);
 
     // 一键联机按钮
     m_oneClickBtn = new QPushButton(this);
@@ -122,7 +145,7 @@ void QtETOneClick::initFormArea()
     m_oneClickBtn->setFont(btnFont);
     m_oneClickBtn->setText(QStringLiteral("开始联机"));
 
-    m_mainLayout->addWidget(m_oneClickBtn, 0, Qt::AlignHCenter);
+    m_contentLayout->addWidget(m_oneClickBtn, 0, Qt::AlignHCenter);
 }
 
 void QtETOneClick::initServerArea()
@@ -177,7 +200,7 @@ void QtETOneClick::initServerArea()
     m_serverListWidget->addItem(QStringLiteral("wss://qtet-public.070219.xyz"));
     m_serverListWidget->addItem(QStringLiteral("tcp://qtet-public2.070219.xyz:27773"));
 
-    m_mainLayout->addWidget(m_serverWidget);
+    m_contentLayout->addWidget(m_serverWidget);
 }
 
 void QtETOneClick::initButtonArea()
@@ -189,16 +212,19 @@ void QtETOneClick::initButtonArea()
     m_hostModeCheckBox = new QtETCheckBtn(m_bottomWidget);
     m_hostModeCheckBox->setText(QStringLiteral("我做房主"));
     m_hostModeCheckBox->setChecked(false);  // 默认房客模式
+    m_hostModeCheckBox->setBriefTip(tr("打开时作为房主，关闭时作为房客"));
 
     // 低延迟优先
     m_latencyFirstCheckBox = new QtETCheckBtn(m_bottomWidget);
     m_latencyFirstCheckBox->setText(QStringLiteral("低延迟优先"));
     m_latencyFirstCheckBox->setChecked(true);  // 默认开启
+    m_latencyFirstCheckBox->setBriefTip(tr("使用延迟优先的路由策略，提升联机体验"));
+    m_latencyFirstCheckBox->setToolTip(tr("注意：该选项可能会影响稳定性，如果遇到问题请关闭该选项"));
 
     bottomLayout->addWidget(m_hostModeCheckBox, 0, 0);
     bottomLayout->addWidget(m_latencyFirstCheckBox, 0, 1);
 
-    m_mainLayout->addWidget(m_bottomWidget);
+    m_contentLayout->addWidget(m_bottomWidget);
 }
 
 void QtETOneClick::setupConnections()
