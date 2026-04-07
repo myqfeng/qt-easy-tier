@@ -168,6 +168,9 @@ QPushButton:disabled {
       </item>
       <item>
        <widget class="QPushButton" name="serversBtn">
+        <property name="toolTip">
+         <string>服务器收藏</string>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -180,6 +183,9 @@ QPushButton:disabled {
           <width>32</width>
           <height>32</height>
          </size>
+        </property>
+        <property name="autoExclusive">
+         <bool>true</bool>
         </property>
        </widget>
       </item>

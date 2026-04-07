@@ -35,6 +35,7 @@ QtETMain::QtETMain(QWidget *parent)
     initHelloPage();
     initNetworkPage();
     initOneClickPage();
+    initServersPage();
     initSettingsPage();
     
 // =============== 初始化系统托盘 ===============
@@ -422,6 +423,19 @@ void QtETMain::initOneClickPage()
     connect(ui->oneClickBtn, &QPushButton::clicked, m_oneClickPage, [=, this]()
     {
         m_mainStackedWidget->setCurrentWidget(m_oneClickPage);
+    });
+}
+
+void QtETMain::initServersPage()
+{
+    // 初始化服务器收藏界面
+    m_serversPage = new QtETServers(this);
+    m_mainStackedWidget->addWidget(m_serversPage);
+
+    // 连接切换信号槽
+    connect(ui->serversBtn, &QPushButton::clicked, this, [=, this]()
+    {
+        m_mainStackedWidget->setCurrentWidget(m_serversPage);
     });
 }
 

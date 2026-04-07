@@ -9,6 +9,7 @@
 #include "qtetnetwork.h"
 #include "qtetoneclick.h"
 #include "qtetsettings.h"
+#include "qtetservers.h"
 
 namespace Ui {
 class QtETMain;
@@ -33,6 +34,7 @@ private:
     void initHelloPage();
     void initNetworkPage();
     void initOneClickPage();
+    void initServersPage();     // 初始化服务器收藏页面
     void initSettingsPage();    // 初始化设置页面
     void initTrayIcon();        // 初始化系统托盘
 
@@ -41,6 +43,7 @@ private:
     QWidget* &m_helloPage = ui->helloStackedPage;
     QtETNetwork* m_networkPage = nullptr;
     QtETOneClick* m_oneClickPage = nullptr;
+    QtETServers* m_serversPage = nullptr;
     QtETSettings* m_settingsPage = nullptr;
 
     // ======== 欢迎界面控件 ========
