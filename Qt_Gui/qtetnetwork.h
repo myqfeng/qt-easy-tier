@@ -35,12 +35,13 @@
 
 /// @brief 平滑滚动事件过滤器
 /// 实现滚轮平滑滚动效果
+/// 支持所有继承自 QAbstractScrollArea 的控件（如 QScrollArea、QTextEdit 等）
 class SmoothScrollFilter : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit SmoothScrollFilter(QScrollArea *scrollArea, QObject *parent = nullptr)
+    explicit SmoothScrollFilter(QAbstractScrollArea *scrollArea, QObject *parent = nullptr)
         : QObject(parent)
         , m_scrollArea(scrollArea)
         , m_animation(nullptr)
@@ -51,7 +52,7 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override
     {
         if (event->type() == QEvent::Wheel && m_scrollArea) {
-            // 滚轮事件由 viewport 接收，而非 QScrollArea 本身
+            // 滚轮事件由 viewport 接收，而非 QAbstractScrollArea 本身
             QWheelEvent *wheelEvent = static_cast<QWheelEvent*>(event);
             QScrollBar *scrollBar = m_scrollArea->verticalScrollBar();
             if (!scrollBar || !scrollBar->isVisible()) {
@@ -86,9 +87,9 @@ protected:
     }
 
 private:
-    QScrollArea *m_scrollArea;        ///< 关联的滚动区域
-    QPropertyAnimation *m_animation;  ///< 滚动动画
-    int m_targetValue;                ///< 目标滚动位置
+    QAbstractScrollArea *m_scrollArea;  ///< 关联的滚动区域
+    QPropertyAnimation *m_animation;     ///< 滚动动画
+    int m_targetValue;                   ///< 目标滚动位置
 };
 
 /// @brief 网络配置页面
@@ -260,9 +261,6 @@ private:
     QtETCheckBtn *m_relayAllPeerRpcCheckBox;            /// @brief 转发 RPC 包 (relay_all_peer_rpc)
     QtETCheckBtn *m_enableEncryptionCheckBox;           /// @brief 启用加密 (enable_encryption)
     QtETCheckBtn *m_acceptDnsCheckBox;                  /// @brief 启用魔法 DNS (accept_dns)
-
-    // 高级设置控件 - RPC 端口
-    QLineEdit *m_rpcPortEdit;           /// @brief RPC 端口输入框
 
     // 高级设置控件 - 网络白名单
     QtETCheckBtn *m_foreignNetworkWhitelistCheckBox;    /// @brief 启用网络白名单 (foreign_network_whitelist)

@@ -7,7 +7,7 @@ set(ProjectName QtEasyTier)
 project(${ProjectName} VERSION 2.0.0 LANGUAGES CXX)
 
 # 缓存变量：是否将配置保存到程序目录（便携模式）
-set(SAVE_CONF_IN_APP_DIR false CACHE BOOL "Save configuration in application directory (portable mode)")
+set(SAVE_CONF_IN_APP_DIR true CACHE BOOL "Save configuration in application directory (portable mode)")
 
 # 启用Qt的自动MOC和RCC
 set(CMAKE_AUTOUIC ON)

@@ -65,8 +65,6 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_relayAllPeerRpcCheckBox(nullptr)
     , m_enableEncryptionCheckBox(nullptr)
     , m_acceptDnsCheckBox(nullptr)
-    // 高级设置控件 - RPC 端口
-    , m_rpcPortEdit(nullptr)
     // 高级设置控件 - 网络白名单
     , m_foreignNetworkWhitelistCheckBox(nullptr)
     , m_foreignNetworkWhitelistEdit(nullptr)
@@ -183,12 +181,8 @@ void QtETNetwork::initLeftPanel()
 
     // 创建网络列表
     m_networksList = new QtETListWidget(m_leftFrame);
-    m_networksList->setMinimumSize(140, 0);
-    m_networksList->setMaximumSize(140, QWIDGETSIZE_MAX);
-
-    /*m_networksList->addItem("家里的NAS");
-    m_networksList->addItem("我的服务器");
-    m_networksList->addItem("远程运维");*/
+    m_networksList->setMinimumSize(160, 0);
+    m_networksList->setMaximumSize(160, QWIDGETSIZE_MAX);
 
     m_leftLayout->addWidget(m_networksList);
 
@@ -243,6 +237,10 @@ void QtETNetwork::initBasicSettingsPage()
     QScrollArea *scrollArea = new QScrollArea(m_basicSettingsTab);
     scrollArea->setWidgetResizable(true);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    // 安装平滑滚动事件过滤器到 viewport（滚轮事件由 viewport 接收）
+    SmoothScrollFilter *smoothFilter = new SmoothScrollFilter(scrollArea, scrollArea);
+    scrollArea->viewport()->installEventFilter(smoothFilter);
 
     // 创建滚动区内容部件
     QWidget *scrollContent = new QWidget(scrollArea);
@@ -567,29 +565,6 @@ void QtETNetwork::initAdvancedSettingsPage()
 
     scrollLayout->addWidget(functionWidget);
 
-    // ========== RPC 端口设置 ==========
-    QWidget *rpcPortWidget = new QWidget(scrollContent);
-    QVBoxLayout *rpcPortLayout = new QVBoxLayout(rpcPortWidget);
-    rpcPortLayout->setContentsMargins(15, 5, 15, 0);
-
-    QHBoxLayout *rpcPortInputLayout = new QHBoxLayout();
-    QLabel *rpcPortLabel = new QLabel(tr("RPC 端口号:"), rpcPortWidget);
-    rpcPortLabel->setToolTip(tr("RPC是EasyTier去中心化组网中用于下发组网配置的通道"));
-    m_rpcPortEdit = new QLineEdit(rpcPortWidget);
-    m_rpcPortEdit->setPlaceholderText(tr("请输入 RPC 端口号"));
-    m_rpcPortEdit->setText(QStringLiteral("0"));
-    m_rpcPortEdit->setMaximumWidth(150);
-    rpcPortInputLayout->addWidget(rpcPortLabel);
-    rpcPortInputLayout->addWidget(m_rpcPortEdit);
-    rpcPortInputLayout->addStretch();
-    rpcPortLayout->addLayout(rpcPortInputLayout);
-
-    QLabel *rpcPortHint = new QLabel(tr("端口范围: 0-65535 (0 表示使用随机端口)"), rpcPortWidget);
-    rpcPortHint->setStyleSheet(QStringLiteral("color: gray; font-size: 10px;"));
-    rpcPortLayout->addWidget(rpcPortHint);
-
-    scrollLayout->addWidget(rpcPortWidget);
-
     // ========== 网络白名单 ==========
     QWidget *whitelistWidget = new QWidget(scrollContent);
     QVBoxLayout *whitelistLayout = new QVBoxLayout(whitelistWidget);
@@ -759,6 +734,10 @@ void QtETNetwork::initRunningStatusPage()
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scrollArea->setFrameShape(QFrame::NoFrame);
 
+    // 安装平滑滚动事件过滤器到 viewport（滚轮事件由 viewport 接收）
+    SmoothScrollFilter *smoothFilter = new SmoothScrollFilter(scrollArea, scrollArea);
+    scrollArea->viewport()->installEventFilter(smoothFilter);
+
     m_nodeInfoContainer = new QWidget(scrollArea);
     m_nodeInfoLayout = new QVBoxLayout(m_nodeInfoContainer);
     m_nodeInfoLayout->setContentsMargins(0, 10, 0, 0);
@@ -790,6 +769,10 @@ void QtETNetwork::initRunningLogPage()
     m_logTextEdit->setReadOnly(true);
     m_logTextEdit->setLineWrapMode(QTextEdit::WidgetWidth);  // 自动换行
     m_logTextEdit->setPlaceholderText(tr("运行日志将在此显示..."));
+
+    // 安装平滑滚动事件过滤器到 viewport（滚轮事件由 viewport 接收）
+    SmoothScrollFilter *smoothFilter = new SmoothScrollFilter(m_logTextEdit, m_logTextEdit);
+    m_logTextEdit->viewport()->installEventFilter(smoothFilter);
     
     // 设置 UbuntuMono 字体
     int fontId = QFontDatabase::addApplicationFont(QStringLiteral(":/icons/UbuntuMono-B.ttf"));
@@ -1023,7 +1006,6 @@ void QtETNetwork::loadConfToUI(const int& index) const
     m_latencyFirstCheckBox->blockSignals(true);
     m_privateModeCheckBox->blockSignals(true);
     m_serverListWidget->blockSignals(true);
-    m_rpcPortEdit->blockSignals(true);
     m_foreignNetworkWhitelistCheckBox->blockSignals(true);
     m_whitelistListWidget->blockSignals(true);
     m_listenAddrListWidget->blockSignals(true);
@@ -1081,9 +1063,6 @@ void QtETNetwork::loadConfToUI(const int& index) const
     m_enableEncryptionCheckBox->setChecked(conf.m_enableEncryption);
     m_acceptDnsCheckBox->setChecked(conf.m_acceptDns);
     
-    // RPC 端口
-    m_rpcPortEdit->setText(QString::number(conf.m_rpcPort));
-    
     // 网络白名单
     m_foreignNetworkWhitelistCheckBox->setChecked(conf.m_foreignNetworkWhitelistEnabled);
     m_whitelistListWidget->clear();
@@ -1112,7 +1091,6 @@ void QtETNetwork::loadConfToUI(const int& index) const
     m_latencyFirstCheckBox->blockSignals(false);
     m_privateModeCheckBox->blockSignals(false);
     m_serverListWidget->blockSignals(false);
-    m_rpcPortEdit->blockSignals(false);
     m_foreignNetworkWhitelistCheckBox->blockSignals(false);
     m_whitelistListWidget->blockSignals(false);
     m_listenAddrListWidget->blockSignals(false);
@@ -1229,9 +1207,6 @@ void QtETNetwork::setupUIConnections()
     connect(m_relayAllPeerRpcCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_enableEncryptionCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_acceptDnsCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
-    
-    // RPC 端口
-    connect(m_rpcPortEdit, &QLineEdit::textChanged, this, &QtETNetwork::onUIChanged);
     
     // 网络白名单
     connect(m_foreignNetworkWhitelistCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
@@ -1723,17 +1698,11 @@ void QtETNetwork::updateListItemStyle(const int &index) const
         const NetworkConf &conf = m_networkConfs[index];
         
         if (conf.isRunning()) {
-            // 运行中：绿色粗体
-            QFont font = item->font();
-            font.setBold(true);
-            item->setFont(font);
-            item->setForeground(QColor(46, 204, 113));  // 绿色
+            // 运行中：使用 running 图标
+            item->setIcon(QIcon(QStringLiteral(":/icons/network-running.svg")));
         } else {
-            // 未运行：恢复默认
-            QFont font = item->font();
-            font.setBold(false);
-            item->setFont(font);
-            item->setForeground(QColor());  // 默认颜色
+            // 未运行：使用默认网络图标
+            item->setIcon(QIcon(QStringLiteral(":/icons/network.svg")));
         }
     }
 }
