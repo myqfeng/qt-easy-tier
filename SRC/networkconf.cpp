@@ -65,11 +65,6 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     m_acceptDns = network->m_acceptDnsCheckBox->isChecked();
 
     // ==================== 高级设置 - 其他 ====================
-    // RPC 端口
-    bool ok = false;
-    int port = network->m_rpcPortEdit->text().toInt(&ok);
-    m_rpcPort = ok ? port : 0;
-
     // 网络白名单
     m_foreignNetworkWhitelistEnabled = network->m_foreignNetworkWhitelistCheckBox->isChecked();
     m_foreignNetworkWhitelist.clear();
@@ -137,7 +132,6 @@ void NetworkConf::readFromJson(const QJsonObject &json)
     m_acceptDns = json["accept_dns"].toBool(false);
 
     // ==================== 高级设置 - 其他 ====================
-    m_rpcPort = json["rpc_port"].toInt(0);
     m_foreignNetworkWhitelistEnabled = json["foreign_network_whitelist_enabled"].toBool(false);
 
     // 网络白名单
@@ -208,7 +202,6 @@ QJsonObject NetworkConf::toJson() const
     json["accept_dns"] = m_acceptDns;
 
     // ==================== 高级设置 - 其他 ====================
-    json["rpc_port"] = m_rpcPort;
     json["foreign_network_whitelist_enabled"] = m_foreignNetworkWhitelistEnabled;
 
     // 网络白名单
@@ -256,11 +249,6 @@ std::string NetworkConf::toToml() const
             oss << "\"" << addr << "\",\n";
         }
         oss << "]\n";
-    }
-
-    // ==================== rpc_portal RPC 端口 ====================
-    if (m_rpcPort > 0) {
-        oss << "\nrpc_portal = \"127.0.0.1:" << m_rpcPort << "\"\n";
     }
 
     // ==================== [network_identity] 网络身份 ====================

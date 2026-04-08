@@ -98,7 +98,6 @@ private:
     bool m_acceptDns = false;               ///< 启用魔法 DNS
 
     // ==================== 高级设置 - 其他 ====================
-    int m_rpcPort = 0;                      ///< RPC 端口号（0 表示随机）
     bool m_foreignNetworkWhitelistEnabled = false;  ///< 启用网络白名单
     std::vector<std::string> m_foreignNetworkWhitelist;  ///< 网络白名单
     std::vector<std::string> m_listenAddresses;    ///< 监听地址列表

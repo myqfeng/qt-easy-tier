@@ -3,9 +3,9 @@
 ; Non-commercial use only
 
 #define MyAppName "QtEasyTier"
-#define MyAppVersion "1.4.2"
+#define MyAppVersion "2.0.0"
 #define MyAppPublisher "myqfeng"
-#define MyAppURL "https://qtet.070219.xyz/"
+#define MyAppURL "https://qtet.myqfeng.top/"
 #define MyAppExeName "QtEasyTier.exe"
 #define MyAppAssocName MyAppName + ""
 #define MyAppAssocExt ".myp"

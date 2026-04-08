@@ -259,7 +259,7 @@ void QtETSettings::updateButtonState()
 
 QString QtETSettings::getConfigPath()
 {
-#if SAVE_CONF_IN_APP_DIR == true
+#if SAVE_CONF_IN_APP_DIR == TRUE
     return QCoreApplication::applicationDirPath() + "/config";
 #else
     return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
