@@ -16,6 +16,7 @@
 #include <QMenu>
 #include <QApplication>
 #include <QMessageBox>
+#include <QTimer>
 
 QtETMain::QtETMain(QWidget *parent)
     : QWidget(parent)
@@ -410,8 +411,18 @@ void QtETMain::initNetworkPage()
     m_networkPage = new QtETNetwork(this);
     m_mainStackedWidget->addWidget(m_networkPage);
     
-    // 加载保存的网络配置
-    m_networkPage->loadAllNetworkConfs();
+    // 加载保存的网络配置，并获取上次运行的网络索引列表
+    QVector<int> wasRunningIndexes = m_networkPage->loadAllNetworkConfs();
+    
+    // 如果启用了自动回连，自动启动上次运行的网络
+    if (QtETSettings::isAutoReconnect() && !wasRunningIndexes.isEmpty()) {
+        // 延迟启动网络，确保界面已完全初始化
+        QTimer::singleShot(500, this, [this, wasRunningIndexes]() {
+            for (int index : wasRunningIndexes) {
+                m_networkPage->runNetworkByIndex(index);
+            }
+        });
+    }
 
     // 连接切换信号槽
     connect(ui->networkBtn, &QPushButton::clicked, m_networkPage, [=, this]()
