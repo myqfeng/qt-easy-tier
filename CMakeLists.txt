@@ -134,6 +134,14 @@ target_link_libraries(${ProjectName} PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${
 # 链接EasyTier Ffi 库
 target_link_libraries(${ProjectName} PRIVATE easytier_ffi)
 
+if(APPLE)
+    # 统一使用@rpath查找FFI动态库，避免构建机绝对路径被写入二进制
+    set_target_properties(${ProjectName} PROPERTIES
+            BUILD_RPATH "@loader_path"
+            INSTALL_RPATH "@executable_path/../Frameworks"
+    )
+endif()
+
 # 设置目标属性
 if(WIN32)
     set_target_properties(${ProjectName} PROPERTIES
@@ -170,22 +178,45 @@ if(WIN32)
     )
 elseif(APPLE)
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
-        # 复制EasyTier macOS arm64版本到目标目录
-        add_custom_command(TARGET ${ProjectName} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_directory
-                ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64
-                $<TARGET_FILE_DIR:${ProjectName}>
-                COMMENT "复制EasyTier macOS arm64 到 ${ProjectName} 目录..."
-        )
+        set(EASYTIER_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/arm64")
     else()
-        # 复制EasyTier macOS x86_64版本到目标目录
-        add_custom_command(TARGET ${ProjectName} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_directory
-                ${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64
-                $<TARGET_FILE_DIR:${ProjectName}>
-                COMMENT "复制EasyTier macOS x86_64 到 ${ProjectName} 目录..."
-        )
+        set(EASYTIER_MACOS_DIR "${CMAKE_SOURCE_DIR}/ThirdParty/EasyTier/share/macos/x86_64")
     endif()
+
+    # 复制EasyTier macOS版本到目标目录
+    add_custom_command(TARGET ${ProjectName} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${EASYTIER_MACOS_DIR}
+            $<TARGET_FILE_DIR:${ProjectName}>
+            COMMENT "复制EasyTier macOS 到 ${ProjectName} 目录..."
+    )
+
+    # 读取源dylib原始install name，用于修正主程序中的依赖引用
+    set(EASYTIER_FFI_SOURCE_DYLIB "${EASYTIER_MACOS_DIR}/libeasytier_ffi.dylib")
+    execute_process(
+            COMMAND otool -D "${EASYTIER_FFI_SOURCE_DYLIB}"
+            OUTPUT_VARIABLE EASYTIER_FFI_ID_OUTPUT
+            RESULT_VARIABLE EASYTIER_FFI_ID_RESULT
+            ERROR_QUIET
+    )
+    if(EASYTIER_FFI_ID_RESULT EQUAL 0)
+        string(REPLACE "\n" ";" EASYTIER_FFI_ID_LINES "${EASYTIER_FFI_ID_OUTPUT}")
+        list(LENGTH EASYTIER_FFI_ID_LINES EASYTIER_FFI_ID_LINES_LEN)
+        if(EASYTIER_FFI_ID_LINES_LEN GREATER 1)
+            list(GET EASYTIER_FFI_ID_LINES 1 EASYTIER_FFI_ORIGINAL_ID)
+            string(STRIP "${EASYTIER_FFI_ORIGINAL_ID}" EASYTIER_FFI_ORIGINAL_ID)
+        endif()
+    endif()
+    if(NOT EASYTIER_FFI_ORIGINAL_ID)
+        set(EASYTIER_FFI_ORIGINAL_ID "/Users/tfly/code/EasyTier/target/release/deps/libeasytier_ffi.dylib")
+    endif()
+
+    # 修正FFI动态库id和主程序依赖，避免dyld按绝对路径加载
+    add_custom_command(TARGET ${ProjectName} POST_BUILD
+            COMMAND install_name_tool -id @rpath/libeasytier_ffi.dylib $<TARGET_FILE_DIR:${ProjectName}>/libeasytier_ffi.dylib
+            COMMAND install_name_tool -change ${EASYTIER_FFI_ORIGINAL_ID} @rpath/libeasytier_ffi.dylib $<TARGET_FILE:${ProjectName}>
+            COMMENT "修正EasyTier FFI动态库install name和可执行文件引用..."
+    )
 elseif(LINUX)
     # 复制EasyTier Linux版本到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
