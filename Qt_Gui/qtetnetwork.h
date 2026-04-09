@@ -32,6 +32,7 @@
 #include "qtetcheckbtn.h"
 #include "qtetpushbtn.h"
 #include "qtetnodeinfo.h"
+#include "qtettabwidget.h"
 #include "networkconf.h"
 #include "ETRunWorker.h"
 
@@ -233,7 +234,7 @@ private:
     QtETPushBtn *m_exportConfBtn;       /// @brief 导出配置按钮
 
     // 右侧面板
-    QTabWidget *m_tabWidget;            /// @brief 选项卡容器
+    QtETTabWidget *m_tabWidget;         /// @brief 选项卡容器
     QWidget *m_basicSettingsTab;        /// @brief 基础设置选项卡
     QWidget *m_advancedSettingsTab;     /// @brief 高级设置选项卡
     QWidget *m_runningStatusTab;        /// @brief 运行状态选项卡

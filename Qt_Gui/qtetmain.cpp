@@ -276,6 +276,12 @@ void QtETMain::onNetworkStoppedNotify(const QString &networkName, bool success, 
 /// @brief 处理系统调色板变化
 void QtETMain::onSchemeChanged(const Qt::ColorScheme &scheme)
 {
+    // 设置 mainStackedWidget 背景透明（使用 QPalette，不影响子控件）
+    QPalette pal = m_mainStackedWidget->palette();
+    pal.setColor(QPalette::Window, Qt::transparent);
+    m_mainStackedWidget->setPalette(pal);
+    m_mainStackedWidget->setAutoFillBackground(true);
+
     if (scheme == Qt::ColorScheme::Dark) {
 
         // 处理暗黑模式，设置sideWidget背景调色板为深色
