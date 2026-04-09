@@ -23,10 +23,8 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     // 检查是否已有实例运行（确保单实例）
-    QString serverName = "QtEasyTier2-by-Viahuang";
+    QString serverName = "QtEasyTier2-by-Myqfeng";
     isAlreadyRunning(serverName, isAutoStart);   // 有实例运行自动退出
-
-    app.setStyle("Fusion");
 
     // 设置调色板高亮主题色为 #66ccff
     QPalette palette = app.palette();

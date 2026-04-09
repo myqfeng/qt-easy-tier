@@ -205,7 +205,7 @@ void QtETNetwork::initLeftPanel()
 void QtETNetwork::initRightPanel()
 {
     // 创建选项卡容器
-    m_tabWidget = new QTabWidget(this);
+    m_tabWidget = new QtETTabWidget(this);
     m_tabWidget->setCurrentIndex(0);
 
     // 创建基础设置选项卡
