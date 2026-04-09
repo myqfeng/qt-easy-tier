@@ -131,9 +131,13 @@ private:
 
 public:
     /// @brief 加载所有网络配置到UI
-    void loadAllNetworkConfs();
+    /// @return 返回配置文件中 is_running 为 true 的网络索引列表（用于自动回连）
+    QVector<int> loadAllNetworkConfs();
     /// @brief 保存所有网络配置到文件
     void saveAllNetworkConfs() const;
+    /// @brief 根据索引启动网络（用于自动回连）
+    /// @param index 网络配置索引
+    void runNetworkByIndex(int index);
 
 private:
     /// @brief 将指定索引的网络配置加载到UI

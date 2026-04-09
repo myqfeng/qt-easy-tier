@@ -1298,7 +1298,7 @@ void QtETNetwork::setupUIConnections()
     });
 }
 
-void QtETNetwork::loadAllNetworkConfs()
+QVector<int> QtETNetwork::loadAllNetworkConfs()
 {
     // 清空现有数据
     m_networksList->clear();
@@ -1307,28 +1307,34 @@ void QtETNetwork::loadAllNetworkConfs()
     // 从文件读取配置
     m_networkConfs = ::readAllNetworkConf();
     
-    // 从 FFI 获取实际运行的网络实例列表
+    // 收集配置文件中 is_running 为 true 的网络索引（用于自动回连）
+    QVector<int> wasRunningIndexes;
+    
+    // 从 FFI 获取实际运行的网络实例列表（用于检测是否有残留的网络实例）
     std::vector<EasyTierFFI::KVPair> runningInstances;
     size_t maxLen = MAX_NETWORK_INSTANCES;
     int runningCount = EasyTierFFI::collectNetworkInfos(runningInstances, maxLen);
     
-    // 同步运行状态：根据 FFI 实际运行状态更新配置
+    // 如果有残留的网络实例，尝试停止它们（因为程序重启后无法管理旧实例）
     if (runningCount > 0) {
-        // 收集所有运行中的 instanceName
-        std::set<std::string> runningInstanceNames;
-        for (const auto &info : runningInstances) {
-            runningInstanceNames.insert(info.key);
+        // 停止所有残留的网络实例（传递空数组和 length=0 来终止所有实例）
+        std::vector<std::string> emptyNames;
+        size_t zeroLen = 0;
+        EasyTierFFI::retainNetworkInstance(emptyNames, zeroLen);
+    }
+    
+    // 处理每个配置：
+    // 1. 记录配置文件中 is_running 为 true 的索引
+    // 2. 将所有配置的当前运行状态设为 false（程序刚启动，实际未运行）
+    //    注意：这里设为 false 后，配置文件中原来的 is_running 值就丢失了
+    //    所以需要先记录，然后在自动回连时启动后，网络状态会变为 true
+    for (size_t i = 0; i < m_networkConfs.size(); ++i) {
+        // 记录配置文件中标记为运行的网络
+        if (m_networkConfs[i].isRunning()) {
+            wasRunningIndexes.append(static_cast<int>(i));
         }
-        
-        // 更新每个配置的运行状态
-        for (auto &conf : m_networkConfs) {
-            conf.setRunning(runningInstanceNames.contains(conf.getInstanceName()));
-        }
-    } else {
-        // 没有运行中的实例，所有配置都标记为未运行
-        for (auto &conf : m_networkConfs) {
-            conf.setRunning(false);
-        }
+        // 程序刚启动，所有网络实际都未运行
+        m_networkConfs[i].setRunning(false);
     }
     
     // 添加到列表
@@ -1350,6 +1356,9 @@ void QtETNetwork::loadAllNetworkConfs()
     
     // 更新运行按钮样式
     updateRunButtonStyle();
+    
+    // 返回配置文件中标记为运行的网络索引列表
+    return wasRunningIndexes;
 }
 
 void QtETNetwork::saveAllNetworkConfs() const
@@ -2325,4 +2334,20 @@ void QtETNetwork::onListDoubleClicked(QListWidgetItem *item)
         // 保存配置
         saveAllNetworkConfs();
     }
+}
+
+void QtETNetwork::runNetworkByIndex(int index)
+{
+    // 检查索引有效性
+    if (index < 0 || index >= static_cast<int>(m_networkConfs.size())) {
+        return;
+    }
+    
+    // 检查网络是否已经在运行
+    if (m_networkConfs[index].isRunning()) {
+        return;
+    }
+    
+    // 启动网络
+    onRunNetworkBtnClicked_Start(m_networkConfs[index]);
 }
