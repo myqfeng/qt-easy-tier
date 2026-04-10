@@ -36,13 +36,14 @@ QtEasyTier/
 │   ├── qtetoneclick.h/cpp    # 一键联机页面
 │   ├── qtetservers.h/cpp # 服务器收藏页面
 │   └── qtetsettings.h/cpp    # 设置页面
-├── Qt_Items/             # 自定义控件
+├── Qt_Items/             # 自定义控件（完全自定义绘制，不使用QSS）
 │   ├── qtetcheckbtn.h/cpp    # 自定义开关按钮
 │   ├── qtetlabellist.h/cpp   # 标签列表控件
+│   ├── qtetlineedit.h/cpp    # 自定义输入框
 │   ├── qtetnodeinfo.h/cpp    # 节点信息显示控件
-│   ├── qtetpushbtn.h/cpp # 自定义推送按钮
-│   ├── qtettabwidget.h/cpp   # 自定义 Tab 控件
-│   └── qtetpublicserverdialog.h/cpp  # 公共服务器对话框
+│   ├── qtetpushbtn.h/cpp     # 自定义推送按钮
+│   ├── qtetserversdialog.h/cpp # 服务器收藏选择对话框
+│   └── qtettabwidget.h/cpp   # 自定义 Tab 控件
 ├── Qt_QRC/               # 资源文件（图标等）
 │   ├── icons.qrc         # 资源文件定义
 │   ├── icon.ico          # 应用程序图标
@@ -145,7 +146,7 @@ QtEasyTier/
 
 **关键成员：**
 - `m_networkConfs`: 网络配置列表
-- `m_networksList`: 网络列表控件
+- `m_networksList`: 网络列表控件（QtETLabelList）
 - `m_runThread`: 运行网络的工作线程
 - `m_runWorker`: ETRunWorker 工作对象
 - `m_monitorTimer`: 节点监测定时器
@@ -240,49 +241,66 @@ EasyTier FFI 运行工作类，设计用于在独立线程中运行，负责：
 
 ## 自定义控件说明
 
-### QtETNodeInfo
-节点信息显示控件，提供：
-- **连接类型显示**: 直连（绿）、中转（橙）、服务器（蓝）
-- **节点信息**: 主机名、虚拟 IP、延迟、协议、连接方式
-- **本机标识**: 紫色标签标识本机节点
-- **悬停效果**: 边框高亮动画
-
-**关键成员：**
-- `m_nodeInfo`: 节点信息结构体
-- `m_connTypeLabel`: 连接类型标签
-- `m_localLabel`: 本机标签
-
-### QtETCheckBtn
-自定义开关按钮控件，特点：
-- **左边文字，右边开关**: 现代化开关样式
-- **平滑动画**: 滑块过渡动效
-- **悬停高亮**: 边框渐变效果
-- **提示文字**: 支持显示提示信息
-
-### QtETLabelList
-标签列表控件，仅用于标签项的展示，特点：
-- **圆角高亮**: 选中项圆角高亮效果
-- **渐显动画**: 选中/悬停渐变动画
-- **自定义委托**: QtETLabelListDelegate 绘制
-- **空状态提示**: 列表为空时居中显示"空空如也"
+> **重要**: 所有自定义控件完全使用自定义绘制实现，不使用任何 QSS（Qt Style Sheet）进行样式干预。基于 Qt 基础控件的目的是便于使用信号槽、输入等功能。
 
 ### QtETPushBtn
-自定义推送按钮控件，特点：
+自定义推送按钮控件，继承自 QPushButton：
 - **边框动画**: 悬停时边框渐变高亮（200ms）
 - **按下效果**: 按下时显示 30% 透明度淡蓝色叠加层
 - **深浅模式**: 自动适配系统主题
 - **圆角设计**: 5px 圆角边框
+- **尺寸常量**: `BORDER_RADIUS=5`, `CONTENT_MARGIN=7`
 
-### QtETTabWidget
-自定义 Tab 控件，特点：
+### QtETCheckBtn
+自定义开关按钮控件，继承自 QCheckBox：
+- **左边文字，右边开关**: 现代化开关样式
+- **平滑动画**: 滑块过渡动效（150ms）
+- **悬停高亮**: 边框渐变效果（200ms）
+- **提示文字**: 支持 briefTip 显示在控件下方
+- **无边框模式**: setBorderless(true) 时边框和背景透明
+- **尺寸常量**: `SWITCH_WIDTH=40`, `SWITCH_HEIGHT=22`, `BORDER_RADIUS=11`
+
+### QtETLineEdit
+自定义行编辑控件，继承自 QLineEdit：
+- **完全自定义绘制**: 边框和背景完全自定义绘制
+- **透明背景**: 通过 QPalette 设置，保留 QLineEdit 文本输入功能
+- **悬停边框高亮**: 渐变动画效果（200ms）
+- **聚焦状态高亮**: 聚焦时边框变为高亮色
+- **密码显示切换**: 内置密码可见性切换按钮
+- **尺寸常量**: `BORDER_RADIUS=5`, `CONTENT_MARGIN_V=7`, `CONTENT_MARGIN_H=4`
+
+### QtETTabWidget / QtETTabBar
+自定义 Tab 控件，继承自 QTabWidget/QTabBar：
 - **指示器动画**: 底部指示器平滑移动和宽度变化（200ms）
 - **悬停效果**: Tab 悬停时背景高亮
 - **选中背景**: 当前 Tab 显示选中背景色
 - **圆角设计**: 4px 圆角背景
 - **深浅模式**: 自动适配系统主题
+- **尺寸常量**: `TAB_HEIGHT=36`, `BORDER_RADIUS=4`
 
-### QtETPublicServerDialog
-公共服务器对话框，用于从收藏列表选择服务器：
+### QtETLabelList
+标签列表控件，继承自 QWidget（完全自定义实现）：
+- **背景透明**: 默认背景透明
+- **垂直伸展**: 默认垂直伸展（Expanding）
+- **圆角高亮**: 选中项圆角高亮效果
+- **渐显动画**: 选中/悬停渐变动画（200ms）
+- **空状态提示**: 列表为空时居中显示"空空如也"
+- **兼容接口**: 提供与 QListWidget 兼容的接口（addItem, count, item, currentRow 等）
+
+### QtETNodeInfo
+节点信息显示控件，继承自 QWidget：
+- **完全自定义绘制**: 背景、边框、文字、标签全部自定义绘制
+- **连接类型显示**: 直连（绿）、中转（橙）、服务器（蓝）
+- **节点信息**: 主机名、虚拟 IP、延迟、协议、连接方式
+- **本机标识**: 紫色标签标识本机节点
+- **悬停效果**: 边框高亮动画
+- **尺寸常量**: `BORDER_RADIUS=5`, `WIDGET_HEIGHT=58`
+
+### QtETServersDialog
+服务器收藏选择对话框，继承自 QDialog：
+- **完全自定义绘制**: 不使用 QSS
+- **滚动区域透明**: 列表区域背景透明
+- **自定义按钮**: 使用 QtETPushBtn 作为底部按钮
 - **复选框列表**: 使用 QtETCheckBtn 作为服务器选择控件
 - **全选/全不选**: 批量选择操作
 - **初始状态**: 支持设置已选中的服务器地址
