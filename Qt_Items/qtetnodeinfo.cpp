@@ -5,6 +5,8 @@
 #include <QApplication>
 #include <QStyleHints>
 #include <QFontMetrics>
+#include <QMenu>
+#include <QClipboard>
 
 QtETNodeInfo::QtETNodeInfo(QWidget *parent)
     : QWidget(parent)
@@ -165,8 +167,16 @@ void QtETNodeInfo::paintEvent(QPaintEvent *event)
     QFontMetrics ipHostFm(ipHostFont);
     int firstLineHeight = ipHostFm.height();
 
-    // 绘制 IP | hostname
-    QString ipHostText = QString("%1 | %2").arg(m_nodeInfo.virtualIp, m_nodeInfo.hostname);
+    // 判断是否显示地址（不为空且不为 0.0.0.0）
+    bool showIp = !m_nodeInfo.virtualIp.isEmpty() && m_nodeInfo.virtualIp != "0.0.0.0";
+
+    // 绘制 IP | hostname 或仅 hostname
+    QString ipHostText;
+    if (showIp) {
+        ipHostText = QString("%1 | %2").arg(m_nodeInfo.virtualIp, m_nodeInfo.hostname);
+    } else {
+        ipHostText = m_nodeInfo.hostname;
+    }
     painter.setFont(ipHostFont);
     painter.setPen(m_textColor);
     int ipHostY = contentTop + ipHostFm.ascent();
@@ -269,4 +279,40 @@ void QtETNodeInfo::leaveEvent(QEvent *event)
     m_borderAnimation->setStartValue(m_borderOpacity);
     m_borderAnimation->setEndValue(0.0);
     m_borderAnimation->start();
+}
+
+void QtETNodeInfo::mousePressEvent(QMouseEvent *event)
+{
+    // 右键事件由 contextMenuEvent 处理
+    if (event->button() == Qt::RightButton) {
+        return;
+    }
+
+    QWidget::mousePressEvent(event);
+}
+
+void QtETNodeInfo::contextMenuEvent(QContextMenuEvent *event)
+{
+    // 判断是否显示地址（不为空且不为 0.0.0.0）
+    bool showIp = !m_nodeInfo.virtualIp.isEmpty() && m_nodeInfo.virtualIp != "0.0.0.0";
+
+    // 创建右键菜单
+    QMenu menu(this);
+
+    // 添加复制地址选项（仅在地址有效时显示）
+    if (showIp) {
+        QAction *copyIpAction = menu.addAction(tr("复制地址"));
+        connect(copyIpAction, &QAction::triggered, this, [this]() {
+            QApplication::clipboard()->setText(m_nodeInfo.virtualIp);
+        });
+    }
+
+    // 添加复制设备名选项
+    QAction *copyHostnameAction = menu.addAction(tr("复制设备名"));
+    connect(copyHostnameAction, &QAction::triggered, this, [this]() {
+        QApplication::clipboard()->setText(m_nodeInfo.hostname);
+    });
+
+    // 显示菜单
+    menu.exec(event->globalPos());
 }
