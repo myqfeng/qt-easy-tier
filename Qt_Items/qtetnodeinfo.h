@@ -5,6 +5,8 @@
 #include <QColor>
 #include <QString>
 #include <QPropertyAnimation>
+#include <QMouseEvent>
+#include <QContextMenuEvent>
 
 /// @brief 节点连接类型枚举
 enum class NodeConnType
@@ -77,6 +79,8 @@ protected:
     void paintEvent(QPaintEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     /// @brief 初始化控件
