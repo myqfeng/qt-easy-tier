@@ -263,7 +263,6 @@ if(WIN32)
                     --no-quick
                     --no-system-d3d-compiler
                     --no-translations
-                    --no-virtualkeyboard
                     --no-opengl-sw
                     \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${ProjectName}.exe\"
                 WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"

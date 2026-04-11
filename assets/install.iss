@@ -3,7 +3,7 @@
 ; Non-commercial use only
 
 #define MyAppName "QtEasyTier"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.0.1"
 #define MyAppPublisher "myqfeng"
 #define MyAppURL "https://qtet.myqfeng.top/"
 #define MyAppExeName "QtEasyTier.exe"
@@ -32,8 +32,8 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
 ; "ArchitecturesInstallIn64BitMode=x64compatible" requests that the
 ; install be done in "64-bit mode" on x64 or Windows 11 on Arm,
-; meaning it should use the native 64-bit Program Files directory and
-; the 64-bit view of the registry.
+; meaning it should use the native 64-bit Program Files directory and the
+; 64-bit view of the registry.
 ArchitecturesInstallIn64BitMode=x64compatible
 ChangesAssociations=yes
 DefaultGroupName={#MyAppName}
@@ -72,3 +72,27 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ConfigPath: string;
+begin
+  // 在“卸载程序”阶段开始时触发
+  if CurUninstallStep = usUninstall then
+  begin
+    // 配置文件路径：{localappdata} 对应 C:\Users\<用户名>\AppData\Local
+    ConfigPath := ExpandConstant('{localappdata}\QtEasyTier');
+
+    // 检查配置文件夹是否存在
+    if DirExists(ConfigPath) then
+    begin
+      // 弹出询问对话框
+      if MsgBox('是否删除 QtEasyTier 的配置文件？' + #13#10 + #13#10 +
+                '路径：' + ConfigPath, mbConfirmation, MB_YESNO) = IDYES then
+      begin
+        // 删除整个配置文件夹（包括子目录和文件）
+        DelTree(ConfigPath, True, True, True);
+      end;
+    end;
+  end;
+end;

@@ -4,6 +4,7 @@
 
 #include "networkconf.h"
 #include "qtetnetwork.h"
+#include "qtetsettings.h"
 
 #include <sstream>
 #include <QListWidget>
@@ -332,7 +333,7 @@ std::string NetworkConf::generateInstanceName()
 bool saveAllNetworkConf(const std::vector<NetworkConf> &confList, QString *errorMsg)
 {
     // 获取配置文件路径
-    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QString configPath = QtETSettings::getConfigPath();
     QDir dir(configPath);
 
     // 确保目录存在
@@ -381,7 +382,7 @@ std::vector<NetworkConf> readAllNetworkConf()
     std::vector<NetworkConf> confList;
 
     // 获取配置文件路径
-    QString configPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QString configPath = QtETSettings::getConfigPath();
     QString filePath = configPath + "/network2.json";
 
     QFile file(filePath);
