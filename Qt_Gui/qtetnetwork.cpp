@@ -1773,11 +1773,12 @@ QVector<NodeInfo> QtETNetwork::parseNodeInfosFromJson(const QString &jsonStr)
         return nodeInfos;
     }
     
-    // 获取 peers 数组，用于判断直连/中转
+    // 获取 peers 数组，用于判断直连/中转和获取延迟
     QJsonArray peers = rootObj["peers"].toArray();
     
     // 构建 peer_id 到连接信息的映射
     QHash<qint64, QStringList> peerConnMap;  // peer_id -> 协议列表
+    QHash<qint64, int> peerLatencyMap;       // peer_id -> 延迟(ms)
     QSet<qint64> directlyConnectedPeers;
     
     for (const QJsonValue &peerVal : peers) {
@@ -1785,10 +1786,12 @@ QVector<NodeInfo> QtETNetwork::parseNodeInfosFromJson(const QString &jsonStr)
         qint64 peerId = peerObj["peer_id"].toVariant().toLongLong();
         directlyConnectedPeers.insert(peerId);
         
-        // 获取该节点的所有连接协议（去重）
+        // 获取该节点的所有连接协议（去重）和延迟
         QJsonArray conns = peerObj["conns"].toArray();
         QStringList protocols;
         QSet<QString> addedProtocols;  // 用于去重
+        int minLatencyUs = INT_MAX;    // 取最小延迟（微秒）
+        
         for (const QJsonValue &connVal : conns) {
             QJsonObject connObj = connVal.toObject();
             QString tunnelType = connObj["tunnel"].toObject()["tunnel_type"].toString();
@@ -1799,8 +1802,22 @@ QVector<NodeInfo> QtETNetwork::parseNodeInfosFromJson(const QString &jsonStr)
                     addedProtocols.insert(proto);
                 }
             }
+            
+            // 获取延迟（stats.latency_us，单位微秒）
+            QJsonObject stats = connObj["stats"].toObject();
+            int latencyUs = stats["latency_us"].toInt();
+            if (latencyUs > 0 && latencyUs < minLatencyUs) {
+                minLatencyUs = latencyUs;
+            }
         }
         peerConnMap[peerId] = protocols;
+        
+        // 存储延迟（转换为毫秒），如果没有有效延迟则存 -1
+        if (minLatencyUs != INT_MAX && minLatencyUs > 0) {
+            peerLatencyMap[peerId] = minLatencyUs / 1000;  // 微秒转毫秒
+        } else {
+            peerLatencyMap[peerId] = -1;
+        }
     }
     
     // 解析本机节点信息 my_node_info
@@ -1866,15 +1883,21 @@ QVector<NodeInfo> QtETNetwork::parseNodeInfosFromJson(const QString &jsonStr)
         // 解析 hostname
         info.hostname = routeObj["hostname"].toString();
         
-        // 解析延迟（path_latency 单位是 ms）
-        info.latencyMs = routeObj["path_latency"].toInt();
+        // 解析延迟
+        // 判断是否直连
+        bool isDirectlyConnected = directlyConnectedPeers.contains(peerId);
+        
+        if (isDirectlyConnected && peerLatencyMap[peerId] > 0) {
+            // 直连节点：优先使用 peers 中的延迟值（已转换为毫秒）
+            info.latencyMs = peerLatencyMap[peerId];
+        } else {
+            // 非直连节点或没有有效延迟：使用 path_latency（单位是 ms）
+            info.latencyMs = routeObj["path_latency"].toInt();
+        }
         
         // 判断是否为公共服务器
         QJsonObject featureFlag = routeObj["feature_flag"].toObject();
         bool isPublicServer = featureFlag["is_public_server"].toBool();
-        
-        // 判断是否直连
-        bool isDirectlyConnected = directlyConnectedPeers.contains(peerId);
         
         if (isPublicServer) {
             info.connType = NodeConnType::Server;

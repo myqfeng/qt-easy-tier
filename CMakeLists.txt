@@ -161,14 +161,6 @@ endif()
 if(WIN32)
     set(WINDEPLOYQT_EXECUTABLE "windeployqt.exe")
 
-    # 复制BreezeStyle文件夹中的内容到目标目录
-    add_custom_command(TARGET ${ProjectName} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/ThirdParty/Breeze
-            $<TARGET_FILE_DIR:${ProjectName}>
-            COMMENT "复制 Breeze 到 ${ProjectName} 目录..."
-    )
-
     # 复制EasyTier文件夹到目标目录
     add_custom_command(TARGET ${ProjectName} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -260,7 +252,7 @@ install(TARGETS ${ProjectName}
 
 # Windows下添加安装后部署
 if(WIN32)
-    # 直接调用windeployqt，不复制系统自带的库和D3D编译器
+    # 直接调用windeployqt，最小化部署Qt运行时
     find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS ${QT_HOST_PATH}/bin ${QT6_HOST_PATH}/bin ${QT5_HOST_PATH}/bin)
 
     if(WINDEPLOYQT_EXECUTABLE)
@@ -268,9 +260,11 @@ if(WIN32)
             message(STATUS \"使用windeployqt部署Qt运行时...\")
             execute_process(
                 COMMAND \"${WINDEPLOYQT_EXECUTABLE}\"
-                    --quick
+                    --no-quick
                     --no-system-d3d-compiler
                     --no-translations
+                    --no-virtualkeyboard
+                    --no-opengl-sw
                     \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${ProjectName}.exe\"
                 WORKING_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
                 RESULT_VARIABLE deploy_result
@@ -282,16 +276,6 @@ if(WIN32)
     else()
         message(WARNING "未找到windeployqt工具，跳过Qt运行时部署")
     endif()
-
-    # 安装BreezeStyle目录
-    install(CODE "
-        message(STATUS \"部署BreezeStyle...\")
-        execute_process(
-            COMMAND \"${CMAKE_COMMAND}\" -E copy_directory
-                \"${CMAKE_SOURCE_DIR}/ThirdParty/Breeze\"
-                \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
-        )
-    ")
 
     # 安装EasyTier目录
     install(CODE "
