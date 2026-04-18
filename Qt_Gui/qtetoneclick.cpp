@@ -170,6 +170,7 @@ void QtETOneClick::initServerArea()
     m_addServerBtn->setMinimumWidth(100);
     m_addServerBtn->setMaximumWidth(100);
     m_addServerBtn->setText(QStringLiteral("添加"));
+    m_addServerBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
 
     // 服务器列表
     m_serverListWidget = new QListWidget(m_serverWidget);
@@ -178,10 +179,11 @@ void QtETOneClick::initServerArea()
 
     // 右侧按钮布局
     QVBoxLayout *btnLayout = new QVBoxLayout();
-    
+
     // 删除按钮
     m_removeServerBtn = new QtETPushBtn(m_serverWidget);
     m_removeServerBtn->setText(QStringLiteral("删除"));
+    m_removeServerBtn->setIcon(QIcon(QStringLiteral(":/icons/delete.svg")));
     m_removeServerBtn->setEnabled(false);  // 默认禁用
 
     // 公共服务器列表按钮

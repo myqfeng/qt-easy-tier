@@ -7,7 +7,7 @@
 
 // ========== 版本相关宏定义 ==========
 /// @brief EasyTier FFI 库版本号
-#define ET_VERSION "2.6.0"
+#define ET_VERSION "2.4.5"
 /// @brief 是否为 Beta 版本
 #define IS_BETA_VERSION true
 /// @brief QtEasyTier Slogan

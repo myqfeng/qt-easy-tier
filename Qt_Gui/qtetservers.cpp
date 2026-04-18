@@ -136,8 +136,8 @@ void QtETServers::initListArea()
     m_deleteAction = m_contextMenu->addAction(tr("删除"));
 
     // 设置图标
-    m_editAction->setIcon(QIcon(":/icons/about.svg"));
-    m_deleteAction->setIcon(QIcon(":/icons/eye-slash.svg"));
+    m_editAction->setIcon(QIcon(":/icons/edit.svg"));
+    m_deleteAction->setIcon(QIcon(":/icons/delete.svg"));
 
     m_mainLayout->addWidget(m_serverListWidget, 1);
 }
@@ -158,6 +158,7 @@ void QtETServers::initButtonArea()
     btnFont.setPointSize(11);
     m_addBtn->setFont(btnFont);
     m_addBtn->setText(QStringLiteral("添加服务器"));
+    m_addBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
 
     bottomLayout->addWidget(m_addBtn);
 

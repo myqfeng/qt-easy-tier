@@ -71,12 +71,15 @@ int main(int argc, char *argv[])
     palette.setColor(QPalette::HighlightedText, QColor("#000000"));
     app.setPalette(palette);
 
-    QIcon appIcon(QStringLiteral(":/icons/icon.png"));
+    const QIcon appIcon(QStringLiteral(":/icons/icon.png"));
     app.setWindowIcon(appIcon);
 
     QtETMain qtetmain(nullptr);
     qtetmain.setWindowIcon(appIcon);
-    qtetmain.show();
+
+    if (!isAutoStart) {
+        qtetmain.show();
+    }
 
     return app.exec();
 }
@@ -91,7 +94,12 @@ void isAlreadyRunning(const QString& serverName, bool isAutoStart) {
     if (socket.waitForConnected(5000)) {
         std::clog << "已有实例运行，本程序退出" << std::endl;
         if (!isAutoStart) {
-            QMessageBox::information(nullptr, "Tip", "QtEasyTier 已在运行");
+            // 非自动启动，提示用户已有实例运行,设置图标
+            QMessageBox msgBox;
+            msgBox.setWindowIcon(QIcon(QStringLiteral(":/icons/icon.ico")));
+            msgBox.setWindowTitle("Tip");
+            msgBox.setText("QtEasyTier 已在运行");
+            msgBox.exec();
         }
         std::exit(0);
     }
