@@ -1,5 +1,10 @@
 <RCC>
     <qresource prefix="/icons">
+        <file>add.svg</file>
+        <file>delete.svg</file>
+        <file>edit.svg</file>
+        <file>export.svg</file>
+        <file>import.svg</file>
         <file>home.svg</file>
         <file>plus.svg</file>
         <file>settings.svg</file>

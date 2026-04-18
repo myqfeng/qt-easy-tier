@@ -88,10 +88,22 @@ QSize QtETPushBtn::sizeHint() const
     int textWidth = fm.horizontalAdvance(text());
     int textHeight = fm.height();
 
-    // 宽度：左边距 + 文字 + 右边距
-    int width = textWidth + CONTENT_MARGIN * 2;
-    // 高度：上边距 + 文字 + 下边距
-    int height = textHeight + CONTENT_MARGIN * 2;
+    int width = textWidth;
+    int height = textHeight;
+
+    // 如果有图标，增加图标宽度和间距
+    if (!icon().isNull()) {
+        QSize iconSize = this->iconSize();
+        width += iconSize.width();
+        if (!text().isEmpty()) {
+            width += 6; // 图标和文字之间的间距
+        }
+        height = qMax(height, iconSize.height());
+    }
+
+    // 加上边距
+    width += CONTENT_MARGIN * 2;
+    height += CONTENT_MARGIN * 2;
 
     return QSize(width, height);
 }
@@ -142,17 +154,40 @@ void QtETPushBtn::paintEvent(QPaintEvent *event)
     painter.setPen(QPen(borderColor, BORDER_WIDTH));
     painter.drawPath(bgPath);
 
-    // 绘制文字（居中）
+    // 绘制图标和文字
     QFontMetrics fm(font());
     int textWidth = fm.horizontalAdvance(text());
     int textHeight = fm.height();
 
-    int textX = (width() - textWidth) / 2;
-    int textY = (height() - textHeight) / 2 + fm.ascent();
+    bool hasIcon = !icon().isNull();
+    QSize drawIconSize = hasIcon ? iconSize() : QSize(0, 0);
 
-    painter.setFont(font());
-    painter.setPen(palette().color(QPalette::Text));
-    painter.drawText(textX, textY, text());
+    // 绘制图标（固定在左侧，垂直居中）
+    if (hasIcon) {
+        int iconX = CONTENT_MARGIN;
+        int iconY = (height() - drawIconSize.height()) / 2;
+        QPixmap pix = icon().pixmap(drawIconSize);
+        painter.drawPixmap(iconX, iconY, pix);
+    }
+
+    // 绘制文字（永远居中，但确保不与图标重叠）
+    if (!text().isEmpty()) {
+        // 文字理想位置（完全居中）
+        int idealTextX = (width() - textWidth) / 2;
+
+        // 如果有图标，计算最小左边距（图标右边 + 间距）
+        int minTextX = CONTENT_MARGIN;
+        if (hasIcon) {
+            minTextX = CONTENT_MARGIN + drawIconSize.width() + 6;
+        }
+
+        // 确保文字不与图标重叠
+        int textX = qMax(idealTextX, minTextX);
+        int textY = (height() - textHeight) / 2 + fm.ascent();
+        painter.setFont(font());
+        painter.setPen(palette().color(QPalette::Text));
+        painter.drawText(textX, textY, text());
+    }
 }
 
 void QtETPushBtn::enterEvent(QEnterEvent *event)

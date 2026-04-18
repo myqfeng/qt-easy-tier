@@ -3,13 +3,14 @@
 ; Non-commercial use only
 
 #define MyAppName "QtEasyTier"
-#define MyAppVersion "2.0.1"
+#define MyAppVersion "2.0.2"
 #define MyAppPublisher "myqfeng"
 #define MyAppURL "https://qtet.myqfeng.top/"
 #define MyAppExeName "QtEasyTier.exe"
 #define MyAppAssocName MyAppName + ""
 #define MyAppAssocExt ".myp"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
+#define ProjectDir "E:\YMHuang\Programs_Code\CPP_Qt\QtEasyTier"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -38,13 +39,13 @@ ArchitecturesInstallIn64BitMode=x64compatible
 ChangesAssociations=yes
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-LicenseFile=E:\YMHuang\Programs_Code\CPP_Qt\QtEasyTier\assets\license.txt
+LicenseFile={#ProjectDir}\assets\license.txt
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=E:\YMHuang\Programs_Code\CPP_Qt\QtEasyTier\Install
+OutputDir={#ProjectDir}\Install
 OutputBaseFilename=QtEasyTier_v{#MyAppVersion}_win_amd64_installer
-SetupIconFile=E:\YMHuang\Programs_Code\CPP_Qt\QtEasyTier\Qt_QRC\icon.ico
+SetupIconFile={#ProjectDir}\Qt_QRC\icon.ico
 SolidCompression=yes
 WizardStyle=modern dynamic windows11
 
@@ -55,8 +56,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "E:\YMHuang\Programs_Code\CPP_Qt\QtEasyTier\Install\bin\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "E:\YMHuang\Programs_Code\CPP_Qt\QtEasyTier\Install\bin\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#ProjectDir}\Install\bin\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ProjectDir}\Install\bin\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]

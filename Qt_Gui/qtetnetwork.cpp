@@ -198,13 +198,17 @@ void QtETNetwork::initLeftPanel()
     m_leftLayout->addWidget(m_networksList);
 
     // 创建按钮
-    m_newNetworkBtn = new QtETPushBtn(tr("新建网络"), m_leftFrame);
     m_runNetworkBtn = new QtETPushBtn(tr("运行网络"), m_leftFrame);
+    m_runNetworkBtn->setIcon(QIcon(QStringLiteral(":/icons/net-page.svg")));
+    m_newNetworkBtn = new QtETPushBtn(tr("新建网络"), m_leftFrame);
+    m_newNetworkBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
     m_importConfBtn = new QtETPushBtn(tr("导入配置"), m_leftFrame);
+    m_importConfBtn->setIcon(QIcon(QStringLiteral(":/icons/import.svg")));
     m_exportConfBtn = new QtETPushBtn(tr("导出配置"), m_leftFrame);
+    m_exportConfBtn->setIcon(QIcon(QStringLiteral(":/icons/export.svg")));
 
-    m_leftLayout->addWidget(m_newNetworkBtn);
     m_leftLayout->addWidget(m_runNetworkBtn);
+    m_leftLayout->addWidget(m_newNetworkBtn);
     m_leftLayout->addWidget(m_importConfBtn);
     m_leftLayout->addWidget(m_exportConfBtn);
 
@@ -352,6 +356,7 @@ void QtETNetwork::initBasicSettingsPage()
     m_serverEdit->setPlaceholderText(tr("请输入服务器地址"));
     m_addServerBtn = new QtETPushBtn(tr("添加"), serverWidget);
     m_addServerBtn->setMinimumWidth(80);
+    m_addServerBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
     addServerLayout->addWidget(m_serverEdit, 1);
     addServerLayout->addWidget(m_addServerBtn);
     serverLayout->addLayout(addServerLayout);
@@ -363,6 +368,7 @@ void QtETNetwork::initBasicSettingsPage()
 
     m_removeServerBtn = new QtETPushBtn(tr("删除"), serverWidget);
     m_removeServerBtn->setMinimumWidth(80);
+    m_removeServerBtn->setIcon(QIcon(QStringLiteral(":/icons/delete.svg")));
     m_removeServerBtn->setEnabled(false);
     serverListLayout->addWidget(m_serverListWidget, 1);
     serverListLayout->addWidget(m_removeServerBtn);
@@ -595,6 +601,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_foreignNetworkWhitelistEdit->setPlaceholderText(tr("请输入网络名称"));
     m_addWhitelistBtn = new QtETPushBtn(tr("添加"), whitelistControlsWidget);
     m_addWhitelistBtn->setMinimumWidth(80);
+    m_addWhitelistBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
     addWhitelistLayout->addWidget(m_foreignNetworkWhitelistEdit, 1);
     addWhitelistLayout->addWidget(m_addWhitelistBtn);
     whitelistControlsLayout->addLayout(addWhitelistLayout);
@@ -604,6 +611,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_whitelistListWidget->setMinimumHeight(80);
     m_removeWhitelistBtn = new QtETPushBtn(tr("删除"), whitelistControlsWidget);
     m_removeWhitelistBtn->setMinimumWidth(80);
+    m_removeWhitelistBtn->setIcon(QIcon(QStringLiteral(":/icons/delete.svg")));
     m_removeWhitelistBtn->setEnabled(false);
     whitelistListLayout->addWidget(m_whitelistListWidget, 1);
     whitelistListLayout->addWidget(m_removeWhitelistBtn);
@@ -628,6 +636,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_listenAddrEdit->setPlaceholderText(tr("请输入监听地址与端口"));
     m_addListenAddrBtn = new QtETPushBtn(tr("添加"), listenAddrWidget);
     m_addListenAddrBtn->setMinimumWidth(80);
+    m_addListenAddrBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
     addListenAddrLayout->addWidget(m_listenAddrEdit, 1);
     addListenAddrLayout->addWidget(m_addListenAddrBtn);
     listenAddrLayout->addLayout(addListenAddrLayout);
@@ -638,6 +647,7 @@ void QtETNetwork::initAdvancedSettingsPage()
 
     m_removeListenAddrBtn = new QtETPushBtn(tr("删除"), listenAddrWidget);
     m_removeListenAddrBtn->setMinimumWidth(80);
+    m_removeListenAddrBtn->setIcon(QIcon(QStringLiteral(":/icons/delete.svg")));
     m_removeListenAddrBtn->setEnabled(false);
     listenAddrListLayout->addWidget(m_listenAddrListWidget, 1);
     listenAddrListLayout->addWidget(m_removeListenAddrBtn);
@@ -659,6 +669,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_proxyNetworkEdit->setPlaceholderText(tr("请输入子网代理 CIDR"));
     m_addProxyNetworkBtn = new QtETPushBtn(tr("添加"), cidrWidget);
     m_addProxyNetworkBtn->setMinimumWidth(80);
+    m_addProxyNetworkBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
     addCidrLayout->addWidget(m_proxyNetworkEdit, 1);
     addCidrLayout->addWidget(m_addProxyNetworkBtn);
     cidrLayout->addLayout(addCidrLayout);
@@ -668,6 +679,7 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_proxyNetworkListWidget->setMinimumHeight(80);
     m_removeProxyNetworkBtn = new QtETPushBtn(tr("删除"), cidrWidget);
     m_removeProxyNetworkBtn->setMinimumWidth(80);
+    m_removeProxyNetworkBtn->setIcon(QIcon(QStringLiteral(":/icons/delete.svg")));
     m_removeProxyNetworkBtn->setEnabled(false);
     cidrListLayout->addWidget(m_proxyNetworkListWidget, 1);
     cidrListLayout->addWidget(m_removeProxyNetworkBtn);
@@ -960,9 +972,9 @@ void QtETNetwork::onListContextMenu(const QPoint &pos)
     
     QMenu contextMenu(tr("网络操作"), this);
     QAction *renameAction = contextMenu.addAction(tr("重命名"));
-    renameAction->setIcon(QIcon(QStringLiteral(":/icons/net-page.svg")));
+    renameAction->setIcon(QIcon(QStringLiteral(":/icons/edit.svg")));
     QAction *deleteAction = contextMenu.addAction(tr("删除网络"));
-    deleteAction->setIcon(QIcon(QStringLiteral(":/icons/net-page.svg")));
+    deleteAction->setIcon(QIcon(QStringLiteral(":/icons/delete.svg")));
     
     QAction *selectedAction = contextMenu.exec(m_networksList->mapToGlobal(pos));
     
