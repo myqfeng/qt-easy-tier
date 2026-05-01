@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QPropertyAnimation>
 
+class QtETComboPopup;
 class QListView;
 
 /// @brief 自定义下拉选择框控件
@@ -31,12 +32,16 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void changeEvent(QEvent *event) override;
     void showPopup() override;
+    void hidePopup() override;
+    void keyPressEvent(QKeyEvent *event) override;
+
+private slots:
+    void onPopupItemClicked(const QModelIndex &index);
 
 private:
     void init();
     void updateColorScheme();
     void startBorderAnimation(qreal targetOpacity);
-    void updatePopupTheme();
 
 private:
     QPropertyAnimation *m_borderAnimation = nullptr;
@@ -49,7 +54,7 @@ private:
     QColor m_pressedBorderColor;
     QColor m_disabledTextColor;
 
-    QListView *m_popupView = nullptr;
+    QtETComboPopup *m_popup = nullptr;
 
     static constexpr int BORDER_RADIUS = 5;
     static constexpr int BORDER_WIDTH = 1;

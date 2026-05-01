@@ -9,6 +9,7 @@
 #include <QStandardPaths>
 #include <QStyleHints>
 #include <set>
+#include <iostream>
 
 // 节点列表状态提示字符串
 namespace NodeStatusText {
@@ -524,6 +525,7 @@ void QtETNetwork::initAdvancedSettingsPage()
 
         // 默认连接协议
         QLabel *protocolLabel = new QLabel(tr("默认连接协议:"), comboRow);
+        protocolLabel->setToolTip(tr("与对等节点进行 P2P 时默认的连接协议,不指定则由程序自动选择"));
         m_defaultProtocolCombo = new QtETComboBox(comboRow);
         m_defaultProtocolCombo->addItem(tr("不指定"), static_cast<int>(DefaultProtocol::None));
         m_defaultProtocolCombo->addItem("udp", static_cast<int>(DefaultProtocol::Udp));
@@ -531,10 +533,13 @@ void QtETNetwork::initAdvancedSettingsPage()
         m_defaultProtocolCombo->addItem("wg", static_cast<int>(DefaultProtocol::Wg));
         m_defaultProtocolCombo->addItem("ws", static_cast<int>(DefaultProtocol::Ws));
         m_defaultProtocolCombo->addItem("wss", static_cast<int>(DefaultProtocol::Wss));
-        m_defaultProtocolCombo->setToolTip(tr("与对等节点进行 P2P 时默认的连接协议,不指定则由程序自动选择"));
+        m_defaultProtocolCombo->setToolTip(m_defaultProtocolCombo->currentText());
+        connect(m_defaultProtocolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+                [this]() { m_defaultProtocolCombo->setToolTip(m_defaultProtocolCombo->currentText()); });
 
         // 默认加密协议
         QLabel *encLabel = new QLabel(tr("默认加密协议:"), comboRow);
+        encLabel->setToolTip(tr("传输数据时使用的加密协议,所有对等节点要求此项设置一致"));
         m_encryptionAlgorithmCombo = new QtETComboBox(comboRow);
         m_encryptionAlgorithmCombo->addItem("aes-gcm", static_cast<int>(EncryptionAlgorithm::AesGcm));
         m_encryptionAlgorithmCombo->addItem("xor", static_cast<int>(EncryptionAlgorithm::Xor));
@@ -544,7 +549,9 @@ void QtETNetwork::initAdvancedSettingsPage()
         m_encryptionAlgorithmCombo->addItem("openssl-aes256-gcm", static_cast<int>(EncryptionAlgorithm::OpensslAes256Gcm));
         m_encryptionAlgorithmCombo->addItem("openssl-chacha20", static_cast<int>(EncryptionAlgorithm::OpensslChacha20));
         m_encryptionAlgorithmCombo->setCurrentIndex(0);  // aes-gcm 为默认
-        m_encryptionAlgorithmCombo->setToolTip(tr("传输数据时使用的加密协议,所有对等节点要求此项设置一致"));
+        m_encryptionAlgorithmCombo->setToolTip(m_encryptionAlgorithmCombo->currentText());
+        connect(m_encryptionAlgorithmCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+                [this]() { m_encryptionAlgorithmCombo->setToolTip(m_encryptionAlgorithmCombo->currentText()); });
 
         comboLayout->addWidget(protocolLabel);
         comboLayout->addWidget(m_defaultProtocolCombo, 1);
@@ -1764,7 +1771,12 @@ void QtETNetwork::onRunNetworkBtnClicked_Start(const NetworkConf &conf)
     
     // 生成 TOML 配置
     const std::string &tomlConfig = conf.toToml();
-    
+
+#ifdef QT_DEBUG
+    std::clog << "[QtETNetwork] 运行网络前 TOML 配置:" << std::endl
+              << tomlConfig << std::endl;
+#endif
+
     // 创建进度对话框
     if (!m_progressDialog) {
         m_progressDialog = new QProgressDialog(this);

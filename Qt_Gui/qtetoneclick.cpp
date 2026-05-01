@@ -567,9 +567,11 @@ std::string QtETOneClick::generateGuestTomlConfig()
     m_currentNetworkId = decoded.first;
     m_currentPassword = decoded.second;
 
-    std::clog << "=== 房客解码信息 ===" << std::endl;
-    std::clog << "网络号: " << m_currentNetworkId.toStdString() << std::endl;
-    std::clog << "密码: " << m_currentPassword.toStdString() << std::endl;
+#ifdef QT_DEBUG
+    std::clog << "[QtETOneClick] 房客解码信息: 网络号="
+              << m_currentNetworkId.toStdString()
+              << ", 密码=" << m_currentPassword.toStdString() << std::endl;
+#endif
 
     // 构建 TOML 配置
     std::ostringstream toml;
@@ -757,8 +759,10 @@ void QtETOneClick::onOneClickBtnClicked()
             m_currentRole = UserRole::Host;
             tomlConfig = generateHostTomlConfig();
             
-            std::clog << "=== 房主模式 ===" << std::endl;
-            std::clog << "联机码: " << m_roomIdEdit->text().toStdString() << std::endl;
+#ifdef QT_DEBUG
+            std::clog << "[QtETOneClick] 房主模式 联机码: "
+                      << m_roomIdEdit->text().toStdString() << std::endl;
+#endif
         } else {
             // 房客模式
             m_currentRole = UserRole::Guest;
@@ -766,8 +770,10 @@ void QtETOneClick::onOneClickBtnClicked()
         }
 
         // 输出 TOML 配置用于调试
-        std::clog << "=== TOML 配置 ===" << std::endl;
-        std::clog << tomlConfig << std::endl;
+#ifdef QT_DEBUG
+        std::clog << "[QtETOneClick] 运行网络前 TOML 配置:" << std::endl
+                  << tomlConfig << std::endl;
+#endif
 
         updateInterfaceState();
 
@@ -839,7 +845,10 @@ void QtETOneClick::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &info
             // 解析 JSON
             QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(info.value));
             // 打印 JSON 内容用于调试
-            std::clog << "收到 JSON 内容: " << doc.toJson().toStdString() << std::endl;
+#ifdef QT_DEBUG
+            std::clog << "[QtETOneClick] 收到 JSON 内容: "
+                      << doc.toJson().toStdString() << std::endl;
+#endif
 
             if (!doc.isObject()) continue;
             
@@ -852,8 +861,10 @@ void QtETOneClick::onInfosCollected(const std::vector<EasyTierFFI::KVPair> &info
             const QJsonArray routes = root.value("routes").toArray();
             
             // 输出调试信息
-            std::clog << "收到节点信息，直连节点数: " << peers.size() 
-                      << "，路由节点数: " << routes.size() << std::endl;
+#ifdef QT_DEBUG
+            std::clog << "[QtETOneClick] 收到节点信息, 直连节点数=" << peers.size()
+                      << ", 路由节点数=" << routes.size() << std::endl;
+#endif
             
             // 更新进度对话框（连接到至少一个节点即算成功）
             if (m_progressDialog && !peers.isEmpty()) {
@@ -901,7 +912,9 @@ void QtETOneClick::parsePeerInfo(const QJsonArray& peers, const QJsonArray& rout
         if (localIp != m_lastHostIp) {
             m_hostIpEdit->setText(localIp);
             m_lastHostIp = localIp;
-            std::clog << "房主本机IP: " << localIp.toStdString() << std::endl;
+#ifdef QT_DEBUG
+            std::clog << "[QtETOneClick] 房主本机IP: " << localIp.toStdString() << std::endl;
+#endif
         }
         
         // 计算联机人数（只计算有虚拟 IP 且不是公共服务器的节点）
@@ -930,7 +943,10 @@ void QtETOneClick::parsePeerInfo(const QJsonArray& peers, const QJsonArray& rout
             count++;
         }
         
-        std::clog << "当前联机人数: " << count << std::endl;
+        
+#ifdef QT_DEBUG
+        std::clog << "[QtETOneClick] 当前联机人数: " << count << std::endl;
+#endif
     }
     else if (m_currentRole == UserRole::Guest) {
         // 房客模式：从 routes 中查找房主 IP
@@ -961,7 +977,9 @@ void QtETOneClick::parsePeerInfo(const QJsonArray& peers, const QJsonArray& rout
                 m_hostIpEdit->setText(hostIp);
             }
             m_lastHostIp = hostIp;
-            std::clog << "房主IP: " << hostIp.toStdString() << std::endl;
+#ifdef QT_DEBUG
+            std::clog << "[QtETOneClick] 房主IP: " << hostIp.toStdString() << std::endl;
+#endif
         }
     }
 }
