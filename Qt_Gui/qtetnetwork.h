@@ -204,6 +204,10 @@ private:
     QtETCheckBtn *m_noTunCheckBox;                      /// @brief 无 TUN 模式 (no_tun)
     QtETCheckBtn *m_enableQuicProxyCheckBox;            /// @brief 启用 QUIC 代理 (enable_quic_proxy)
     QtETCheckBtn *m_disableQuicInputCheckBox;           /// @brief 禁用 QUIC 输入 (disable_quic_input)
+    QtETCheckBtn *m_disableRelayKcpCheckBox;            /// @brief 禁止转发 KCP (disable_relay_kcp)
+    QtETCheckBtn *m_disableRelayQuicCheckBox;           /// @brief 禁止转发 QUIC (disable_relay_quic)
+    QtETCheckBtn *m_enableRelayForeignNetworkKcpCheckBox;/// @brief 允许转发其他网络 KCP (enable_relay_foreign_network_kcp)
+    QtETCheckBtn *m_enableRelayForeignNetworkQuicCheckBox;/// @brief 允许转发其他网络 QUIC (enable_relay_foreign_network_quic)
     QtETCheckBtn *m_disableUdpHolePunchingCheckBox;     /// @brief 禁用 UDP 打洞 (disable_udp_hole_punching)
     QtETCheckBtn *m_disableTcpHolePunchingCheckBox;     /// @brief 禁用 TCP 打洞 (disable_tcp_hole_punching)
     QtETCheckBtn *m_disableUpnpCheckBox;                /// @brief 禁用 UPnP (disable_upnp)
@@ -245,6 +249,12 @@ private:
     QListWidget *m_proxyNetworkListWidget;    /// @brief CIDR 列表
     QtETPushBtn *m_removeProxyNetworkBtn;        /// @brief 删除 CIDR 按钮
     QtETPushBtn *m_calculateCidrBtn;             /// @brief 打开 CIDR 计算器按钮
+
+    // 高级设置控件 - 自定义路由规则
+    QtETLineEdit *m_customRouteEdit;            /// @brief 自定义路由规则输入框 (custom_routes)
+    QtETPushBtn *m_addCustomRouteBtn;        /// @brief 添加路由规则按钮
+    QListWidget *m_customRouteListWidget;   /// @brief 路由规则列表
+    QtETPushBtn *m_removeCustomRouteBtn;     /// @brief 删除路由规则按钮
 
     // 运行状态控件
     QLabel *m_statusLabel;              /// @brief 状态标签

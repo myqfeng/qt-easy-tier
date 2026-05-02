@@ -55,6 +55,10 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_noTunCheckBox(nullptr)
     , m_enableQuicProxyCheckBox(nullptr)
     , m_disableQuicInputCheckBox(nullptr)
+    , m_disableRelayKcpCheckBox(nullptr)
+    , m_disableRelayQuicCheckBox(nullptr)
+    , m_enableRelayForeignNetworkKcpCheckBox(nullptr)
+    , m_enableRelayForeignNetworkQuicCheckBox(nullptr)
     , m_disableUdpHolePunchingCheckBox(nullptr)
     , m_multiThreadCheckBox(nullptr)
     , m_useSmoltcpCheckBox(nullptr)
@@ -86,6 +90,11 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_proxyNetworkListWidget(nullptr)
     , m_removeProxyNetworkBtn(nullptr)
     , m_calculateCidrBtn(nullptr)
+    // 高级设置控件 - 自定义路由规则
+    , m_customRouteEdit(nullptr)
+    , m_addCustomRouteBtn(nullptr)
+    , m_customRouteListWidget(nullptr)
+    , m_removeCustomRouteBtn(nullptr)
     // 运行状态控件
     , m_statusLabel(nullptr)
     , m_nodeInfoContainer(nullptr)
@@ -504,6 +513,30 @@ void QtETNetwork::initAdvancedSettingsPage()
     m_disableQuicInputCheckBox->setToolTip(tr("不接受通过 QUIC 协议传输的流量"));
     m_disableQuicInputCheckBox->setBriefTip(tr("不接收 QUIC 协议的流量"));
 
+    m_disableRelayKcpCheckBox = new QtETCheckBtn(protocolWidget);
+    m_disableRelayKcpCheckBox->setText(tr("禁止转发 KCP"));
+    m_disableRelayKcpCheckBox->setChecked(false);
+    m_disableRelayKcpCheckBox->setToolTip(tr("禁止本节点转发 KCP 数据包，防止过度消耗流量"));
+    m_disableRelayKcpCheckBox->setBriefTip(tr("不转发 KCP 流量"));
+
+    m_disableRelayQuicCheckBox = new QtETCheckBtn(protocolWidget);
+    m_disableRelayQuicCheckBox->setText(tr("禁止转发 QUIC"));
+    m_disableRelayQuicCheckBox->setChecked(false);
+    m_disableRelayQuicCheckBox->setToolTip(tr("禁止本节点转发 QUIC 数据包，防止过度消耗流量"));
+    m_disableRelayQuicCheckBox->setBriefTip(tr("不转发 QUIC 流量"));
+
+    m_enableRelayForeignNetworkKcpCheckBox = new QtETCheckBtn(protocolWidget);
+    m_enableRelayForeignNetworkKcpCheckBox->setText(tr("允许转发其他网络 KCP"));
+    m_enableRelayForeignNetworkKcpCheckBox->setChecked(false);
+    m_enableRelayForeignNetworkKcpCheckBox->setToolTip(tr("作为共享节点时也可以转发其他网络的 KCP 数据包"));
+    m_enableRelayForeignNetworkKcpCheckBox->setBriefTip(tr("转发其他网络 KCP 流量"));
+
+    m_enableRelayForeignNetworkQuicCheckBox = new QtETCheckBtn(protocolWidget);
+    m_enableRelayForeignNetworkQuicCheckBox->setText(tr("允许转发其他网络 QUIC"));
+    m_enableRelayForeignNetworkQuicCheckBox->setChecked(false);
+    m_enableRelayForeignNetworkQuicCheckBox->setToolTip(tr("作为共享节点时也可以转发其他网络的 QUIC 数据包"));
+    m_enableRelayForeignNetworkQuicCheckBox->setBriefTip(tr("转发其他网络 QUIC 流量"));
+
     m_enableEncryptionCheckBox = new QtETCheckBtn(protocolWidget);
     m_enableEncryptionCheckBox->setText(tr("启用加密"));
     m_enableEncryptionCheckBox->setChecked(true);
@@ -514,6 +547,8 @@ void QtETNetwork::initAdvancedSettingsPage()
     protocolSection.gridLayout = protocolLayout;
     protocolSection.checkBoxes = {m_enableKcpProxyCheckBox, m_disableKcpInputCheckBox,
                                    m_enableQuicProxyCheckBox, m_disableQuicInputCheckBox,
+                                   m_disableRelayKcpCheckBox, m_disableRelayQuicCheckBox,
+                                   m_enableRelayForeignNetworkKcpCheckBox, m_enableRelayForeignNetworkQuicCheckBox,
                                    m_enableEncryptionCheckBox};
     m_functionSections.append(protocolSection);
     scrollLayout->addWidget(protocolWidget);
@@ -846,6 +881,40 @@ void QtETNetwork::initAdvancedSettingsPage()
 
     scrollLayout->addWidget(cidrWidget);
 
+    // ========== 自定义路由规则 ==========
+    scrollLayout->addWidget(createSectionTitle(tr("自定义路由规则")));
+
+    QWidget *customRouteWidget = new QWidget(scrollContent);
+    QVBoxLayout *customRouteLayout = new QVBoxLayout(customRouteWidget);
+    customRouteLayout->setContentsMargins(15, 5, 15, 15);
+
+    QLabel *customRouteDesc = new QLabel(tr("自定义进入 VPN 的路由，将禁用子网代理等自动传播的路由。"), customRouteWidget);
+    customRouteDesc->setContentsMargins(0, 0, 0, 4);
+    customRouteLayout->addWidget(customRouteDesc);
+
+    QHBoxLayout *addCustomRouteLayout = new QHBoxLayout();
+    m_customRouteEdit = new QtETLineEdit(customRouteWidget);
+    m_customRouteEdit->setPlaceholderText(tr("示例(CIDR格式)：192.168.188.0/24"));
+    m_addCustomRouteBtn = new QtETPushBtn(tr("添加"), customRouteWidget);
+    m_addCustomRouteBtn->setMinimumWidth(80);
+    m_addCustomRouteBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
+    addCustomRouteLayout->addWidget(m_customRouteEdit, 1);
+    addCustomRouteLayout->addWidget(m_addCustomRouteBtn);
+    customRouteLayout->addLayout(addCustomRouteLayout);
+
+    QHBoxLayout *customRouteListLayout = new QHBoxLayout();
+    m_customRouteListWidget = new QListWidget(customRouteWidget);
+    m_customRouteListWidget->setMinimumHeight(80);
+    m_removeCustomRouteBtn = new QtETPushBtn(tr("删除"), customRouteWidget);
+    m_removeCustomRouteBtn->setMinimumWidth(80);
+    m_removeCustomRouteBtn->setIcon(QIcon(QStringLiteral(":/icons/delete.svg")));
+    m_removeCustomRouteBtn->setEnabled(false);
+    customRouteListLayout->addWidget(m_customRouteListWidget, 1);
+    customRouteListLayout->addWidget(m_removeCustomRouteBtn);
+    customRouteLayout->addLayout(customRouteListLayout);
+
+    scrollLayout->addWidget(customRouteWidget);
+
     // 初始化网格布局
     updateFunctionGridLayout();
 
@@ -870,6 +939,7 @@ void QtETNetwork::initAdvancedSettingsPage()
             m_listenAddrListWidget->setFont(monoFont);
             m_whitelistListWidget->setFont(monoFont);
             m_proxyNetworkListWidget->setFont(monoFont);
+            m_customRouteListWidget->setFont(monoFont);
         }
     }
 
@@ -890,6 +960,9 @@ void QtETNetwork::initAdvancedSettingsPage()
     });
     connect(m_proxyNetworkListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
         m_removeProxyNetworkBtn->setEnabled(m_proxyNetworkListWidget->currentRow() >= 0);
+    });
+    connect(m_customRouteListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
+        m_removeCustomRouteBtn->setEnabled(m_customRouteListWidget->currentRow() >= 0);
     });
 }
 
@@ -1262,11 +1335,16 @@ void QtETNetwork::loadConfToUI(int index) const
     m_whitelistListWidget->blockSignals(true);
     m_listenAddrListWidget->blockSignals(true);
     m_proxyNetworkListWidget->blockSignals(true);
+    m_customRouteListWidget->blockSignals(true);
     m_enableKcpProxyCheckBox->blockSignals(true);
     m_disableKcpInputCheckBox->blockSignals(true);
     m_noTunCheckBox->blockSignals(true);
     m_enableQuicProxyCheckBox->blockSignals(true);
     m_disableQuicInputCheckBox->blockSignals(true);
+    m_disableRelayKcpCheckBox->blockSignals(true);
+    m_disableRelayQuicCheckBox->blockSignals(true);
+    m_enableRelayForeignNetworkKcpCheckBox->blockSignals(true);
+    m_enableRelayForeignNetworkQuicCheckBox->blockSignals(true);
     m_disableUdpHolePunchingCheckBox->blockSignals(true);
     m_disableTcpHolePunchingCheckBox->blockSignals(true);
     m_disableUpnpCheckBox->blockSignals(true);
@@ -1311,6 +1389,10 @@ void QtETNetwork::loadConfToUI(int index) const
     m_noTunCheckBox->setChecked(conf.m_noTun);
     m_enableQuicProxyCheckBox->setChecked(conf.m_enableQuicProxy);
     m_disableQuicInputCheckBox->setChecked(conf.m_disableQuicInput);
+    m_disableRelayKcpCheckBox->setChecked(conf.m_disableRelayKcp);
+    m_disableRelayQuicCheckBox->setChecked(conf.m_disableRelayQuic);
+    m_enableRelayForeignNetworkKcpCheckBox->setChecked(conf.m_enableRelayForeignNetworkKcp);
+    m_enableRelayForeignNetworkQuicCheckBox->setChecked(conf.m_enableRelayForeignNetworkQuic);
     m_disableUdpHolePunchingCheckBox->setChecked(conf.m_disableUdpHolePunching);
     m_disableTcpHolePunchingCheckBox->setChecked(conf.m_disableTcpHolePunching);
     m_disableUpnpCheckBox->setChecked(conf.m_disableUpnp);
@@ -1356,6 +1438,12 @@ void QtETNetwork::loadConfToUI(int index) const
     for (const auto &cidr : conf.m_proxyNetworks) {
         m_proxyNetworkListWidget->addItem(QString::fromStdString(cidr));
     }
+
+    // 自定义路由规则
+    m_customRouteListWidget->clear();
+    for (const auto &route : conf.m_customRoutes) {
+        m_customRouteListWidget->addItem(QString::fromStdString(route));
+    }
     
     // 恢复信号
     m_hostnameEdit->blockSignals(false);
@@ -1370,11 +1458,16 @@ void QtETNetwork::loadConfToUI(int index) const
     m_whitelistListWidget->blockSignals(false);
     m_listenAddrListWidget->blockSignals(false);
     m_proxyNetworkListWidget->blockSignals(false);
+    m_customRouteListWidget->blockSignals(false);
     m_enableKcpProxyCheckBox->blockSignals(false);
     m_disableKcpInputCheckBox->blockSignals(false);
     m_noTunCheckBox->blockSignals(false);
     m_enableQuicProxyCheckBox->blockSignals(false);
     m_disableQuicInputCheckBox->blockSignals(false);
+    m_disableRelayKcpCheckBox->blockSignals(false);
+    m_disableRelayQuicCheckBox->blockSignals(false);
+    m_enableRelayForeignNetworkKcpCheckBox->blockSignals(false);
+    m_enableRelayForeignNetworkQuicCheckBox->blockSignals(false);
     m_disableUdpHolePunchingCheckBox->blockSignals(false);
     m_disableTcpHolePunchingCheckBox->blockSignals(false);
     m_disableUpnpCheckBox->blockSignals(false);
@@ -1479,6 +1572,10 @@ void QtETNetwork::setupUIConnections()
     connect(m_noTunCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_enableQuicProxyCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_disableQuicInputCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableRelayKcpCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_disableRelayQuicCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_enableRelayForeignNetworkKcpCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
+    connect(m_enableRelayForeignNetworkQuicCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_disableUdpHolePunchingCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_disableTcpHolePunchingCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
     connect(m_disableUpnpCheckBox, &QtETCheckBtn::toggled, this, &QtETNetwork::onUIChanged);
@@ -1567,6 +1664,23 @@ void QtETNetwork::setupUIConnections()
         
         // 以非监测方式启动程序
         QProcess::startDetached(cidrCalcPath, QStringList(), appDir);
+    });
+
+    // 自定义路由规则
+    connect(m_addCustomRouteBtn, &QPushButton::clicked, this, [this]() {
+        QString route = m_customRouteEdit->text().trimmed();
+        if (!route.isEmpty()) {
+            m_customRouteListWidget->addItem(route);
+            m_customRouteEdit->clear();
+            onUIChanged();
+        }
+    });
+    connect(m_removeCustomRouteBtn, &QPushButton::clicked, this, [this]() {
+        QListWidgetItem *item = m_customRouteListWidget->currentItem();
+        if (item) {
+            delete m_customRouteListWidget->takeItem(m_customRouteListWidget->row(item));
+            onUIChanged();
+        }
     });
 }
 

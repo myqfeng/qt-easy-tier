@@ -113,6 +113,10 @@ private:
     bool m_noTun = false;                   ///< 无 TUN 模式
     bool m_enableQuicProxy = false;         ///< 启用 QUIC 代理
     bool m_disableQuicInput = false;        ///< 禁用 QUIC 输入
+    bool m_disableRelayKcp = false;              ///< 禁止转发 KCP 数据包
+    bool m_disableRelayQuic = false;             ///< 禁止转发 QUIC 数据包
+    bool m_enableRelayForeignNetworkKcp = false; ///< 允许转发其他网络 KCP 数据包
+    bool m_enableRelayForeignNetworkQuic = false;///< 允许转发其他网络 QUIC 数据包
     bool m_disableUdpHolePunching = false;  ///< 禁用 UDP 打洞
     bool m_disableTcpHolePunching = false;  ///< 禁用 TCP 打洞
     bool m_disableUpnp = false;             ///< 禁用 UPnP/NAT-PMP 端口映射
@@ -140,6 +144,7 @@ private:
     std::vector<std::string> m_foreignNetworkWhitelist;  ///< 网络白名单
     std::vector<std::string> m_listenAddresses;    ///< 监听地址列表
     std::vector<std::string> m_proxyNetworks;      ///< 子网代理 CIDR 列表
+    std::vector<std::string> m_customRoutes;       ///< 自定义路由规则 (routes)
 
     // ==================== 实例标识 ====================
     std::string m_instanceName;             ///< 实例名称（用于 FFI 管理）

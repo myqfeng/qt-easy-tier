@@ -207,14 +207,18 @@ void QtETLineEdit::leaveEvent(QEvent *event)
 void QtETLineEdit::focusInEvent(QFocusEvent *event)
 {
     m_hasFocus = true;
-    update();
+    if (m_borderAnimation->state() == QAbstractAnimation::Running) {
+        m_borderAnimation->stop();
+    }
     QLineEdit::focusInEvent(event);
 }
 
 void QtETLineEdit::focusOutEvent(QFocusEvent *event)
 {
     m_hasFocus = false;
-    update();
+    if (!underMouse()) {
+        startBorderAnimation(0.0);
+    }
     QLineEdit::focusOutEvent(event);
 }
 
