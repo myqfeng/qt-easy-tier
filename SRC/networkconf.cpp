@@ -119,6 +119,10 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     m_noTun = network->m_noTunCheckBox->isChecked();
     m_enableQuicProxy = network->m_enableQuicProxyCheckBox->isChecked();
     m_disableQuicInput = network->m_disableQuicInputCheckBox->isChecked();
+    m_disableRelayKcp = network->m_disableRelayKcpCheckBox->isChecked();
+    m_disableRelayQuic = network->m_disableRelayQuicCheckBox->isChecked();
+    m_enableRelayForeignNetworkKcp = network->m_enableRelayForeignNetworkKcpCheckBox->isChecked();
+    m_enableRelayForeignNetworkQuic = network->m_enableRelayForeignNetworkQuicCheckBox->isChecked();
     m_disableUdpHolePunching = network->m_disableUdpHolePunchingCheckBox->isChecked();
     m_disableTcpHolePunching = network->m_disableTcpHolePunchingCheckBox->isChecked();
     m_disableUpnp = network->m_disableUpnpCheckBox->isChecked();
@@ -163,6 +167,12 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     for (int i = 0; i < network->m_proxyNetworkListWidget->count(); ++i) {
         m_proxyNetworks.push_back(network->m_proxyNetworkListWidget->item(i)->text().toStdString());
     }
+
+    // 自定义路由规则
+    m_customRoutes.clear();
+    for (int i = 0; i < network->m_customRouteListWidget->count(); ++i) {
+        m_customRoutes.push_back(network->m_customRouteListWidget->item(i)->text().toStdString());
+    }
 }
 
 void NetworkConf::readFromJson(const QJsonObject &json)
@@ -199,6 +209,10 @@ void NetworkConf::readFromJson(const QJsonObject &json)
     m_noTun = json["no_tun"].toBool(false);
     m_enableQuicProxy = json["enable_quic_proxy"].toBool(false);
     m_disableQuicInput = json["disable_quic_input"].toBool(false);
+    m_disableRelayKcp = json["disable_relay_kcp"].toBool(false);
+    m_disableRelayQuic = json["disable_relay_quic"].toBool(false);
+    m_enableRelayForeignNetworkKcp = json["enable_relay_foreign_network_kcp"].toBool(false);
+    m_enableRelayForeignNetworkQuic = json["enable_relay_foreign_network_quic"].toBool(false);
     m_disableUdpHolePunching = json["disable_udp_hole_punching"].toBool(false);
     m_disableTcpHolePunching = json["disable_tcp_hole_punching"].toBool(false);
     m_disableUpnp = json["disable_upnp"].toBool(false);
@@ -258,6 +272,13 @@ void NetworkConf::readFromJson(const QJsonObject &json)
     for (const QJsonValue &value : proxyNetworkArray) {
         m_proxyNetworks.push_back(value.toString().toStdString());
     }
+
+    // 自定义路由规则
+    m_customRoutes.clear();
+    QJsonArray customRoutesArray = json["custom_routes"].toArray();
+    for (const QJsonValue &value : customRoutesArray) {
+        m_customRoutes.push_back(value.toString().toStdString());
+    }
 }
 
 QJsonObject NetworkConf::toJson() const
@@ -293,6 +314,10 @@ QJsonObject NetworkConf::toJson() const
     json["no_tun"] = m_noTun;
     json["enable_quic_proxy"] = m_enableQuicProxy;
     json["disable_quic_input"] = m_disableQuicInput;
+    json["disable_relay_kcp"] = m_disableRelayKcp;
+    json["disable_relay_quic"] = m_disableRelayQuic;
+    json["enable_relay_foreign_network_kcp"] = m_enableRelayForeignNetworkKcp;
+    json["enable_relay_foreign_network_quic"] = m_enableRelayForeignNetworkQuic;
     json["disable_udp_hole_punching"] = m_disableUdpHolePunching;
     json["disable_tcp_hole_punching"] = m_disableTcpHolePunching;
     json["disable_upnp"] = m_disableUpnp;
@@ -339,6 +364,13 @@ QJsonObject NetworkConf::toJson() const
     }
     json["proxy_networks"] = proxyNetworkArray;
 
+    // 自定义路由规则
+    QJsonArray customRoutesArray;
+    for (const auto &route : m_customRoutes) {
+        customRoutesArray.append(QString::fromStdString(route));
+    }
+    json["custom_routes"] = customRoutesArray;
+
     return json;
 }
 
@@ -361,6 +393,15 @@ std::string NetworkConf::toToml() const
         oss << "\nlisteners = [\n";
         for (const auto &addr : m_listenAddresses) {
             oss << "\"" << addr << "\",\n";
+        }
+        oss << "]\n";
+    }
+
+    // ==================== routes 自定义路由规则 ====================
+    if (!m_customRoutes.empty()) {
+        oss << "\nroutes = [\n";
+        for (const auto &route : m_customRoutes) {
+            oss << "\"" << route << "\",\n";
         }
         oss << "]\n";
     }
@@ -411,6 +452,10 @@ std::string NetworkConf::toToml() const
     oss << "disable_quic_input = " << (m_disableQuicInput ? "true" : "false") << "\n";
     oss << "enable_kcp_proxy = " << (m_enableKcpProxy ? "true" : "false") << "\n";
     oss << "disable_kcp_input = " << (m_disableKcpInput ? "true" : "false") << "\n";
+    oss << "disable_relay_kcp = " << (m_disableRelayKcp ? "true" : "false") << "\n";
+    oss << "disable_relay_quic = " << (m_disableRelayQuic ? "true" : "false") << "\n";
+    oss << "enable_relay_foreign_network_kcp = " << (m_enableRelayForeignNetworkKcp ? "true" : "false") << "\n";
+    oss << "enable_relay_foreign_network_quic = " << (m_enableRelayForeignNetworkQuic ? "true" : "false") << "\n";
     oss << "bind_device = " << (m_bindDevice ? "true" : "false") << "\n";
     oss << "private_mode = " << (m_privateMode ? "true" : "false") << "\n";
     oss << "disable_p2p = " << (m_disableP2p ? "true" : "false") << "\n";
