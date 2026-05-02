@@ -256,6 +256,12 @@ private:
     QListWidget *m_customRouteListWidget;   /// @brief 路由规则列表
     QtETPushBtn *m_removeCustomRouteBtn;     /// @brief 删除路由规则按钮
 
+    // 高级设置控件 - 出口节点列表
+    QtETLineEdit *m_exitNodeEdit;               /// @brief 出口节点输入框 (exit_nodes)
+    QtETPushBtn *m_addExitNodeBtn;           /// @brief 添加出口节点按钮
+    QListWidget *m_exitNodeListWidget;      /// @brief 出口节点列表
+    QtETPushBtn *m_removeExitNodeBtn;        /// @brief 删除出口节点按钮
+
     // 运行状态控件
     QLabel *m_statusLabel;              /// @brief 状态标签
     QWidget *m_nodeInfoContainer;       /// @brief 节点信息容器
