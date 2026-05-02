@@ -95,6 +95,11 @@ QtETNetwork::QtETNetwork(QWidget *parent)
     , m_addCustomRouteBtn(nullptr)
     , m_customRouteListWidget(nullptr)
     , m_removeCustomRouteBtn(nullptr)
+    // 高级设置控件 - 出口节点列表
+    , m_exitNodeEdit(nullptr)
+    , m_addExitNodeBtn(nullptr)
+    , m_exitNodeListWidget(nullptr)
+    , m_removeExitNodeBtn(nullptr)
     // 运行状态控件
     , m_statusLabel(nullptr)
     , m_nodeInfoContainer(nullptr)
@@ -915,6 +920,36 @@ void QtETNetwork::initAdvancedSettingsPage()
 
     scrollLayout->addWidget(customRouteWidget);
 
+    // ========== 出口节点列表 ==========
+    scrollLayout->addWidget(createSectionTitle(tr("出口节点列表")));
+
+    QWidget *exitNodeWidget = new QWidget(scrollContent);
+    QVBoxLayout *exitNodeLayout = new QVBoxLayout(exitNodeWidget);
+    exitNodeLayout->setContentsMargins(15, 5, 15, 15);
+
+    QHBoxLayout *addExitNodeLayout = new QHBoxLayout();
+    m_exitNodeEdit = new QtETLineEdit(exitNodeWidget);
+    m_exitNodeEdit->setPlaceholderText(tr("请输入出口节点地址"));
+    m_addExitNodeBtn = new QtETPushBtn(tr("添加"), exitNodeWidget);
+    m_addExitNodeBtn->setMinimumWidth(80);
+    m_addExitNodeBtn->setIcon(QIcon(QStringLiteral(":/icons/add.svg")));
+    addExitNodeLayout->addWidget(m_exitNodeEdit, 1);
+    addExitNodeLayout->addWidget(m_addExitNodeBtn);
+    exitNodeLayout->addLayout(addExitNodeLayout);
+
+    QHBoxLayout *exitNodeListLayout = new QHBoxLayout();
+    m_exitNodeListWidget = new QListWidget(exitNodeWidget);
+    m_exitNodeListWidget->setMinimumHeight(80);
+    m_removeExitNodeBtn = new QtETPushBtn(tr("删除"), exitNodeWidget);
+    m_removeExitNodeBtn->setMinimumWidth(80);
+    m_removeExitNodeBtn->setIcon(QIcon(QStringLiteral(":/icons/delete.svg")));
+    m_removeExitNodeBtn->setEnabled(false);
+    exitNodeListLayout->addWidget(m_exitNodeListWidget, 1);
+    exitNodeListLayout->addWidget(m_removeExitNodeBtn);
+    exitNodeLayout->addLayout(exitNodeListLayout);
+
+    scrollLayout->addWidget(exitNodeWidget);
+
     // 初始化网格布局
     updateFunctionGridLayout();
 
@@ -940,6 +975,7 @@ void QtETNetwork::initAdvancedSettingsPage()
             m_whitelistListWidget->setFont(monoFont);
             m_proxyNetworkListWidget->setFont(monoFont);
             m_customRouteListWidget->setFont(monoFont);
+            m_exitNodeListWidget->setFont(monoFont);
         }
     }
 
@@ -963,6 +999,9 @@ void QtETNetwork::initAdvancedSettingsPage()
     });
     connect(m_customRouteListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
         m_removeCustomRouteBtn->setEnabled(m_customRouteListWidget->currentRow() >= 0);
+    });
+    connect(m_exitNodeListWidget, &QListWidget::itemSelectionChanged, this, [this]() {
+        m_removeExitNodeBtn->setEnabled(m_exitNodeListWidget->currentRow() >= 0);
     });
 }
 
@@ -1336,6 +1375,7 @@ void QtETNetwork::loadConfToUI(int index) const
     m_listenAddrListWidget->blockSignals(true);
     m_proxyNetworkListWidget->blockSignals(true);
     m_customRouteListWidget->blockSignals(true);
+    m_exitNodeListWidget->blockSignals(true);
     m_enableKcpProxyCheckBox->blockSignals(true);
     m_disableKcpInputCheckBox->blockSignals(true);
     m_noTunCheckBox->blockSignals(true);
@@ -1444,6 +1484,12 @@ void QtETNetwork::loadConfToUI(int index) const
     for (const auto &route : conf.m_customRoutes) {
         m_customRouteListWidget->addItem(QString::fromStdString(route));
     }
+
+    // 出口节点列表
+    m_exitNodeListWidget->clear();
+    for (const auto &node : conf.m_exitNodes) {
+        m_exitNodeListWidget->addItem(QString::fromStdString(node));
+    }
     
     // 恢复信号
     m_hostnameEdit->blockSignals(false);
@@ -1459,6 +1505,7 @@ void QtETNetwork::loadConfToUI(int index) const
     m_listenAddrListWidget->blockSignals(false);
     m_proxyNetworkListWidget->blockSignals(false);
     m_customRouteListWidget->blockSignals(false);
+    m_exitNodeListWidget->blockSignals(false);
     m_enableKcpProxyCheckBox->blockSignals(false);
     m_disableKcpInputCheckBox->blockSignals(false);
     m_noTunCheckBox->blockSignals(false);
@@ -1679,6 +1726,23 @@ void QtETNetwork::setupUIConnections()
         QListWidgetItem *item = m_customRouteListWidget->currentItem();
         if (item) {
             delete m_customRouteListWidget->takeItem(m_customRouteListWidget->row(item));
+            onUIChanged();
+        }
+    });
+
+    // 出口节点列表
+    connect(m_addExitNodeBtn, &QPushButton::clicked, this, [this]() {
+        QString node = m_exitNodeEdit->text().trimmed();
+        if (!node.isEmpty()) {
+            m_exitNodeListWidget->addItem(node);
+            m_exitNodeEdit->clear();
+            onUIChanged();
+        }
+    });
+    connect(m_removeExitNodeBtn, &QPushButton::clicked, this, [this]() {
+        QListWidgetItem *item = m_exitNodeListWidget->currentItem();
+        if (item) {
+            delete m_exitNodeListWidget->takeItem(m_exitNodeListWidget->row(item));
             onUIChanged();
         }
     });

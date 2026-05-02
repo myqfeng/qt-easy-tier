@@ -145,6 +145,7 @@ private:
     std::vector<std::string> m_listenAddresses;    ///< 监听地址列表
     std::vector<std::string> m_proxyNetworks;      ///< 子网代理 CIDR 列表
     std::vector<std::string> m_customRoutes;       ///< 自定义路由规则 (routes)
+    std::vector<std::string> m_exitNodes;          ///< 出口节点列表 (exit_nodes)
 
     // ==================== 实例标识 ====================
     std::string m_instanceName;             ///< 实例名称（用于 FFI 管理）

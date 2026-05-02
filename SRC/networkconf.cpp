@@ -173,6 +173,12 @@ void NetworkConf::readFromUI(const QtETNetwork *network)
     for (int i = 0; i < network->m_customRouteListWidget->count(); ++i) {
         m_customRoutes.push_back(network->m_customRouteListWidget->item(i)->text().toStdString());
     }
+
+    // 出口节点列表
+    m_exitNodes.clear();
+    for (int i = 0; i < network->m_exitNodeListWidget->count(); ++i) {
+        m_exitNodes.push_back(network->m_exitNodeListWidget->item(i)->text().toStdString());
+    }
 }
 
 void NetworkConf::readFromJson(const QJsonObject &json)
@@ -279,6 +285,13 @@ void NetworkConf::readFromJson(const QJsonObject &json)
     for (const QJsonValue &value : customRoutesArray) {
         m_customRoutes.push_back(value.toString().toStdString());
     }
+
+    // 出口节点列表
+    m_exitNodes.clear();
+    QJsonArray exitNodesArray = json["exit_nodes"].toArray();
+    for (const QJsonValue &value : exitNodesArray) {
+        m_exitNodes.push_back(value.toString().toStdString());
+    }
 }
 
 QJsonObject NetworkConf::toJson() const
@@ -371,6 +384,13 @@ QJsonObject NetworkConf::toJson() const
     }
     json["custom_routes"] = customRoutesArray;
 
+    // 出口节点列表
+    QJsonArray exitNodesArray;
+    for (const auto &node : m_exitNodes) {
+        exitNodesArray.append(QString::fromStdString(node));
+    }
+    json["exit_nodes"] = exitNodesArray;
+
     return json;
 }
 
@@ -402,6 +422,15 @@ std::string NetworkConf::toToml() const
         oss << "\nroutes = [\n";
         for (const auto &route : m_customRoutes) {
             oss << "\"" << route << "\",\n";
+        }
+        oss << "]\n";
+    }
+
+    // ==================== exit_nodes 出口节点列表 ====================
+    if (!m_exitNodes.empty()) {
+        oss << "\nexit_nodes = [\n";
+        for (const auto &node : m_exitNodes) {
+            oss << "\"" << node << "\",\n";
         }
         oss << "]\n";
     }
