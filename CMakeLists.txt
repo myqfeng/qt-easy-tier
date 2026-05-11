@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 set(ProjectName QtEasyTier)
 
 # 设置项目名称
-project(${ProjectName} VERSION 2.1.0 LANGUAGES CXX)
+project(${ProjectName} VERSION 2.1.1 LANGUAGES CXX)
 
 # 缓存变量：是否将配置保存到程序目录（便携模式）
 set(SAVE_CONF_IN_APP_DIR false CACHE BOOL "Save configuration in application directory (portable mode)")
@@ -230,6 +230,14 @@ elseif(LINUX)
 
 endif()
 
+# 复制公共服务器列表到主程序目录
+add_custom_command(TARGET ${ProjectName} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/assets/publicservers.json
+        $<TARGET_FILE_DIR:${ProjectName}>/publicservers.json
+        COMMENT "复制公共服务器列表到主程序目录..."
+)
+
 # 复制CIDR计算器到主程序目录
 add_custom_command(TARGET ${ProjectName} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -248,6 +256,11 @@ install(TARGETS ${ProjectName}
         BUNDLE DESTINATION .
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+# 安装公共服务器列表（与可执行文件同目录）
+install(FILES ${CMAKE_SOURCE_DIR}/assets/publicservers.json
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 # Windows下添加安装后部署

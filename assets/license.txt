@@ -22,7 +22,7 @@ QtEasyTier 软件许可协议
 如果您分发本软件的修改版本或衍生作品，必须满足以下条件：
 
 明确标注原始作者信息：“基于 明月清风 开发的 QtEasyTier”
-明确标注本软件的开源仓库地址: https://gitee.com/viagrahuang/qt-easy-tier
+明确标注本软件的开源仓库地址: https://gitee.com/myqfeng/qt-easy-tier
 保留本许可协议的所有条款
 在显著位置声明：“本软件基于 QtEasyTier 项目修改，原项目作者：明月清风”
 不得移除或修改版权声明
@@ -70,8 +70,8 @@ Breeze Style：KDE Plasma 主题样式
 11. 联系方式
 如有疑问，请联系作者：
 
-作者邮箱：viagrahuang@outlook.com
-项目地址：https://gitee.com/viagrahuang/qt-easy-tier
+作者邮箱：myqfeng@outlook.com
+项目地址：https://gitee.com/myqfeng/qt-easy-tier
 
 本许可协议最后更新日期：2026年2月17日
 
@@ -146,7 +146,7 @@ QtEasyTier 是一款网络工具类软件，不以吸引或面向儿童为设计
 9. 联系我们
 如果您对本隐私政策或 QtEasyTier 的数据处理方式有任何疑问或建议，请通过以下方式联系我们：
 
-邮箱： viagrahuang@outlook.com
+邮箱： myqfeng@outlook.com
 项目地址： https://gitee.com/ViagraHuang/QtEasyTier
 我们将在收到您的反馈后尽快回复。
 

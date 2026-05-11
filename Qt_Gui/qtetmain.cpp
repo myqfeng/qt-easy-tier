@@ -50,15 +50,15 @@ QtETMain::QtETMain(QWidget *parent)
     });
     connect(ui->gitBtn, &QPushButton::clicked, this, [=, this]()
     {
-        QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier"));
+        QDesktopServices::openUrl(QUrl("https://gitee.com/myqfeng/qt-easy-tier"));
     });
     connect(ui->helpBtn, &QPushButton::clicked, this, [=, this]()
     {
-        QDesktopServices::openUrl(QUrl("https://qtet.myqfeng.top/docs-home"));
+        QDesktopServices::openUrl(QUrl("https://qtet.cn/docs-home"));
     });
     connect(m_aboutUsBtn, &QPushButton::clicked, this, [=, this]()
     {
-        QDesktopServices::openUrl(QUrl("https://qtet.myqfeng.top"));
+        QDesktopServices::openUrl(QUrl("https://qtet.cn"));
     });
     connect(m_aboutETBtn, &QPushButton::clicked, this, [=, this]()
     {
@@ -66,12 +66,20 @@ QtETMain::QtETMain(QWidget *parent)
     });
     connect(m_donateBtn, &QPushButton::clicked, this, [=, this]()
     {
-        QDesktopServices::openUrl(QUrl("https://qtet.myqfeng.top/other/donate/"));
+        QDesktopServices::openUrl(QUrl("https://qtet.cn/other/donate/"));
     });
     connect(m_notClickBtn, &QPushButton::clicked, this, [=, this]()
     {
         QDesktopServices::openUrl(QUrl("https://www.bilibili.com/festival/2026BH?bvid=BV1gAcNzSEf4"));
     });
+
+    // ======== 页面记忆：切换时自动保存 ========
+    connect(m_mainStackedWidget, &QStackedWidget::currentChanged, this, [this]() {
+        saveCurrentPage();
+    });
+
+    // ======== 恢复上次打开的页面 ========
+    restoreLastPage();
 }
 
 QtETMain::~QtETMain()
@@ -212,16 +220,19 @@ void QtETMain::onHideWindow()
 /// @brief 退出程序
 void QtETMain::onQuitApp()
 {
+    // 保存当前页面标识
+    saveCurrentPage();
+
     // 保存网络配置
     if (m_networkPage) {
         m_networkPage->saveAllNetworkConfs();
     }
-    
+
     // 隐藏托盘图标
     if (m_trayIcon) {
         m_trayIcon->hide();
     }
-    
+
     // 退出应用
     qApp->quit();
 }
@@ -320,7 +331,7 @@ void QtETMain::initHelloPage()
 
     mainLayout->addStretch();
 
-    QLabel *tipLabel = new QLabel(tr("点击右侧问号获取使用帮助"), this);
+    QLabel *tipLabel = new QLabel(tr("点击左侧栏的问号获取使用帮助"), this);
     tipLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(tipLabel);
 
@@ -432,4 +443,37 @@ void QtETMain::onHideOnTrayChanged(bool hideOnTray)
 {
     // 更新缓存的设置值
     m_hideOnTray = hideOnTray;
+}
+
+// ======== 页面记忆相关实现 ========
+
+void QtETMain::saveCurrentPage()
+{
+    QtETSettings::saveLastPage(getCurrentPageName());
+}
+
+void QtETMain::restoreLastPage()
+{
+    const QString pageName = QtETSettings::loadLastPage();
+    if (pageName == QLatin1String("network")) {
+        m_mainStackedWidget->setCurrentWidget(m_networkPage);
+    } else if (pageName == QLatin1String("oneclick")) {
+        m_mainStackedWidget->setCurrentWidget(m_oneClickPage);
+    } else if (pageName == QLatin1String("servers")) {
+        m_mainStackedWidget->setCurrentWidget(m_serversPage);
+    } else if (pageName == QLatin1String("settings")) {
+        m_mainStackedWidget->setCurrentWidget(m_settingsPage);
+    } else {
+        m_mainStackedWidget->setCurrentWidget(m_helloPage);
+    }
+}
+
+QString QtETMain::getCurrentPageName() const
+{
+    QWidget *current = m_mainStackedWidget->currentWidget();
+    if (current == m_networkPage) return QStringLiteral("network");
+    if (current == m_oneClickPage) return QStringLiteral("oneclick");
+    if (current == m_serversPage) return QStringLiteral("servers");
+    if (current == m_settingsPage) return QStringLiteral("settings");
+    return QStringLiteral("hello");
 }

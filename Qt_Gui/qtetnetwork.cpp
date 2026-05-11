@@ -2423,6 +2423,7 @@ void QtETNetwork::updateCurrentNetworkUI()
     m_nodeInfoContainer->update();
 }
 
+// 解析并更新运行中的日志
 void QtETNetwork::parseAndUpdateRunningLogs(NetworkConf &conf, const QString &jsonStr)
 {
     QJsonParseError parseError;
@@ -2464,7 +2465,7 @@ void QtETNetwork::parseAndUpdateRunningLogs(NetworkConf &conf, const QString &js
 
         // 如果已有上次读取的时间戳，且当前时间戳早于或等于上次，则跳出循环
         // 时间格式：2026-04-05T08:52:59.046875300+08:00，可以直接字符串比较
-        if (!conf.m_lastLogTimestamp.isEmpty() && time < conf.m_lastLogTimestamp) {
+        if (!conf.m_lastLogTimestamp.isEmpty() && time <= conf.m_lastLogTimestamp) {
             break;
         }
 

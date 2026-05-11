@@ -9,9 +9,9 @@
 /// @brief EasyTier FFI 库版本号
 #define ET_VERSION "2.6.3"
 /// @brief 是否为 Beta 版本
-#define IS_BETA_VERSION true
+#define IS_BETA_VERSION false
 /// @brief QtEasyTier Slogan
-#define SLOGAN "知不足而奋进，望远山而前行"
+#define SLOGAN "工欲善其事，必先利其器"
 
 
 #include <QWidget>
@@ -51,6 +51,9 @@ public:
     /// @brief 获取配置保存路径
     static QString getConfigPath();
 
+    /// @brief 获取公共服务器配置文件路径
+    static QString getPublicServersPath();
+
     /// @brief 从配置文件加载设置
     void loadSettings();
 
@@ -86,6 +89,12 @@ public:
     /// @param parent 父窗口
     /// @param silent 是否静默模式（不弹窗提示已是最新版本）
     static void checkForUpdate(QWidget *parent = nullptr, bool silent = false);
+
+    /// @brief 保存最后打开的页面标识到配置文件
+    static void saveLastPage(const QString &pageName);
+
+    /// @brief 读取最后打开的页面标识，默认返回 "hello"
+    static QString loadLastPage();
 
 signals:
     /// @brief 设置已更改信号

@@ -15,14 +15,26 @@ struct ServerInfoData
 {
     QString name;
     QString address;
+    bool isPublic = false;
 
     ServerInfoData() = default;
-    ServerInfoData(QString n, QString a) : name(std::move(n)), address(std::move(a)) {}
+    ServerInfoData(QString n, QString a, bool pub = false)
+        : name(std::move(n)), address(std::move(a)), isPublic(pub) {}
 
     static ServerInfoData fromJson(const QJsonObject &obj) {
         ServerInfoData info;
-        info.name = obj["name"].toString();
-        info.address = obj["address"].toString();
+        // 兼容用户收藏格式 { "name": "...", "address": "..." }
+        if (obj.contains("name") && obj.contains("address")) {
+            info.name = obj["name"].toString();
+            info.address = obj["address"].toString();
+            info.isPublic = false;
+        }
+        // 兼容公共服务器格式 { "contributor": "...", "url": "..." }
+        else if (obj.contains("contributor") && obj.contains("url")) {
+            info.name = obj["contributor"].toString();
+            info.address = obj["url"].toString();
+            info.isPublic = true;
+        }
         return info;
     }
 };
@@ -44,8 +56,10 @@ protected:
 private:
     void initUI();
     void loadServers();
+    void loadPublicServers();
     void updateServerList();
     [[nodiscard]] QString serverFilePath() const;
+    [[nodiscard]] QString publicServerFilePath() const;
     void updateColorScheme();
     void clearServerCheckboxes();
 

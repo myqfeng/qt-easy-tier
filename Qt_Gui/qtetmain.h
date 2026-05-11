@@ -69,6 +69,11 @@ private slots:
     void onHideWindow();                     // 隐藏窗口到托盘
     void onQuitApp();                        // 退出程序
     void onHideOnTrayChanged(bool hideOnTray); // 隐藏到托盘设置变更
+
+    // ======== 页面记忆相关 ========
+    void saveCurrentPage();                    // 保存当前页面标识到配置
+    void restoreLastPage();                    // 读取配置并切换到上次页面
+    [[nodiscard]] QString getCurrentPageName() const; // 获取当前页面标识字符串
 };
 
 #endif // QTETMAIN_H
