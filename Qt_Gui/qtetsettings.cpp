@@ -270,6 +270,11 @@ QString QtETSettings::getConfigPath()
 #endif
 }
 
+QString QtETSettings::getPublicServersPath()
+{
+    return QCoreApplication::applicationDirPath() + "/publicservers.json";
+}
+
 QJsonObject QtETSettings::loadSettingsFromFile()
 {
     QString configPath = getConfigPath();
@@ -508,9 +513,22 @@ bool QtETSettings::setAutoStart(bool enable)
     return true;
 }
 
+void QtETSettings::saveLastPage(const QString &pageName)
+{
+    QJsonObject settings = loadSettingsFromFile();
+    settings["last_page"] = pageName;
+    saveSettingsToFile(settings);
+}
+
+QString QtETSettings::loadLastPage()
+{
+    const QJsonObject settings = loadSettingsFromFile();
+    return settings.value("last_page").toString("hello");
+}
+
 void QtETSettings::checkForUpdate(QWidget *parent, bool silent)
 {
-    const QUrl url("https://gitee.com/api/v5/repos/viagrahuang/qt-easy-tier/releases/latest");
+    const QUrl url("https://gitee.com/api/v5/repos/myqfeng/qt-easy-tier/releases/latest");
 
     // 创建网络管理器
     auto *networkManager = new QNetworkAccessManager(parent);
@@ -551,7 +569,7 @@ void QtETSettings::checkForUpdate(QWidget *parent, bool silent)
                     parent, tr("检查更新"), msg, QMessageBox::Yes | QMessageBox::No);
 
                 if (ret == QMessageBox::Yes) {
-                    QDesktopServices::openUrl(QUrl("https://gitee.com/viagrahuang/qt-easy-tier/releases"));
+                    QDesktopServices::openUrl(QUrl("https://gitee.com/myqfeng/qt-easy-tier/releases"));
                 }
             } else if (!silent) {
                 QMessageBox::information(parent, tr("检查更新"), tr("当前已是最新版本！"));

@@ -19,6 +19,7 @@ QtETServersDialog::QtETServersDialog(QWidget *parent)
 {
     initUI();
     loadServers();
+    loadPublicServers();
     updateServerList();
     updateColorScheme();
 }
@@ -164,6 +165,45 @@ void QtETServersDialog::loadServers()
     }
 }
 
+void QtETServersDialog::loadPublicServers()
+{
+    QString filePath = publicServerFilePath();
+    QFile file(filePath);
+
+    if (!file.exists()) {
+        qWarning("Public server config file not found: %s", qPrintable(filePath));
+        return;
+    }
+
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning("Failed to open public server config file: %s", qPrintable(filePath));
+        return;
+    }
+
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning("Failed to parse public server config file: %s", qPrintable(parseError.errorString()));
+        return;
+    }
+
+    if (!doc.isArray()) {
+        qWarning("Public server config file format error: expected array");
+        return;
+    }
+
+    const QJsonArray array = doc.array();
+    for (const auto &value : array) {
+        if (value.isObject()) {
+            m_servers.append(ServerInfoData::fromJson(value.toObject()));
+        }
+    }
+}
+
 void QtETServersDialog::clearServerCheckboxes()
 {
     for (auto *checkBox : m_serverCheckBoxes) {
@@ -179,7 +219,11 @@ void QtETServersDialog::updateServerList()
 
     for (const auto &server : m_servers) {
         auto *checkBox = new QtETCheckBtn(m_scrollContent);
-        checkBox->setText(server.name);
+        if (server.isPublic) {
+            checkBox->setText(server.name + tr(" [公共]"));
+        } else {
+            checkBox->setText(server.name);
+        }
         checkBox->setBriefTip(server.address);
 
         if (m_initiallySelectedAddresses.contains(server.address)) {
@@ -194,6 +238,11 @@ void QtETServersDialog::updateServerList()
 QString QtETServersDialog::serverFilePath() const
 {
     return QtETSettings::getConfigPath() + "/servers.json";
+}
+
+QString QtETServersDialog::publicServerFilePath() const
+{
+    return QtETSettings::getPublicServersPath();
 }
 
 void QtETServersDialog::setSelectedServers(const QStringList &selectedAddresses)
@@ -238,12 +287,6 @@ void QtETServersDialog::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-
-    QPainterPath path;
-    path.addRoundedRect(rect().adjusted(1, 1, -1, -1), 8, 8);
-    painter.fillPath(path, m_bgColor);
-    painter.setPen(QPen(m_borderColor, 1));
-    painter.drawPath(path);
 
     QDialog::paintEvent(event);
 }

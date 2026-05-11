@@ -1,0 +1,114 @@
+name: build-and-package
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  # ==================== macOS 构建 ====================
+  macos-build:
+    name: macOS Build (Qt 6.10.1)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.10.1
+          cache: true
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Install
+        run: cmake --install build --config Release
+
+      - name: Package DMG
+        run: bash package/mac/build_mac.sh "$(pwd)"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QtEasyTier-macos
+          path: Install/*.dmg
+          if-no-files-found: error
+
+  # ==================== Windows 构建 ====================
+  windows-build:
+    name: Windows Build (Qt 6.10.1 mingw)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install aqtinstall
+        shell: pwsh
+        run: pip install aqtinstall
+
+      - name: Download Qt 6.10.1
+        shell: pwsh
+        run: aqt install-qt windows desktop 6.10.1 win64_mingw -O ${{ runner.temp }}\Qt
+
+      - name: Download MinGW toolchain
+        shell: pwsh
+        run: aqt install-tool windows desktop tools_mingw1310 -O ${{ runner.temp }}\Qt
+
+      - name: Download CMake & Ninja
+        shell: pwsh
+        run: |
+          aqt install-tool windows desktop tools_cmake -O ${{ runner.temp }}\Qt
+          aqt install-tool windows desktop tools_ninja -O ${{ runner.temp }}\Qt
+
+      - name: Set MinGW + Qt environment
+        shell: bash
+        run: |
+          QT_VER=$(ls "$RUNNER_TEMP/Qt" | grep -E '^[0-9]+\.[0-9]+' | head -1)
+          MINGW_DIR=$(find "$RUNNER_TEMP/Qt/Tools" -maxdepth 1 -name "mingw*_64" -type d | head -1)
+          echo "QT_DIR=$RUNNER_TEMP/Qt/$QT_VER/mingw_64" >> $GITHUB_ENV
+          echo "$MINGW_DIR/bin" >> $GITHUB_PATH
+          echo "$RUNNER_TEMP/Qt/Tools/CMake_64/bin" >> $GITHUB_PATH
+          echo "$RUNNER_TEMP/Qt/Tools/Ninja" >> $GITHUB_PATH
+          echo "$RUNNER_TEMP/Qt/$QT_VER/mingw_64/bin" >> $GITHUB_PATH
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Get-Command "iscc" -ErrorAction SilentlyContinue)) {
+            winget install -e --id JRSoftware.InnoSetup --accept-source-agreements --accept-package-agreements
+          } else {
+            Write-Host "Inno Setup 已安装，跳过。"
+          }
+
+      - name: Configure
+        shell: bash
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_DIR" -G "Ninja"
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config Release
+
+      - name: Install
+        shell: bash
+        run: cmake --install build --config Release
+
+      - name: Package installer
+        shell: pwsh
+        run: |
+          & ".\package\win\build_win.ps1" -ProjectDir "$(Get-Location)"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QtEasyTier-win-amd64
+          path: Install/*.exe
+          if-no-files-found: error

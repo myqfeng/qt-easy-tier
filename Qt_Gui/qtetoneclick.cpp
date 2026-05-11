@@ -1,6 +1,7 @@
 #include "qtetoneclick.h"
 #include "qtetserversdialog.h"
 #include "qtetdrawutils.h"
+#include "qtetsettings.h"
 #include <QFont>
 #include <QFontDatabase>
 #include <QMessageBox>
@@ -8,6 +9,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QScrollArea>
+#include <QFile>
 #include <random>
 #include <iostream>
 
@@ -49,7 +51,7 @@ void QtETOneClick::initUI()
     QtETSmoothScroll::install(scrollArea);
 
     // 创建滚动区域内容容器
-    auto *contentWidget = new QWidget();
+    auto *contentWidget = new QWidget(this);
     m_contentLayout = new QVBoxLayout(contentWidget);
     m_contentLayout->setSpacing(10);
     m_contentLayout->setContentsMargins(0, 0, 0, 0);
@@ -203,9 +205,28 @@ void QtETOneClick::initServerArea()
     serverLayout->addWidget(m_serverListWidget, 2, 0);
     serverLayout->addLayout(btnLayout, 2, 1);
 
-    // 添加默认公共服务器
-    m_serverListWidget->addItem(QStringLiteral("wss://qtet-public.070219.xyz"));
-    m_serverListWidget->addItem(QStringLiteral("tcp://qtet-public2.070219.xyz:27773"));
+    // 从公共服务器配置文件加载默认服务器
+    QString publicServersPath = QtETSettings::getPublicServersPath();
+    QFile publicServersFile(publicServersPath);
+    if (publicServersFile.exists() && publicServersFile.open(QIODevice::ReadOnly)) {
+        QByteArray data = publicServersFile.readAll();
+        publicServersFile.close();
+
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(data, &parseError);
+        if (parseError.error == QJsonParseError::NoError && doc.isArray()) {
+            const QJsonArray array = doc.array();
+            for (const auto &value : array) {
+                if (value.isObject()) {
+                    QJsonObject obj = value.toObject();
+                    QString url = obj["url"].toString();
+                    if (!url.isEmpty()) {
+                        m_serverListWidget->addItem(url);
+                    }
+                }
+            }
+        }
+    }
 
     // 设置服务器列表的字体为 UbuntuMono
     int fontId = QFontDatabase::addApplicationFont(QStringLiteral(":/icons/UbuntuMono-B.ttf"));
