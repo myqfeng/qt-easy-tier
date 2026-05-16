@@ -2897,13 +2897,7 @@ void QtETNetwork::resizeEvent(QResizeEvent *event)
     }
 
     if (m_leftFrame) {
-        if (isFullScreen()) {
-            // 全屏时限制左侧最大宽度为 15%（保持伸缩因子）
-            m_leftFrame->setMaximumWidth(targetWidth);
-        } else {
-            // 非全屏恢复默认行为，取消最大宽度限制
-            m_leftFrame->setMaximumWidth(QWIDGETSIZE_MAX);
-        }
-    }
+        m_leftFrame->setMinimumWidth(160);
+        m_leftFrame->setMaximumWidth(targetWidth);
     }
 }
