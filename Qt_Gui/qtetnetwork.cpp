@@ -241,6 +241,9 @@ void QtETNetwork::initLeftPanel()
 
     // 将左侧面板添加到主布局
     m_mainLayout->addWidget(m_leftFrame);
+    // 伸缩因子：左侧占 1 份（后面会配合右侧占 3 份）
+    m_mainLayout->setStretchFactor(m_leftFrame, 1);
+    m_mainLayout->setStretchFactor(m_tabWidget, 3);
 }
 
 void QtETNetwork::initRightPanel()
