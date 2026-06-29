@@ -14,6 +14,7 @@
 #include <QFile>
 #include <QDir>
 #include <QCoreApplication>
+#include <QProcess>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QPixmap>
@@ -502,6 +503,70 @@ bool QtETSettings::setAutoStart(bool enable)
             }
         }
         std::clog << "[AutoStart] Removed autostart entry: " << desktopFilePath.toStdString() << std::endl;
+    }
+
+#elif defined(Q_OS_MACOS)
+    // macOS 平台：使用用户级 LaunchAgent 实现登录自启
+    const QString label = QStringLiteral("io.github.qteasytier.QtEasyTier");
+    const QString appPath = QCoreApplication::applicationFilePath();
+    const QString launchAgentsDir = QDir::homePath() + "/Library/LaunchAgents";
+    const QString plistPath = launchAgentsDir + "/" + label + ".plist";
+
+    if (enable) {
+        QDir().mkpath(launchAgentsDir);
+
+        const QString plistContent = QString(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+            "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" "
+            "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+            "<plist version=\"1.0\">\n"
+            "<dict>\n"
+            "    <key>Label</key>\n"
+            "    <string>%1</string>\n"
+            "    <key>ProgramArguments</key>\n"
+            "    <array>\n"
+            "        <string>%2</string>\n"
+            "        <string>--auto-start</string>\n"
+            "    </array>\n"
+            "    <key>RunAtLoad</key>\n"
+            "    <true/>\n"
+            "    <key>ProcessType</key>\n"
+            "    <string>Interactive</string>\n"
+            "</dict>\n"
+            "</plist>\n"
+        ).arg(label, appPath);
+
+        QFile plistFile(plistPath);
+        if (!plistFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            std::clog << "[AutoStart] Failed to write LaunchAgent plist" << std::endl;
+            return false;
+        }
+        plistFile.write(plistContent.toUtf8());
+        plistFile.close();
+
+        // 刷新加载：先 unload 避免重复，再 load -w
+        QProcess unloadProc;
+        unloadProc.start("launchctl", QStringList() << "unload" << plistPath);
+        unloadProc.waitForFinished(5000);
+
+        QProcess loadProc;
+        loadProc.start("launchctl", QStringList() << "load" << "-w" << plistPath);
+        if (!loadProc.waitForFinished(5000) || loadProc.exitCode() != 0) {
+            const QString err = QString::fromLocal8Bit(loadProc.readAllStandardError());
+            std::clog << QString("[AutoStart] launchctl load 失败：%1").arg(err).toStdString() << std::endl;
+            return false;
+        }
+        std::clog << "[AutoStart] Created LaunchAgent: " << plistPath.toStdString() << std::endl;
+    } else {
+        QProcess unloadProc;
+        unloadProc.start("launchctl", QStringList() << "unload" << "-w" << plistPath);
+        unloadProc.waitForFinished(5000);
+
+        if (QFile::exists(plistPath) && !QFile::remove(plistPath)) {
+            std::clog << "[AutoStart] Failed to remove LaunchAgent plist" << std::endl;
+            return false;
+        }
+        std::clog << "[AutoStart] Removed LaunchAgent: " << plistPath.toStdString() << std::endl;
     }
 
 #else

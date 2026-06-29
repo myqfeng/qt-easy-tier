@@ -22,6 +22,9 @@ int main(int argc, char *argv[])
     }
     QApplication app(argc, argv);
 
+    // 关窗隐藏到托盘 / --auto-start 无窗口启动时不退出，退出由 onQuitApp 显式控制
+    app.setQuitOnLastWindowClosed(false);
+
     // 检查是否已有实例运行（确保单实例）
     QString serverName = "QtEasyTier2-by-Myqfeng";
     isAlreadyRunning(serverName, isAutoStart);   // 有实例运行自动退出
