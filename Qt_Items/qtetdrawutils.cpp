@@ -5,6 +5,7 @@
 #include <QScrollBar>
 #include <QWheelEvent>
 #include <QPropertyAnimation>
+#include <QAbstractAnimation>
 #include <QEasingCurve>
 
 QColor QtETDrawUtils::blendColors(const QColor &from, const QColor &to, qreal opacity)
@@ -124,9 +125,30 @@ bool QtETSmoothScroll::eventFilter(QObject *watched, QEvent *event)
             return QObject::eventFilter(watched, event);
         }
 
+        // 触控板（含 macOS）会发出高频、连续的像素级增量事件；鼠标滚轮发出
+        // 离散的角度增量（angleDelta，无 pixelDelta）。对触控板套用“固定步长 +
+        // 属性动画”会让每个小增量都触发一次大跳并反复打断动画，表现为滚动乱跳/
+        // 轨迹失控。因此：触控板按 pixelDelta 做 1:1 直接滚动（交给系统惯性），
+        // 仅鼠标滚轮才使用平滑动画。
+        const QPoint pixelDelta = wheelEvent->pixelDelta();
+        if (!pixelDelta.isNull()) {
+            if (m_animation) {
+                m_animation->stop();
+            }
+            scrollBar->setValue(scrollBar->value() - pixelDelta.y());
+            return true;
+        }
+
         int delta = -wheelEvent->angleDelta().y();
+        if (delta == 0) {
+            return QObject::eventFilter(watched, event);
+        }
         int currentValue = scrollBar->value();
-        m_targetValue = currentValue + (delta > 0 ? m_scrollStep : -m_scrollStep);
+        // 动画进行中以目标值为基准累加，保证连续滚动叠加而非互相打断。
+        int base = (m_animation && m_animation->state() == QAbstractAnimation::Running)
+                       ? m_targetValue
+                       : currentValue;
+        m_targetValue = base + (delta > 0 ? m_scrollStep : -m_scrollStep);
         m_targetValue = qBound(scrollBar->minimum(), m_targetValue, scrollBar->maximum());
 
         if (!m_animation) {

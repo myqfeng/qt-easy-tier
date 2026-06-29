@@ -553,10 +553,32 @@ void QtETLabelList::wheelEvent(QWheelEvent *event)
         return;
     }
 
-    int delta = event->angleDelta().y();
-    int targetOffset = m_scrollOffset - delta / 2;
     int maxOffset = totalHeight - visibleHeight;
-    targetOffset = qBound(0, targetOffset, maxOffset);
+
+    // 触控板发出像素级增量（pixelDelta 非空），鼠标滚轮发出角度增量。
+    // 触控板按 pixelDelta 做 1:1 直接滚动，避免“固定步长 + 动画”被高频小
+    // 增量反复打断而出现的滚动乱跳；仅鼠标滚轮使用平滑动画。
+    const QPoint pixelDelta = event->pixelDelta();
+    if (!pixelDelta.isNull()) {
+        if (m_scrollAnimation->state() == QAbstractAnimation::Running) {
+            m_scrollAnimation->stop();
+        }
+        m_scrollOffset = qBound(0, m_scrollOffset - pixelDelta.y(), maxOffset);
+        update();
+        event->accept();
+        return;
+    }
+
+    int delta = event->angleDelta().y();
+    if (delta == 0) {
+        event->accept();
+        return;
+    }
+    // 动画进行中以目标值为基准累加，保证连续滚动叠加而非互相打断。
+    int base = (m_scrollAnimation->state() == QAbstractAnimation::Running)
+                   ? m_scrollAnimation->endValue().toInt()
+                   : m_scrollOffset;
+    int targetOffset = qBound(0, base - delta / 2, maxOffset);
 
     if (m_scrollAnimation->state() == QAbstractAnimation::Running) {
         m_scrollAnimation->stop();
